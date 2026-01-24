@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Flights Above Me - Fayetteville</title>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #000;
+      color: #0f0;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+    }
+    h1 {
+      font-size: 2.5em;
+      margin: 0 0 20px;
+      color: #0f0;
+    }
+    #status {
+      font-size: 1.4em;
+      margin-bottom: 30px;
+    }
+    .flight {
+      background: rgba(0,255,0,0.1);
+      border: 1px solid #0f0;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 15px auto;
+      max-width: 90%;
+      font-size: 1.3em;
+    }
+    .flight strong {
+      color: #fff;
+    }
+    #loading {
+      font-size: 1.8em;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%,100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Flights Overhead</h1>
+  <div id="status">Loading flight data...</div>
+  <div id="flights"></div>
+
+  <script>
+    // Get bbox from URL ?bounds=south,west,north,east
+    const urlParams = new URLSearchParams(window.location.search);
+    let bbox = urlParams.get('bounds') || '51.28,-0.5,51.7,0.3'; // default London if no param
+
+    // Split and reorder to Flightradar24 expected: north,west,south,east? No: FR24 uses lat1,lon1,lat2,lon2 where lat1<lat2, lon1<lon2
+    let [south, west, north, east] = bbox.split(',').map(Number);
+    if (isNaN(south) || isNaN(west) || isNaN(north) || isNaN(east)) {
+      document.getElementById('status').textContent = 'Invalid bounds. Use ?bounds=south,west,north,east';
+      throw new Error('Bad bbox');
+    }
+    // Ensure proper order
+    const minLat = Math.min(south, north);
+    const maxLat = Math.max(south, north);
+    const minLon = Math.min(west, east);
+    const maxLon = Math.max(west, east);
+    const fr24Bbox = `${minLat},${minLon},${maxLat},${maxLon}`;
+
+    const proxy = 'https://corsproxy.io/?';
+    const apiUrl = `https://data-live.flightradar24.com/zones/fcgi/feed.js?bounds=${fr24Bbox}&faa=1&mlat=1&flarm=1&adsb=1&gnd=0&air=1&limit=0&maxage=14400`;
+
+    async function fetchFlights() {
+      try {
+        const response = await fetch(proxy + encodeURIComponent(apiUrl));
+        if (!response.ok) throw new Error('Network error');
+        const text = await response.text();
+
+        // Flightradar24 feed.js returns JavaScript-like object with keys as flight ids
+        // Parse it carefully (it's not valid JSON, has functions/vars)
+        const data = eval('(' + text.replace(/^\s*var\s+.*=\s*/, '').replace(/;/g,'') + ')'); // risky but common for this feed
+
+        const flightsDiv = document.getElementById('flights');
+        flightsDiv.innerHTML = '';
+        document.getElementById('status').textContent = 'Scanning for flights...';
+
+        let found = false;
+        for (const key in data) {
+          if (key.startsWith('f')) continue; // skip stats
+          const flight = data[key];
+          if (!Array.isArray(flight) || flight.length < 14) continue;
+
+          const callsign = flight[16] || flight[0] || 'N/A';
+          const altitude = flight[4] ? Math.round(flight[4] / 100) * 100 + ' ft' : 'N/A';
+          const speed = flight[5] ? flight[5] + ' kts' : 'N/A';
+          const heading = flight[3] ? Math.round(flight[3]) + '°' : 'N/A';
+          const reg = flight[8] || 'N/A';
+          const fromTo = (flight[11] || '') + (flight[12] ? ' → ' + flight[12] : '');
+
+          const div = document.createElement('div');
+          div.className = 'flight';
+          div.innerHTML = `
+            <strong>${callsign}</strong> (${reg})<br>
+            Altitude: ${altitude} • Speed: ${speed} • Heading: ${heading}<br>
+            ${fromTo ? 'Route: ' + fromTo : ''}
+          `;
+          flightsDiv.appendChild(div);
+          found = true;
+        }
+
+        if (!found) {
+          document.getElementById('status').textContent = 'No flights in your area right now';
+        } else {
+          document.getElementById('status').textContent = 'Live flights overhead / nearby';
+        }
+      } catch (err) {
+        document.getElementById('status').textContent = 'Error loading data: ' + err.message + ' (try again soon)';
+        console.error(err);
+      }
+    }
+
+    // Initial fetch + refresh every 15 seconds
+    fetchFlights();
+    setInterval(fetchFlights, 15000);
+  </script>
+</body>
+</html>
