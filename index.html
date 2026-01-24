@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Flights Above Fayetteville</title>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: monospace, 'Courier New', Courier;
+      background: #000;
+      color: #00ff00;
+      height: 100vh;
+      overflow: auto;
+      text-align: center;
+    }
+    h1 {
+      font-size: 2.8em;
+      margin: 10px 0 20px;
+      text-shadow: 0 0 10px #00ff00;
+    }
+    #status {
+      font-size: 1.6em;
+      margin: 20px 0;
+    }
+    .flight {
+      background: rgba(0, 255, 0, 0.08);
+      border: 1px solid #00ff00;
+      border-radius: 6px;
+      padding: 18px;
+      margin: 15px auto;
+      max-width: 95%;
+      font-size: 1.4em;
+      box-shadow: 0 0 15px rgba(0,255,0,0.3);
+    }
+    .callsign { font-size: 1.8em; font-weight: bold; color: #ffffff; }
+    #loading { font-size: 2em; animation: blink 1.5s infinite; }
+    @keyframes blink { 50% { opacity: 0.4; } }
+  </style>
+</head>
+<body>
+  <h1>FLIGHTS OVERHEAD</h1>
+  <div id="status">Scanning airspace...</div>
+  <div id="flights"></div>
+
+  <script>
+    // Get bbox from ?bounds=south,west,north,east (lat/lon degrees)
+    const params = new URLSearchParams(window.location.search);
+    const bboxStr = params.get('bounds') || '35.79,-94.55,36.37,-93.79'; // Fayetteville default
+    const [lamin, lomin, lamax, lomax] = bboxStr.split(',').map(Number);
+
+    if ([lamin, lomin, lamax, lomax].some(isNaN)) {
+      document.getElementById('status').textContent = 'Invalid bounds format. Use ?bounds=south,west,north,east';
+      throw new Error('Bad bbox');
+    }
+
+    const apiUrl = `https://opensky-network.org/api/states/all?lamin=${lamin}&lomin=${lomin}&lamax=${lamax}&lomax=${lomax}`;
+
+    async function fetchFlights() {
+      try {
+        const res = await fetch(apiUrl);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        const flightsDiv = document.getElementById('flights');
+        flightsDiv.innerHTML = '';
+        document.getElementById('status').textContent = data.time 
+          ? `Last update: ${new Date(data.time * 1000).toLocaleTimeString()} CST`
+          : 'Scanning...';
+
+        if (!data.states || data.states.length === 0) {
+          document.getElementById('status').textContent += ' — No aircraft detected in area';
+          return;
+        }
+
+        data.states.forEach(state => {
+          const [
+            icao24, callsign, origin_country, time_position, last_contact,
+            longitude, latitude, baro_altitude, on_ground, velocity,
+            true_track, vertical_rate, sensors, geo_altitude, squawk,
+            spi, position_source, category
+          ] = state;
+
+          if (!callsign?.trim() || on_ground) return; // skip ground/no callsign
+
+          const alt = baro_altitude ? Math.round(baro_altitude) + ' ft' : 'N/A';
+          const spd = velocity ? Math.round(velocity * 1.94384) + ' kts' : 'N/A'; // m/s to knots
+          const hdg = true_track ? Math.round(true_track) + '°' : 'N/A';
+          const cat = category ? getCategoryName(category) : '';
+
+          const div = document.createElement('div');
+          div.className = 'flight';
+          div.innerHTML = `
+            <span class="callsign">${callsign.trim()}</span><br>
+            Altitude: ${alt} • Speed: ${spd} • Heading: ${hdg}<br>
+            ${cat ? 'Type: ' + cat + '<br>' : ''}
+            Country: ${origin_country || 'N/A'}
+          `;
+          flightsDiv.appendChild(div);
+        });
+
+        if (flightsDiv.children.length === 0) {
+          document.getElementById('status').textContent += ' — No airborne flights right now';
+        }
+      } catch (err) {
+        document.getElementById('status').textContent = `Error: ${err.message} (retrying soon)`;
+        console.error(err);
+      }
+    }
+
+    function getCategoryName(code) {
+      const cats = {
+        0: 'No info', 1: 'Light', 2: 'Small', 3: 'Large', 4: 'High Vortex', 5: 'Heavy',
+        6: 'High Performance', 7: 'Rotorcraft', 8: 'Glider', 9: 'Lighter than air',
+        10: 'Parachute', 11: 'Ultralight', 12: 'Spacecraft', 20: 'Surface vehicle'
+      };
+      return cats[code] || 'Unknown';
+    }
+
+    fetchFlights();
+    setInterval(fetchFlights, 20000); // Refresh every 20s (OpenSky rate limit friendly)
+  </script>
+</body>
+</html>
