@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FlightWall - Overhead Tracker</title>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      background: #000;
+      color: #ffffff; /* Base text: white */
+      font-family: 'Courier New', Courier, monospace;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+    }
+    h1 {
+      font-size: 3.8em;
+      margin: 0 0 10px;
+      text-shadow: 0 0 15px #00ff41, 0 0 30px #00ff41; /* Green glow on white text */
+      letter-spacing: 5px;
+      color: #ffffff;
+    }
+    #status {
+      font-size: 2.4em;
+      margin: 20px 0 40px;
+      text-shadow: 0 0 12px #00ff41;
+      min-height: 80px;
+      color: #ffffff;
+    }
+    .flight {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.03); /* Subtle white tint for depth */
+      border: 2px solid #00ff41;
+      border-radius: 8px;
+      padding: 25px 50px;
+      margin: 25px auto;
+      max-width: 92%;
+      font-size: 1.9em;
+      box-shadow: 0 0 30px rgba(0,255,65,0.35);
+    }
+    .callsign {
+      font-size: 3.2em;
+      font-weight: bold;
+      color: #ffffff;
+      text-shadow: 0 0 25px #00ff41, 0 0 50px #00ff41;
+      margin-bottom: 12px;
+      letter-spacing: 3px;
+    }
+    .icon { font-size: 2em; margin-right: 18px; vertical-align: middle; }
+    .details {
+      font-size: 1.5em;
+      line-height: 1.7;
+      color: #f0f0f0; /* Soft white for details */
+    }
+    .empty {
+      font-size: 2.8em;
+      opacity: 0.8;
+      text-shadow: 0 0 20px #00ff41;
+      color: #ffffff;
+    }
+  </style>
+</head>
+<body>
+  <h1>FLIGHTWALL</h1>
+  <div id="status">Scanning for overhead traffic...</div>
+  <div id="flights"></div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const bboxStr = params.get('bounds') || '35.5728,-94.7976,36.5872,-93.5424'; // Your 30-40 mile radius default
+    const [lamin, lomin, lamax, lomax] = bboxStr.split(',').map(Number);
+
+    if ([lamin, lomin, lamax, lomax].some(isNaN)) {
+      document.getElementById('status').textContent = 'Invalid bounds parameter';
+      throw new Error('Bad bbox');
+    }
+
+    const apiUrl = `https://opensky-network.org/api/states/all?lamin=${lamin}&lomin=${lomin}&lamax=${lamax}&lomax=${lomax}`;
+
+    function getCategoryIcon(code) {
+      const icons = { 0:'❓',1:'❓',2:'✈️',3:'✈️',4:'🛫',5:'🛫',6:'🛫',7:'🚁',8:'🪂',9:'🎈',10:'🪂' };
+      return icons[code] || '✈️';
+    }
+
+    async function fetchFlights() {
+      try {
+        const res = await fetch(apiUrl);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        const flightsDiv = document.getElementById('flights');
+        flightsDiv.innerHTML = '';
+        const statusEl = document.getElementById('status');
+
+        statusEl.textContent = data.time 
+          ? `Last update: ${new Date(data.time * 1000).toLocaleTimeString('en-US', {timeZone: 'America/Chicago'})} CST`
+          : 'Scanning...';
+
+        if (!data.states || data.states.length === 0) {
+          statusEl.innerHTML = '<span class="empty">NO FLIGHTS OVERHEAD RIGHT NOW</span>';
+          return;
+        }
+
+        let found = false;
+        data.states.forEach(state => {
+          const [
+            icao24, callsign, origin_country, time_position, last_contact,
+            longitude, latitude, baro_altitude, on_ground, velocity,
+            true_track, vertical_rate, sensors, geo_altitude, squawk,
+            spi, position_source, category
+          ] = state;
+
+          if (!callsign?.trim() || on_ground) return;
+
+          found = true;
+          const alt = baro_altitude ? Math.round(baro_altitude * 3.28084) + ' FT' : 'N/A';
+          const spd = velocity ? Math.round(velocity * 1.94384) + ' KTS' : 'N/A';
+          const hdg = true_track ? Math.round(true_track) + '°' : 'N/A';
+          const vspeed = vertical_rate ? Math.round(vertical_rate * 196.85) + ' FT/MIN' : 'N/A';
+          const pos = (latitude && longitude) ? `${latitude.toFixed(4)}°N ${longitude.toFixed(4)}°W` : 'N/A';
+          const catIcon = getCategoryIcon(category);
+          const squawkDisplay = squawk ? squawk : 'N/A';
+
+          const div = document.createElement('div');
+          div.className = 'flight';
+          div.innerHTML = `
+            <div class="callsign"><span class="icon">${catIcon}</span>${callsign.trim()}</div>
+            <div class="details">
+              ALT: ${alt} • VSPD: ${vspeed}<br>
+              SPD: ${spd} • HDG: ${hdg}<br>
+              POS: ${pos}<br>
+              SQUAWK: ${squawkDisplay}
+            </div>
+          `;
+          flightsDiv.appendChild(div);
+        });
+
+        if (!found) {
+          statusEl.innerHTML = '<span class="empty">NO FLIGHTS OVERHEAD RIGHT NOW</span>';
+        } else {
+          statusEl.textContent += ' — Overhead traffic detected';
+        }
+      } catch (err) {
+        document.getElementById('status').textContent = `ERROR: ${err.message} (retrying soon)`;
+      }
+    }
+
+    fetchFlights();
+    setInterval(fetchFlights, 20000);
+  </script>
+</body>
+</html>
