@@ -1,0 +1,377 @@
+<!-- Inspired by https://github.com/smartbutnot/flightportal/tree/main -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+      <!-- Auto refresh once an hour just to load new HTML in case it changed during a deployment -->
+    <meta http-equiv="refresh" content="3600">
+
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="Flight Board">
+    <link rel="apple-touch-icon" href="/api/placeholder/180/180">
+    <link rel="apple-touch-icon" sizes="152x152" href="/api/placeholder/152/152">
+    <link rel="apple-touch-icon" sizes="180x180" href="/api/placeholder/180/180">
+    <link rel="apple-touch-icon" sizes="167x167" href="/api/placeholder/167/167">
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" href="/api/placeholder/1290/2796">
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)" href="/api/placeholder/1179/2556">
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)" href="/api/placeholder/1284/2778">
+
+    <!-- Web app manifest -->
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkZsaWdodCBCb2FyZCIsCiAgInNob3J0X25hbWUiOiAiRmxpZ2h0IEJvYXJkIiwKICAic3RhcnRfdXJsIjogIi4iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMwMDAwMDAiLAogICJ0aGVtZV9jb2xvciI6ICIjMDAwMDAwIgp9">
+
+
+    <title>Flight LED Display</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.2/axios.min.js"></script>
+    <style>
+  body {
+            margin: 0;
+            padding: 0;
+            background-color: #222222;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: monospace;
+        }
+
+        .display-container {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5vh; /* Further reduced gap for better vertical fit */
+            padding: 10px; /* Reduced padding */
+            box-sizing: border-box;
+            transform-origin: center center;
+        }
+
+        .led-text {
+            text-align: center;
+            white-space: nowrap;
+            letter-spacing: 0.1em;
+            text-shadow: 0 0 10px currentColor;
+            font-weight: bold;
+            width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis; /* Fallback if still overflows after adjustment */
+            animation: led-glow 1s ease-in-out;
+        }
+
+        @keyframes led-glow {
+            0% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        #airline-logo {
+            text-align: center;
+            margin-bottom: 1vh;
+        }
+
+        #airline-logo img {
+            width: 40vw; /* Fixed width for uniform sizing */
+            height: auto;
+            max-height: 40vh;
+            filter: drop-shadow(0 0 10px white); /* Optional glow for LED feel */
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 5px;
+            object-fit: contain;
+        }
+
+        #registration, #route, #cities {
+            color: rgb(100, 149, 237);
+        }
+
+        #altitude {
+            color: rgb(0, 255, 0);
+        }
+
+        #speed {
+            color: rgb(255, 165, 0);
+        }
+
+        #status {
+            color: rgb(255, 69, 0);
+        }
+
+        #aircraft {
+            color: rgb(255, 223, 0);
+        }
+
+        #refresh-button {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background-color: #333;
+            color: white;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+        }
+
+        /* Base font size responsive to viewport */
+        .led-text {
+            font-size: 8vw; /* Reduced base font size */
+        }
+
+        /* Minimum font size for readability */
+        @media (max-width: 1023px) {
+            .led-text {
+                font-size: 6vw; /* Even smaller base for mobile */
+            }
+        }
+
+    </style>
+</head>
+<body>
+      <div class="display-container">
+    <div id="airline-logo"></div>
+    <div id="registration" class="led-text">...</div>
+    <div id="route" class="led-text">...</div>
+    <div id="cities" class="led-text">...</div>
+    <div id="altitude" class="led-text">...</div>
+    <div id="speed" class="led-text">...</div>
+    <div id="status" class="led-text">...</div>
+    <div id="aircraft" class="led-text">...</div>
+      </div>
+    <button id="refresh-button">Refresh</button>
+
+    <script>
+        let currentFlightIndex = 0;
+        let flightDataList = [];
+        let rotationInterval;
+
+        function adjustFontSize(element) {
+            element.style.fontSize = ''; // Reset to base (vw) first
+            let computedStyle = window.getComputedStyle(element);
+            let fontSize = parseFloat(computedStyle.fontSize);
+            const minFontSize = 10; // Minimum px to prevent too small text
+
+            while (element.scrollWidth > element.clientWidth && fontSize > minFontSize) {
+                fontSize -= 1;
+                element.style.fontSize = fontSize + 'px';
+            }
+        }
+
+        function adjustContainerScale() {
+            const container = document.querySelector('.display-container');
+            container.style.transform = ''; // Reset scale
+            const vh = window.innerHeight - 20; // Account for reduced padding
+            let scale = 1;
+            if (container.offsetHeight > vh) {
+                scale = vh / container.offsetHeight;
+            }
+            container.style.transform = `scale(${scale})`;
+        }
+
+        function displayFlight(flightDetails, flightData, isLive) {
+            document.getElementById('registration').textContent = flightDetails.identification.number.default || 'N/A';
+            document.getElementById('route').textContent = `${flightDetails.airport.origin.code.iata || 'N/A'}-${flightDetails.airport.destination.code.iata || 'N/A'}`;
+            document.getElementById('cities').textContent = `${flightDetails.airport.origin.position.region.city || 'N/A'}-${flightDetails.airport.destination.position.region.city || 'N/A'}`;
+            document.getElementById('aircraft').textContent = flightDetails.aircraft.model.text || 'N/A';
+            document.getElementById('status').textContent = flightDetails.status.text || 'N/A';
+
+            if (isLive) {
+                document.getElementById('altitude').textContent = `${flightData[4] || 'N/A'} ft`;
+                document.getElementById('speed').textContent = `${flightData[5] || 'N/A'} kts`;
+            } else {
+                document.getElementById('altitude').textContent = '0 ft';
+                document.getElementById('speed').textContent = '0 kts';
+            }
+
+            const airlineIcao = flightDetails.airline?.code?.icao;
+            if (airlineIcao) {
+                document.getElementById('airline-logo').innerHTML = `<img src="https://www.flightradar24.com/static/images/data/operators/${airlineIcao}_logo0.png" alt="Airline Logo" onerror="this.style.display='none'">`;
+            } else {
+                document.getElementById('airline-logo').innerHTML = '';
+            }
+
+            // Adjust font sizes dynamically for each line
+            const ledTexts = document.querySelectorAll('.led-text');
+            ledTexts.forEach(adjustFontSize);
+
+            // Adjust overall scale for vertical fit
+            adjustContainerScale();
+        }
+
+        async function fetchAndDisplayFlightData() {
+            try {
+                // Clear rotation interval if running
+                clearInterval(rotationInterval);
+
+                // Get URL parameters
+                const urlParams = new URLSearchParams(window.location.search);
+
+                // Get bounds from URL or use default
+                const parts = urlParams.get('bounds')?.split(',').map(Number);
+                // Larger default bounds for better chance of finding flights, but will prioritize closest to XNA
+                const bounds = parts ? [parts[0], parts[2], parts[1], parts[3]].join(',') : '37,35,-95,-93';
+
+                console.log(bounds);
+                const corskey = urlParams.get('corskey');
+
+                // Hardcode airport for fallback (Northwest Arkansas National Airport)
+                const airportCode = 'XNA';
+                const xnaLat = 36.2819;
+                const xnaLon = -94.3068;
+
+                const baseUrl = 'https://data-cloud.flightradar24.com/zones/fcgi/feed.js?bounds=' + bounds;
+                // Increased limit to 50, included ground traffic (gnd=1) to catch local airport activity
+                const otherParams = 'faa=1&satellite=1&mlat=1&flarm=1&adsb=1&gnd=1&air=1&vehicles=0&estimated=0&maxage=14400&gliders=0&stats=0&ems=1&limit=50&webpriv=0';
+
+                // Construct the corsproxy URL with optional corskey
+                let corsProxyUrl = 'https://corsproxy.io/';
+                if (corskey) {
+                    corsProxyUrl += `?corskey=${corskey}&`;
+                } else {
+                    corsProxyUrl += '?';
+                }
+
+                const feedUrl = corsProxyUrl + `url=${encodeURIComponent(`${baseUrl}&${otherParams}`)}`;
+
+                const feedResponse = await axios.get(feedUrl);
+                const feedData = feedResponse.data;
+
+                let flightKeys = Object.keys(feedData).filter(key => 
+                    key !== 'full_count' && key !== 'version'
+                );
+
+                flightDataList = []; // Reset list
+
+                if (flightKeys.length === 0) {
+                    // Fallback to most recent arrival at local airport
+                    console.log('No active flights, falling back to recent arrival at ' + airportCode);
+                    const airportUrl = corsProxyUrl + `url=${encodeURIComponent(`https://api.flightradar24.com/common/v1/airport.json?code=${airportCode}&plugin[]=schedule&plugin[schedule][mode]=arrivals&page=1&limit=50`)}`;
+                    const airportResponse = await axios.get(airportUrl);
+                    const arrivalsData = airportResponse.data.result.response.airport.pluginData.schedule.arrivals.data;
+
+                    if (!arrivalsData || arrivalsData.length === 0) {
+                        throw new Error('No recent arrival data found');
+                    }
+
+                    // Find the most recent arrived flight
+                    const currentTime = Math.floor(Date.now() / 1000);
+                    let recentFlight = null;
+                    let latestArrivalTime = 0;
+
+                    for (let arrival of arrivalsData) {
+                        const flight = arrival.flight;
+                        const realArrival = flight.time?.real?.arrival;
+                        if (realArrival && realArrival < currentTime && realArrival > latestArrivalTime) {
+                            recentFlight = flight;
+                            latestArrivalTime = realArrival;
+                        }
+                    }
+
+                    if (!recentFlight) {
+                        throw new Error('No recently arrived flights found');
+                    }
+
+                    const dynamicKey = recentFlight.identification.id;
+                    const detailsUrl = corsProxyUrl + `url=${encodeURIComponent(`https://data-live.flightradar24.com/clickhandler/?flight=${dynamicKey}`)}`;
+                    const detailsResponse = await axios.get(detailsUrl);
+
+                    flightDataList.push({ details: detailsResponse.data, data: null, isLive: false });
+                } else {
+                    // Function to calculate distance
+                    function getDistance(lat1, lon1, lat2, lon2) {
+                        const R = 6371; // km
+                        const dLat = (lat2 - lat1) * Math.PI / 180;
+                        const dLon = (lon2 - lon1) * Math.PI / 180;
+                        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                          Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                          Math.sin(dLon/2) * Math.sin(dLon/2);
+                        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                        return R * c;
+                    }
+
+                    // Sort by distance to XNA ascending, then by altitude ascending
+                    flightKeys.sort((a, b) => {
+                        const dataA = feedData[a];
+                        const dataB = feedData[b];
+                        const distA = getDistance(dataA[1], dataA[2], xnaLat, xnaLon);
+                        const distB = getDistance(dataB[1], dataB[2], xnaLat, xnaLon);
+                        if (distA !== distB) return distA - distB;
+                        return (dataA[4] || 999999) - (dataB[4] || 999999);
+                    });
+
+                    // Fetch details for top 5 flights
+                    for (let i = 0; i < Math.min(5, flightKeys.length); i++) {
+                        const key = flightKeys[i];
+                        const detailsUrl = corsProxyUrl + `url=${encodeURIComponent(`https://data-live.flightradar24.com/clickhandler/?flight=${key}`)}`;
+                        const detailsResponse = await axios.get(detailsUrl);
+                        flightDataList.push({ details: detailsResponse.data, data: feedData[key], isLive: true });
+                    }
+                }
+
+                if (flightDataList.length === 0) {
+                    // No flights at all
+                    document.getElementById('registration').textContent = 'No flights overhead';
+                    document.getElementById('route').textContent = 'Check back soon!';
+                    document.getElementById('cities').textContent = '';
+                    document.getElementById('altitude').textContent = '';
+                    document.getElementById('speed').textContent = '';
+                    document.getElementById('status').textContent = '';
+                    document.getElementById('aircraft').textContent = '';
+                    document.getElementById('airline-logo').innerHTML = '';
+                    return;
+                }
+
+                // Save to localStorage
+                localStorage.setItem('lastFlightData', JSON.stringify(flightDataList));
+
+                // Display first flight
+                currentFlightIndex = 0;
+                displayFlight(flightDataList[0].details, flightDataList[0].data, flightDataList[0].isLive);
+
+                // Start rotation if multiple
+                if (flightDataList.length > 1) {
+                    rotationInterval = setInterval(() => {
+                        currentFlightIndex = (currentFlightIndex + 1) % flightDataList.length;
+                        displayFlight(flightDataList[currentFlightIndex].details, flightDataList[currentFlightIndex].data, flightDataList[currentFlightIndex].isLive);
+                    }, 10000); // 10 seconds
+                }
+
+            } catch (error) {
+                console.error('Error fetching flight data:', error);
+                // Use cached data if available
+                const cachedData = localStorage.getItem('lastFlightData');
+                if (cachedData) {
+                    flightDataList = JSON.parse(cachedData);
+                    currentFlightIndex = 0;
+                    displayFlight(flightDataList[0].details, flightDataList[0].data, flightDataList[0].isLive);
+                } else {
+                    // Custom error message
+                    document.getElementById('registration').textContent = 'Error fetching data';
+                    document.getElementById('route').textContent = 'Please try again later';
+                    document.getElementById('cities').textContent = '';
+                    document.getElementById('altitude').textContent = '';
+                    document.getElementById('speed').textContent = '';
+                    document.getElementById('status').textContent = '';
+                    document.getElementById('aircraft').textContent = '';
+                    document.getElementById('airline-logo').innerHTML = '';
+                }
+            }
+        }
+
+        // Initial fetch
+        fetchAndDisplayFlightData();
+        setInterval(fetchAndDisplayFlightData, 30000); // 30 seconds refresh
+
+        // Manual refresh button
+        document.getElementById('refresh-button').addEventListener('click', fetchAndDisplayFlightData);
+
+        // Re-adjust on window resize
+        window.addEventListener('resize', () => {
+            const ledTexts = document.querySelectorAll('.led-text');
+            ledTexts.forEach(adjustFontSize);
+            adjustContainerScale();
+        });
+    </script>
+</body>
+</html>
