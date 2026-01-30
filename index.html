@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>FlightWall</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="fw-container">
+
+    <div class="fw-header">
+      <div class="fw-title">FLIGHTWALL</div>
+      <div class="fw-subtitle">REAL-TIME AIR TRAFFIC DISPLAY</div>
+      <div class="fw-radar"></div>
+    </div>
+
+    <div class="fw-board">
+      <div class="fw-row fw-row-header">
+        <span>AIRLINE</span>
+        <span>FLT</span>
+        <span>TYPE</span>
+        <span>ALT</span>
+        <span>SPD</span>
+        <span>DIST</span>
+        <span>BRG</span>
+      </div>
+      <div id="fw-rows"></div>
+    </div>
+
+    <div class="fw-footer">
+      <span id="fw-status">Booting radar system...</span>
+    </div>
+
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
