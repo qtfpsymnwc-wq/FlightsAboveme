@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FlightWall Pro</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="fw-app">
+
+    <header class="fw-header">
+      <div class="fw-brand">
+        <span class="fw-title">FLIGHTWALL</span>
+        <span class="fw-tag">PRO MODE</span>
+      </div>
+      <div class="fw-status" id="fw-status">Initializing radar…</div>
+    </header>
+
+    <main class="fw-display">
+      <div class="fw-card" id="flight-card">
+        <div class="fw-alert" id="alert">✈ OVERHEAD AIRCRAFT</div>
+
+        <div class="fw-airline">
+          <img id="airline-logo" class="fw-logo" />
+          <span id="airline-name"></span>
+        </div>
+
+        <div class="fw-main">
+          <div class="fw-callsign" id="callsign">----</div>
+          <div class="fw-type" id="aircraft-type">----</div>
+          <div class="fw-route" id="route">----</div>
+        </div>
+
+        <div class="fw-stats">
+          <div><span>ALT</span><strong id="altitude">--</strong></div>
+          <div><span>SPD</span><strong id="speed">--</strong></div>
+          <div><span>DIST</span><strong id="distance">--</strong></div>
+          <div><span>BRG</span><strong id="bearing">--</strong></div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="fw-footer">
+      <div class="fw-ticker">
+        <div id="ticker-text">Searching nearby aircraft…</div>
+      </div>
+    </footer>
+
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
