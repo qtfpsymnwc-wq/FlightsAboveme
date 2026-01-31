@@ -1,0 +1,505 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&display=swap');
+*{box-sizing:border-box} body{margin:0;background:radial-gradient(circle at top,#020b14,#010409);color:#00f6ff;font-family:"Share Tech Mono",monospace}
+.fw-container{min-height:100vh;display:flex;flex-direction:column;padding:10px}
+.fw-header{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #00f6ff33;padding-bottom:8px}
+.fw-title{font-size:26px;letter-spacing:3px;text-shadow:0 0 12px #00f6ff}
+.fw-subtitle{font-size:12px;opacity:.7}
+.fw-radar{width:90px;height:90px;border-radius:50%;border:1px solid #00f6ff33;position:relative;overflow:hidden}
+.fw-radar::before{content:"";position:absolute;width:200%;height:200%;background:conic-gradient(from 0deg,transparent 0deg,#00f6ff55 25deg,transparent 50deg);animation:sweep 3s linear infinite;top:-50%;left:-50%}
+@keyframes sweep{to{transform:rotate(360deg)}}
+.fw-main{flex:1;display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.fw-current{border:1px solid #00f6ff44;padding:12px;border-radius:10px;background:linear-gradient(180deg,#00f6ff11,transparent);min-height:140px;display:flex;flex-direction:column;justify-content:center}
+.flight-header{display:flex;align-items:center;gap:10px;font-size:20px}
+.logo{height:22px;filter:brightness(1.2)}
+.flight-route{margin-top:4px;font-size:14px;opacity:.85}
+.flight-stats{margin-top:10px;display:grid;grid-template-columns:repeat(2,1fr);gap:8px;font-size:15px}
+.stat{display:flex;justify-content:space-between;border-bottom:1px dashed #00f6ff33;padding-bottom:2px}
+.overhead{color:#fff;text-shadow:0 0 14px #fff}
+.fw-queue{display:flex;flex-direction:column;gap:6px;font-size:13px;opacity:.8}
+.queue-item{display:flex;justify-content:space-between;padding:4px 6px;border:1px solid #00f6ff22;border-radius:6px;background:#00f6ff08}
+.fw-footer{margin-top:8px;font-size:12px;opacity:.6;border-top:1px solid #00f6ff22;padding-top:6px}
+.badge{display:inline-block;padding:2px 6px;border:1px solid #00f6ff55;border-radius:999px;font-size:11px;margin-left:8px}
+.badge.inferred{background:#00f6ff12}
+.badge.missing{background:#ffcc0012;border-color:#ffcc0066;color:#ffd56b}
+.kv{display:flex;justify-content:space-between;gap:10px;margin-top:6px;font-size:13px;opacity:.9}
+.muted{opacity:.65}
+
+
+/* ===== v6: iPad + general sizing improvements ===== */
+
+/* Use scalable type across devices */
+.fw-title { font-size: clamp(20px, 3.2vw, 34px); }
+.flight-header { font-size: clamp(18px, 3.0vw, 32px); }
+.flight-route { font-size: clamp(14px, 2.0vw, 20px); }
+.flight-stats { font-size: clamp(14px, 1.9vw, 18px); }
+.fw-subtitle, .fw-footer { font-size: clamp(12px, 1.6vw, 14px); }
+
+/* Bigger logos on larger screens, still safe on phones */
+.logo { height: clamp(22px, 3.2vw, 44px); }
+
+/* Reduce empty space: tighten card sizing and padding */
+.fw-container { padding: clamp(8px, 1.4vw, 16px); }
+.fw-main { gap: clamp(8px, 1.2vw, 14px); margin-top: clamp(8px, 1.2vw, 14px); }
+.fw-current { min-height: clamp(120px, 22vw, 220px); padding: clamp(10px, 1.6vw, 18px); }
+.flight-stats { gap: clamp(6px, 1.0vw, 10px); }
+
+/* Radar scales too */
+.fw-radar { width: clamp(70px, 9vw, 120px); height: clamp(70px, 9vw, 120px); }
+
+/* iPad-specific tuning (portrait/landscape) */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .fw-container { padding: 14px; }
+  .fw-title { letter-spacing: 4px; }
+  .fw-current { min-height: 220px; }
+  .flight-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .queue-item { padding: 6px 10px; font-size: 14px; }
+}
+
+/* Very small phones */
+@media (max-width: 380px) {
+  .fw-radar { width: 70px; height: 70px; }
+  .fw-title { letter-spacing: 2px; }
+}
+
+
+/* ===== v7: Option A (big single-flight card + bottom ticker queue) ===== */
+
+/* Make the main area center the current card */
+.fw-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Current card becomes the hero */
+.fw-current {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  width: 100%;
+}
+
+/* Bigger typography for hero view */
+.flight-header {
+  font-size: clamp(24px, 4.4vw, 54px);
+  letter-spacing: 1px;
+}
+.flight-route {
+  font-size: clamp(16px, 2.8vw, 28px);
+}
+.flight-stats {
+  margin-top: clamp(14px, 2.2vw, 24px);
+  font-size: clamp(14px, 2.2vw, 22px);
+  gap: clamp(10px, 1.4vw, 16px);
+}
+
+/* Large logos for iPad/TV-like readability */
+.logo {
+  height: clamp(28px, 4.2vw, 64px);
+}
+
+/* Queue becomes a compact ticker strip */
+.fw-queue {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 6px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  opacity: 0.85;
+}
+
+.queue-item {
+  min-width: 210px;
+  scroll-snap-align: start;
+  padding: 8px 10px;
+  font-size: 14px;
+}
+
+/* iPad landscape: maximize hero card, keep ticker thin */
+@media (min-width: 768px) {
+  .fw-container { padding: 16px; }
+  .fw-current {
+    min-height: 360px;
+    padding: 18px;
+  }
+  .fw-radar { width: 120px; height: 120px; }
+  .fw-queue { margin-top: 12px; }
+}
+
+/* Reduce wasted space in header/footer on large screens */
+@media (min-width: 768px) {
+  .fw-footer { padding-top: 4px; }
+  .fw-header { padding-bottom: 6px; }
+}
+
+/* Tiny screens: keep it readable without crowding */
+@media (max-width: 420px) {
+  .queue-item { min-width: 170px; padding: 6px 8px; }
+}
+
+
+/* ===== v8: Hero card fills space (reduce empty area) ===== */
+
+/* Center the hero content and use vertical rhythm */
+.fw-current{
+  align-items:center !important;
+  text-align:center;
+  justify-content:flex-start !important;
+  padding-top: clamp(18px, 3vw, 36px) !important;
+  padding-bottom: clamp(18px, 3vw, 36px) !important;
+  gap: clamp(10px, 2vw, 18px);
+}
+
+/* Make header line big and centered */
+.flight-header{
+  width: 100%;
+  justify-content:center;
+  gap: clamp(10px, 1.8vw, 18px);
+  font-size: clamp(30px, 5.4vw, 64px) !important;
+  line-height: 1.05;
+}
+
+/* Bigger route line */
+.flight-route{
+  width: 100%;
+  font-size: clamp(18px, 3.4vw, 34px) !important;
+  line-height: 1.15;
+  margin-top: clamp(6px, 1.2vw, 12px);
+}
+
+/* Make logo prominent */
+.logo{
+  height: clamp(36px, 6vw, 84px) !important;
+}
+
+/* Stats in one row on iPad/large screens to fill width */
+.flight-stats{
+  width: 100%;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  font-size: clamp(14px, 2.2vw, 22px) !important;
+  margin-top: clamp(18px, 3vw, 30px) !important;
+}
+
+.stat{
+  border-bottom: none;
+  border-left: 1px dashed #00f6ff33;
+  padding: 6px 10px;
+}
+.stat:first-child{ border-left: none; }
+
+/* Make badges larger for hero mode */
+.badge{
+  font-size: clamp(11px, 1.6vw, 14px);
+  padding: 4px 10px;
+}
+
+/* Hide the small airline KV row in hero mode (saves dead space) */
+.kv{ display:none; }
+
+/* iPad portrait: keep stats in 2 columns if tight */
+@media (min-width: 768px) and (max-width: 920px){
+  .flight-stats{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Ticker slightly taller and more readable */
+.fw-queue{
+  padding-top: 6px;
+  padding-bottom: 10px;
+}
+.queue-item{
+  min-width: 240px;
+  font-size: 15px;
+}
+
+
+/* ===== v9: Block font + true iPad centering ===== */
+
+body {
+  font-family: "Orbitron", system-ui, sans-serif;
+}
+
+/* Force true vertical centering for hero card */
+.fw-main {
+  justify-content: center !important;
+}
+
+.fw-current {
+  justify-content: center !important;
+  align-items: center !important;
+  text-align: center !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+/* Ultra-bold, readable hierarchy */
+.flight-header {
+  font-weight: 800;
+  font-size: clamp(34px, 6.5vw, 72px) !important;
+  letter-spacing: 2px;
+}
+
+.flight-route {
+  font-weight: 600;
+  font-size: clamp(20px, 4vw, 40px) !important;
+  opacity: 0.95;
+}
+
+.logo {
+  height: clamp(44px, 8vw, 96px) !important;
+}
+
+/* Stats become large blocks */
+.flight-stats {
+  width: 100%;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+  margin-top: clamp(22px, 4vw, 40px) !important;
+}
+
+.stat {
+  border: 1px solid #00f6ff33;
+  border-radius: 10px;
+  padding: 14px 10px;
+  font-size: clamp(14px, 2.4vw, 22px);
+}
+
+.stat span:first-child {
+  opacity: 0.7;
+}
+
+/* iPad portrait */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .flight-header {
+    font-size: 64px !important;
+  }
+  .flight-route {
+    font-size: 34px !important;
+  }
+}
+
+/* Hide footer on large screens to reduce dead space */
+@media (min-width: 768px) {
+  .fw-footer {
+    display: none;
+  }
+}
+
+
+/* ===== v10: slower scroll + stat wrapping fixes ===== */
+
+/* Slow down ticker feel by adding a little more breathing room */
+.fw-queue { scroll-snap-type: x proximity; }
+
+/* Stat blocks: stack label over value, center both, prevent ugly wrapping */
+.stat {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px;
+}
+
+.stat span {
+  width: 100%;
+  text-align: center;
+}
+
+/* Label */
+.stat span:first-child {
+  font-weight: 600;
+  letter-spacing: 1px;
+  font-size: clamp(12px, 1.6vw, 16px);
+  opacity: 0.75;
+  white-space: nowrap;
+}
+
+/* Value: never wrap; shrink slightly on narrow screens; clip if extreme */
+.stat span:last-child {
+  font-weight: 800;
+  font-size: clamp(14px, 2.6vw, 24px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Make sure the grid has enough room before clipping */
+.flight-stats {
+  align-items: stretch;
+}
+
+/* On iPad portrait, allow 2 columns so values have more width */
+@media (min-width: 768px) and (max-width: 920px) {
+  .flight-stats { grid-template-columns: repeat(2, 1fr); }
+}
+
+
+/* ===== v11: iPhone parity + true ticker + imperial units ===== */
+
+/* Ticker container */
+.ticker {
+  width: 100%;
+  overflow: hidden;
+  border-top: 1px solid #00f6ff22;
+  padding-top: 10px;
+}
+
+.ticker-track {
+  display: inline-flex;
+  gap: 10px;
+  width: max-content;
+  will-change: transform;
+}
+
+/* Smooth looping scroll */
+  to   { transform: translateX(-50%); }
+}
+
+/* Queue items look like tiles in a ticker */
+.ticker .queue-item {
+  min-width: 240px;
+  flex: 0 0 auto;
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track {
+  display: inline-flex;
+  gap: 10px;
+  width: max-content;
+  will-change: transform;
+}
+}
+
+/* Make phone layout more like iPad: hero fills, bigger type, stats in 2 columns */
+@media (max-width: 767px) {
+  .fw-current {
+    justify-content: center !important;
+    align-items: center !important;
+    text-align: center !important;
+  }
+
+  .flight-header {
+    font-size: clamp(28px, 8vw, 44px) !important;
+  }
+
+  .flight-route {
+    font-size: clamp(18px, 5vw, 26px) !important;
+  }
+
+  .logo {
+    height: clamp(40px, 10vw, 70px) !important;
+  }
+
+  .flight-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+  }
+
+  .stat {
+    padding: 12px 10px;
+  }
+
+  /* Slightly faster ticker on phone so it feels alive */
+  }
+
+/* iPad+ keeps 4 stat blocks and slower ticker */
+@media (min-width: 768px) {
+  }
+
+
+/* ===== v13: prevent blank screen + visible status ===== */
+
+/* Make sure footer/status is visible even on iPad */
+.fw-footer { display: block !important; }
+
+/* Empty state message */
+.empty-state{
+  width:100%;
+  text-align:center;
+  font-weight:700;
+  font-size: clamp(18px, 3.2vw, 28px);
+  opacity: 0.95;
+}
+.empty-sub{
+  margin-top: 10px;
+  font-weight: 500;
+  font-size: clamp(12px, 2.2vw, 16px);
+  opacity: 0.7;
+  line-height: 1.35;
+}
+
+/* ===== v14: ticker JS + route city names ===== */
+.ticker { width: 100%; overflow: hidden; border-top: 1px solid #00f6ff22; padding-top: 10px; }
+.ticker-track { display: inline-flex; gap: 10px; width: max-content; will-change: transform; }
+.ticker .queue-item { min-width: 240px; flex: 0 0 auto; }
+
+/* ===== v15: aircraft model on its own line ===== */
+.flight-model{
+  margin-top: 6px;
+  font-weight: 600;
+  font-size: clamp(14px, 2.6vw, 22px);
+  opacity: 0.78;
+  letter-spacing: 1px;
+}
+
+/* ===== v17: controls (mode toggle + range slider) ===== */
+.fw-header { position: relative; gap: 10px; }
+.fw-controls{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:10px;
+  margin-left: 10px;
+}
+.fw-btn{
+  background: transparent;
+  color: #00f6ff;
+  border: 1px solid #00f6ff55;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-family: inherit;
+  font-weight: 800;
+  letter-spacing: 1px;
+  cursor: pointer;
+}
+.fw-btn:active{ transform: scale(0.98); }
+.fw-btn.all{ background:#00f6ff12; }
+
+.fw-slider{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:6px;
+  font-weight: 600;
+  font-size: 12px;
+  opacity: 0.9;
+}
+.fw-slider input[type="range"]{
+  width: 180px;
+  accent-color: #00f6ff;
+}
+@media (max-width: 520px){
+  .fw-header{ flex-wrap: wrap; }
+  .fw-controls{ width: 100%; flex-direction: row; justify-content: space-between; align-items:center; }
+  .fw-slider{ align-items:flex-start; }
+  .fw-slider input[type="range"]{ width: 160px; }
+}
+
+/* ===== v19: control feedback ===== */
+.fw-btn{ min-width: 140px; }
+.fw-slider span{ opacity: 0.85; }
+
+/* ===== v24: route source marker ===== */
+.route-source{
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.45;
+  letter-spacing: 1px;
+}
