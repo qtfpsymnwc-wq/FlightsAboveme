@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>FlightWall</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="style.css?v=39">
+  <script>
+    // v39 boot marker: proves HTML updated and JS can run inline even if app.js fails
+    window.FW_VERSION = "v39";
+    document.addEventListener("DOMContentLoaded", () => {
+      const st = document.getElementById("fw-status");
+      if (st) st.innerText = "Booting FlightWall v39…";
+    });
+  </script>
+</head>
+<body><div class="fw-container">
+<header class="fw-header"><div><div class="fw-title">FLIGHTWALL</div>
+<div class="fw-subtitle" id="fw-location">Detecting location…</div></div><div class="fw-radar"></div>
+      <div class="fw-controls" id="fw-controls">
+        <button class="fw-btn" id="toggleMode" title="Toggle Commercial / All">Commercial</button>
+        <label class="fw-slider">
+          <span id="rangeLabel">Range: 120 mi</span>
+          <input id="rangeMiles" type="range" min="40" max="260" value="120" step="10" />
+        </label>
+      </div></header>
+<main class="fw-main"><div class="fw-current" id="fw-current"><div class="empty-state">Starting…<div class="empty-sub">Loading radar feed</div></div></div><div class="fw-queue" id="fw-queue"></div></main>
+<footer class="fw-footer"><span id="fw-status">Initializing radar…</span></footer>
+</div><script src="app.js?v=39"></script>
+  <div class="fw-legend" id="fw-legend">
+    <div class="fw-legend-row">
+      <span class="fw-verified">✓</span>
+      <span class="fw-legend-text">Verified route</span>
+    </div>
+    <div class="fw-legend-row">
+      <span class="fw-estimated">≈</span>
+      <span class="fw-legend-text">Estimated route</span>
+    </div>
+  </div>
+<div class="fw-version" id="fw-version">v39</div>
+</body>
+</html>
