@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Flights Above</title>
+  <link rel="stylesheet" href="style.css?v=49">
+  <script>
+    // Boot marker (proves latest HTML)
+    document.addEventListener("DOMContentLoaded", () => {
+      const st = document.getElementById("fw-status");
+      if (st) st.textContent = "Booting v49…";
+      const v = document.getElementById("fw-version");
+      if (v) v.textContent = "v49";
+    });
+  </script>
+</head>
+<body>
+  <main class="wrap">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-title">FLIGHTS ABOVE</div>
+        <div class="brand-sub" id="homeLine">—</div>
+      </div>
+
+      <div class="controls">
+        <label class="ctl">
+          RANGE <span id="rangeLabel">25</span> MI
+          <input id="range" type="range" min="5" max="100" step="5" value="25">
+        </label>
+
+        <label class="ctl toggle">
+          <input id="commercialOnly" type="checkbox" checked>
+          COMMERCIAL ONLY
+        </label>
+
+        <label class="ctl">
+          SCROLL
+          <select id="scrollMode">
+            <option value="rotate" selected>ONE AT A TIME</option>
+            <option value="closest">CLOSEST ONLY</option>
+          </select>
+        </label>
+
+        <label class="ctl">
+          SPEED
+          <select id="rotateSpeed">
+            <option value="5000">FAST</option>
+            <option value="7000" selected>NORMAL</option>
+            <option value="10000">SLOW</option>
+          </select>
+        </label>
+      </div>
+    </header>
+
+    <section class="card fw-fade" id="card">
+      <div class="row1">
+        <div class="callsign" id="cs">—</div>
+        <div class="rightBox">
+          <div class="badge estimated" id="badge">≈</div>
+          <div class="legend" id="legend">
+            <div class="lg-row"><span class="dot verified">✓</span><span>VERIFIED</span></div>
+            <div class="lg-row"><span class="dot estimated">≈</span><span>ESTIMATED</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row2">
+        <div class="route" id="route">—</div>
+        <div class="model" id="model">—</div>
+      </div>
+
+      <div class="stats">
+        <div class="kv">
+          <div class="k">ALT</div>
+          <div class="v" id="alt">—</div>
+        </div>
+        <div class="kv">
+          <div class="k">SPD</div>
+          <div class="v" id="spd">—</div>
+        </div>
+        <div class="kv">
+          <div class="k">DIST</div>
+          <div class="v" id="dist">—</div>
+        </div>
+        <div class="kv">
+          <div class="k">DIR</div>
+          <div class="v" id="dir">—</div>
+        </div>
+      </div>
+
+      <div class="meta" id="meta">—</div>
+    </section>
+
+    <footer class="footer">
+      <div class="status" id="fw-status">Starting…</div>
+      <div class="version" id="fw-version">v49</div>
+    </footer>
+  </main>
+
+  <div class="ticker" id="ticker">
+    <div class="ticker-track" id="tickerTrack">—</div>
+  </div>
+
+  <script src="app.js?v=49"></script>
+</body>
+</html>
