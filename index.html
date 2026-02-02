@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Flights Above</title>
+  <link rel="stylesheet" href="style.css?v=88">
+  <script>
+    // Boot marker (proves latest HTML)
+    document.addEventListener("DOMContentLoaded", () => {
+      const st = document.getElementById("fw-status");
+      if (st) st.textContent = "Booting v88…";
+      const v = document.getElementById("fw-version");
+      if (v) v.textContent = "v49";
+    });
+  </script>
+</head>
+<body>
+  <main class="wrap">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-title">FLIGHTS ABOVE</div>
+        <div class="brand-sub" id="homeLine">—</div>
+      </div>
+
+      
+      <div class="controls">
+        <div class="range-hint" id="range-hint"></div>
+      </div>
+
+        <div class="controlsRow">
+          <label class="ctlCheck">
+            <input type="checkbox" id="commercialOnly" checked>
+            <span>PASSENGER AIRLINES ONLY</span>
+          </label>
+          <label class="ctlCheck">
+            <input type="checkbox" id="scroll5">
+            <span>SCROLL 5</span>
+          </label>
+        </div>
+
+  
+</div></header>
+
+<section class="card fw-fade" id="card">
+      <div class="row1">
+        <div class="logo" id="logo" aria-label="Airline logo">✈</div>
+        <div class="airline-name" id="airline-name">—</div>
+        <div class="airline-sub" id="airline-sub"> </div>
+        <div class="callsign" id="cs">—</div>
+        <div class="rightBox">
+          <div class="legend" id="legend">
+            <div class="lg-row"><span class="dot verified">✓</span></div>
+            <div class="lg-row"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row2">
+        <div class="route" id="route">—</div>
+        <div class="model" id="model">—</div>
+      </div>
+
+      <div class="stats">
+        <div class="kv">
+          <div class="k">ALT</div>
+          <div class="v" id="alt">—</div>
+        </div>
+        <div class="kv">
+          <div class="k">SPD</div>
+          <div class="v" id="spd">—</div>
+        </div>
+        <div class="kv">
+          <div class="k">DIST</div>
+          <div class="v" id="dist">—</div>
+        </div>
+        <div class="kv">
+          <div class="k">DIR</div>
+          <div class="v" id="dir">—</div>
+        </div>
+      </div>
+
+      <div class="meta" id="meta">—</div>
+    </section>
+
+
+    <!-- v79: bottom 4 closest flights -->
+    <section class="secondaryGrid" id="secondaryGrid" aria-label="Nearby flights">
+      <div class="secondaryBox" id="sec1"><div class="secCS">—</div><div class="secMini">—</div></div>
+      <div class="secondaryBox" id="sec2"><div class="secCS">—</div><div class="secMini">—</div></div>
+      <div class="secondaryBox" id="sec3"><div class="secCS">—</div><div class="secMini">—</div></div>
+      <div class="secondaryBox" id="sec4"><div class="secCS">—</div><div class="secMini">—</div></div>
+    </section>
+
+
+<footer class="footer">
+      <div class="status" id="fw-status">Starting…</div>
+      <div class="version" id="fw-version">v88</div>
+    </footer>
+
+</div>
+          </div></div>
+</div>
+          </div></div>
+</div>
+          </div></div>
+</div>
+          </div></div>
+      </div>
+</div>
+        </div>
+</div>
+        </div>
+</div>
+        </div>
+</div>
+        </div>
+    </div>
+</div></div>
+</div></div>
+</div></div>
+</div></div>
+    </div>
+
+  
+    <!-- v78: bottom 4 closest flights -->
+    </main>
+
+  </div>
+
+  <script src="app.js?v=88"></script>
+</body>
+</html>
