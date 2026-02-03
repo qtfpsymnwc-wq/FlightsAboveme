@@ -1,0 +1,45 @@
+body {
+  margin: 0;
+  background: #0b0e14;
+  color: #e6e6eb;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.wrap {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-height: 100vh;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: #111520;
+  font-size: 1.25rem;
+}
+
+.card.primary {
+  padding: 24px;
+  font-size: 2rem;
+}
+
+#aircraft-details {
+  margin-top: 12px;
+  font-size: 1.2rem;
+  opacity: 0.85;
+}
+
+.secondaryGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  padding: 12px;
+}
+
+.footer {
+  padding: 8px 16px;
+  background: #111520;
+  font-size: 0.9rem;
+}
