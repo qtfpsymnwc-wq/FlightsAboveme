@@ -1,0 +1,1373 @@
+
+// v125: stability gate (protect AeroDataBox credits)
+const FW_STABLE_ROUTE_MS = 10000; // 10s stable closest before route lookups
+
+// v128: aircraft lookup gate (per-hex) to avoid burning credits even if closest jitters
+const FW_AIR_HEX_GATE_MS = 30 * 60 * 1000; // 30 minutes
+const __fwAirHexGate = new Map(); // hex -> lastAttemptMs
+const FW_STABLE_AIR_MS = 5000;   // v127: 5s stable closest before aircraft lookups
+let __fwStableSince = 0;
+let __fwStableKey = "";
+function __fwMarkStableKey(callsign, icao24){
+  const k = String(callsign||"") + "|" + String(icao24||"");
+  if (k !== __fwStableKey){ __fwStableKey = k; __fwStableSince = Date.now(); }
+}
+function __fwIsStableRoute(){
+  return (Date.now() - (__fwStableSince||0)) >= FW_STABLE_ROUTE_MS;
+}
+function __fwIsStableAir(){
+  return (Date.now() - (__fwStableSince||0)) >= FW_STABLE_AIR_MS;
+}
+
+
+// v118: tighter OpenSky bounding box around current location (performance)
+const FW_BBOX_LAT_DEG = 1.25; // ~86 mi north/south
+const FW_BBOX_LON_DEG = 1.50; // ~80-90 mi east/west (varies by latitude)
+
+function fwGetBboxV125(lat, lon){
+  const lamin = lat - FW_BBOX_LAT_DEG;
+  const lamax = lat + FW_BBOX_LAT_DEG;
+  const lomin = lon - FW_BBOX_LON_DEG;
+  const lomax = lon + FW_BBOX_LON_DEG;
+  return { lamin, lomin, lamax, lomax };
+}
+
+
+
+function __fwFixArrow(s){
+  try{
+    const t = String(s||"");
+    // common mojibake sequence for arrow
+    return t.replace(/â/g, "→").replace(/â†’/g, "→").replace(/\s+→\s+/g, " → ").trim();
+  }catch(e){ return String(s||""); }
+}
+/* PERSIST_CACHE_V115
+   localStorage-backed caching (survives refresh/tab close):
+   - aircraft models (main tile): fw.aircraft.<icao24> (TTL 7 days)
+   - routes (closest callsign):   fw.route.<callsign>   (TTL 6 hours; 30m for unavailable)
+   Falls back silently if storage is unavailable.
+*/
+(function(){
+  const NS = "fw.";
+  function now(){ return Date.now(); }
+  function get(key){
+    try{
+      const raw = localStorage.getItem(NS+key);
+      if (!raw) return null;
+      const obj = JSON.parse(raw);
+      if (!obj || typeof obj !== "object") return null;
+      if (obj.exp && now() > obj.exp) { localStorage.removeItem(NS+key); return null; }
+      return (obj.val === undefined) ? null : obj.val;
+    }catch(e){ return null; }
+  }
+  function set(key, val, ttlMs){
+    try{
+      const exp = ttlMs ? (now() + ttlMs) : 0;
+      localStorage.setItem(NS+key, JSON.stringify({ exp, val }));
+      return true;
+    }catch(e){ return false; }
+  }
+  function del(key){ try{ localStorage.removeItem(NS+key); }catch(e){} }
+  window.__FW_LS__ = { get, set, del };
+try{ window.__FW_FORCE_ROUTE_RAW__ = update; window.__FW_FORCE_ROUTE__ = ()=>{ try{ if(__fwIsStableRoute()) return window.__FW_FORCE_ROUTE_RAW__(); }catch(e){} }; }catch(e){} // v125_wrap_force_route
+})();
+
+
+// AIRCRAFT: module v113 (main tile only)
+// Uses your Cloudflare Worker as a proxy: GET /aircraft/icao24/<hex>
+// Falls back to showing basic radar type if the endpoint isn't available or the model is unknown.
+(function(){
+  const AERO_PROXY_ORIGIN = "https://flightsabove.t2hkmhgbwz.workers.dev";
+  const TTL_MS = 24 * 60 * 60 * 1000; // 24h (aircraft model doesn't change often)
+  const cache = new Map(); // icao24 -> {ts, text}
+  let lastKey = "";
+  let backoffUntil = 0;
+
+  function now(){ return Date.now(); }
+  function setModelLinesV114(line1, line2){
+    const el1 = document.getElementById("model");
+    if (el1) el1.textContent = String(line1||"").trim() || "—";
+    const el2 = document.getElementById("model2");
+    if (el2) el2.textContent = String(line2||"").trim() || "";
+  }
+  function getCached(key){
+    // persistent first
+    const ls = window.__FW_LS__;
+    const p = (ls && ls.get) ? ls.get(`aircraft.${key}`) : null;
+    if (p) return p;
+
+    const it = cache.get(key);
+    if (!it) return null;
+    if (now() - it.ts > TTL_MS){ cache.delete(key); return null; }
+    return it.text;
+  }
+  function putNegCached(key){
+    const ls = window.__FW_LS__;
+    if (ls && ls.set) ls.set(`aircraft.${key}`, "NF", P_NEG_TTL_MS);
+    cache.set(key, {ts: now(), text: "NF"});
+  }
+
+  function putCached(key, text){
+    // persist best-effort
+    const ls = window.__FW_LS__;
+    if (ls && ls.set) ls.set(`aircraft.${key}`, text, P_TTL_MS);
+
+    cache.set(key, {ts: now(), text});
+  }
+  function clean(s){
+    return String(s||"").replace(/\s+/g," ").trim();
+  }
+  function normalizeHex(h){
+    return String(h||"").trim().toLowerCase();
+  }
+  function formatAircraft(j){
+    if (!j) return null;
+    const a = j.aircraft || j;
+
+    const typeName = clean(a.typeName || a.typeNameLong || a.type || a.typeLong || a.modelName || a.model || a.aircraftModel || "");
+    const icaoCode = clean(a.icaoCode || a.icaoType || a.icaoTypeDesignator || a.icao || "");
+    const modelCode = clean(a.modelCode || a.variant || a.modelVariant || "");
+    const reg = clean(a.reg || a.registration || "");
+
+    let line1 = typeName || icaoCode || "—";
+    if (icaoCode && typeName) line1 = `${typeName} (${icaoCode})`;
+
+    let line2 = "";
+    if (modelCode) line2 = modelCode;
+    if (reg) line2 = line2 ? `${line2} • ${reg}` : reg;
+
+    if (!typeName && !icaoCode && reg) line1 = reg;
+
+    return { line1, line2 };
+  }
+  async function fetchAircraftByIcao24(icao24){
+    const hex = normalizeHex(icao24);
+    if (!hex) return null;
+
+    const cached = getCached(hex);
+    if (cached) return cached;
+    if (now() < backoffUntil) return null;
+
+    const base = String(AERO_PROXY_ORIGIN||"").replace(/\/$/,"");
+    const url = `${base}/aircraft/icao24/${encodeURIComponent(hex)}`;
+
+    try{
+      const res = await fetch(url, {method:"GET", cache:"no-store"});
+      if (res.status === 429){
+        backoffUntil = now() + 2*60*1000;
+        return null;
+      }
+      if (!res.ok) return null;
+      const j = await res.json();
+
+      const fmt = formatAircraft(j);
+      if (!fmt) return null;
+      putCached(hex, fmt);
+      return fmt;
+    }catch(e){
+      return null;
+    }
+  }
+
+  async function updateAircraftForCurrent(){
+    try{
+      const f = window.__FW_CURRENT_FLIGHT || {};
+      const hex = f.icao24 || f.icao || "";
+      if (!hex){ setModelLinesV114("—", ""); return; }
+
+      const key = normalizeHex(hex);
+      if (key !== lastKey){
+        lastKey = key;
+        // Show whatever we already have from radar immediately (if any)
+        const radarType = clean(f.type || f.aircraftType || f.model || "");
+        setModelLinesV114(radarType || "—", "");
+      }
+
+      const fmt = await fetchAircraftByIcao24(key);
+      if (fmt) {
+        const curKey = normalizeHex((window.__FW_CURRENT_FLIGHT||{}).icao24);
+        const lastKey = (window.__FW_LAST_AIRCRAFT_KEY__||"");
+        if (curKey === key || lastKey === key) {
+        setModelLinesV114(fmt.line1, fmt.line2);
+        }
+      }
+    }catch(e){
+      // no-op
+    }
+  }
+
+  // Expose for the existing render/update loop
+  window.__FW_UPDATE_AIRCRAFT_RAW__ = updateAircraftForCurrent;
+  window.__FW_UPDATE_AIRCRAFT__ = ()=>{ try{ if(true) return window.__FW_UPDATE_AIRCRAFT_RAW__(); }catch(e){} }; // v125_wrap_aircraft
+  // v120: track last aircraft key to avoid timing races
+  window.__FW_LAST_AIRCRAFT_KEY__ = "";
+})();
+
+
+/* ROUTE: wiring v110 (safe, includes direction fix) */
+if (!window.__FW_ROUTE_WIRED__) {
+  window.__FW_ROUTE_WIRED__ = true; // routeDirectionFixV110
+
+  (function(){
+    const _AERO_ORIGIN = "https://flightsabove.t2hkmhgbwz.workers.dev";
+    const _TTL = 60 * 60 * 1000;
+    const _cache = new Map();
+    const _lastGoodRouteV122 = new Map(); // callsign -> last good route (prevents downgrade flicker)
+    let _last = "";
+    let _backoffUntil = 0;
+
+    
+    
+    const ROUTE_P_TTL_MS = 6 * 60 * 60 * 1000; // persistent 6h
+    const ROUTE_P_NEG_TTL_MS = 30 * 60 * 1000; // persistent 30m for unavailable
+    const _routeFetchGate = new Map(); // callsign -> lastFetchTs
+    const ROUTE_REFRESH_MIN_MS = 20 * 1000; // v119: faster retry window
+    const ROUTE_RETRY_SOON_MS = 5 * 1000; // v119: quick retry when no route
+const prevPosMapV111 = new Map(); // icao24 -> {lat, lon, ts}
+function _now(){ return Date.now(); }
+    function _fixArrow(s){
+      return String(s||"").replace(/â†’/g,"→").replace(/â/g,"→").trim();
+    }
+    function _cleanCity(s){
+      return String(s||"").replace(/\s+/g," ").replace(/\/+$/g,"").trim();
+    }
+
+    // routeDirectionFixV110: use aircraft true track vs bearing to airports to decide direction
+    function _toRad(d){ return d * Math.PI / 180; }
+    function _toDeg(r){ return r * 180 / Math.PI; }
+    function _bearingDeg(lat1, lon1, lat2, lon2){
+      const φ1=_toRad(lat1), φ2=_toRad(lat2);
+      const Δλ=_toRad(lon2-lon1);
+      const y=Math.sin(Δλ)*Math.cos(φ2);
+      const x=Math.cos(φ1)*Math.sin(φ2) - Math.sin(φ1)*Math.cos(φ2)*Math.cos(Δλ);
+      let θ=_toDeg(Math.atan2(y,x));
+      if (θ<0) θ+=360;
+      return θ;
+    }
+    function _angDiff(a,b){
+      const d=Math.abs(a-b)%360;
+      return d>180 ? 360-d : d;
+    }
+    function _getFlightTrack(){
+      try{
+        const f = window.__FW_CURRENT_FLIGHT || {};
+        // Prefer direct track/heading from radar
+        const raw = Number(f.track ?? f.heading ?? f.true_track ?? f.trk);
+        const has = Number.isFinite(raw);
+        if (has) return ((raw%360)+360)%360;
+
+        // Fallback: compute bearing from previous position (requires stable icao24 + lat/lon)
+        const icao = String(f.icao24 || f.icao || "").trim();
+        const lat = Number(f.lat), lon = Number(f.lon);
+        const ts = Date.now();
+        if (!icao || !Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+        const prev = prevPosMapV111.get(icao);
+        prevPosMapV111.set(icao, {lat, lon, ts});
+        if (!prev) return null;
+        // Ignore if too old or too close
+        if (ts - prev.ts > 2*60*1000) return null;
+        const dlat = Math.abs(lat - prev.lat);
+        const dlon = Math.abs(lon - prev.lon);
+        if (dlat < 0.0005 && dlon < 0.0005) return null;
+        return _bearingDeg(prev.lat, prev.lon, lat, lon);
+      }catch(e){ return null; }
+    }
+    function _set(t){
+      const el = document.getElementById("route");
+      if (!el) return;
+      const next = String(t||"").trim();
+      const cur = String(el.textContent||"").trim();
+      // v123: never downgrade a good route back to EN ROUTE/unavailable
+      const curIsGood = cur.includes("→");
+      const nextUpper = next.toUpperCase();
+      const nextIsFallback = (!next || nextUpper==="EN ROUTE" || nextUpper==="UNAVAILABLE" || next.toLowerCase()==="unavailable");
+      if (curIsGood && nextIsFallback) return;
+      el.textContent = next;
+    }
+    function _getCached(cs){
+      const it = _cache.get(cs);
+      if (!it) return null;
+      if (_now() - it.ts > _TTL) { _cache.delete(cs); return null; }
+      return it.text;
+    }
+    function _setCached(cs, txt){
+      _cache.set(cs, {ts:_now(), text:txt});
+    }
+
+    async function _fetch(cs){
+      const key = String(cs||"").trim().toUpperCase();
+      if (!key) return null;
+
+      const c = _getCached(key);
+      if (c) return c;
+      if (_now() < _backoffUntil) return null;
+
+      const base = String(_AERO_ORIGIN).replace(/\/$/,"");
+      const url = `${base}/aero/${encodeURIComponent(key)}`;
+
+      const res = await fetch(url, {method:"GET", cache:"no-store"});
+      if (res.status === 429) { _backoffUntil = _now() + 2*60*1000; return null; }
+      if (!res.ok) return null;
+
+      const j = await res.json();
+      let txt = "";
+      // Prefer worker-provided route string (keeps correct direction), then fall back to objects
+      if (j && typeof j.route==="string" && j.route.trim()) txt = j.route;
+
+      if (!txt && j && j.origin && j.destination){
+        const o=j.origin, d=j.destination;
+        const oc=_cleanCity(o.municipalityName||o.city||o.name||"");
+        const dc=_cleanCity(d.municipalityName||d.city||d.name||"");
+        const oi=(o.iata||o.icao||"");
+        const di=(d.iata||d.icao||"");
+        const left=(oc&&oi)?`${oc} (${oi})`:(oc||oi);
+        const right=(dc&&di)?`${dc} (${di})`:(dc||di);
+        if (left && right) txt = `${left} → ${right}`;
+
+      // routeDirectionFixV110: if track + coords exist, decide which side is destination
+      try{
+        const trk = _getFlightTrack();
+        const f = window.__FW_CURRENT_FLIGHT || {};
+        const flat = Number(f.lat), flon = Number(f.lon);
+        const olat = Number(o && o.location && o.location.lat), olon = Number(o && o.location && o.location.lon);
+        const dlat = Number(d && d.location && d.location.lat), dlon = Number(d && d.location && d.location.lon);
+        if (trk!=null && Number.isFinite(flat) && Number.isFinite(flon) &&
+            Number.isFinite(olat) && Number.isFinite(olon) &&
+            Number.isFinite(dlat) && Number.isFinite(dlon)){
+          const bToO = _bearingDeg(flat, flon, olat, olon);
+          const bToD = _bearingDeg(flat, flon, dlat, dlon);
+          const diffO = _angDiff(trk, bToO);
+          const diffD = _angDiff(trk, bToD);
+          // Aircraft is (usually) flying toward the smaller angular difference.
+          const _allowFlip = (typeof window !== 'undefined' && window.__FW_ROUTE_ALLOW_FLIP__);
+          if (_allowFlip && (diffO + 15 < diffD)){
+            // swap: destination is actually origin per API (flip display)
+            txt = `${right} → ${left}`;
+          } else {
+            txt = `${left} → ${right}`;
+          }
+        }
+      }catch(e){}
+
+      }
+
+      txt = _fixArrow(txt);
+      if (!txt || txt==="unavailable") return null;
+
+      _setCached(key, txt);
+      return txt;
+    }
+
+    async function update(){
+      try{
+        const f = window.__FW_CURRENT_FLIGHT;
+        const cs = String((f && f.callsign) ? String(f.callsign).trim().toUpperCase() : "").trim().toUpperCase();
+        // v115: load cached route immediately (if any)
+        try{
+          const ls = window.__FW_LS__;
+          const cached = (ls && ls.get) ? ls.get(`route.${cs}`) : null;
+          if (cached && cached.route) _set(__fwFixArrow(cached.route));
+                else _set("EN ROUTE");
+}catch(e){}
+        // v116: if route line is empty, show EN ROUTE after a short grace period
+        const _routeEl = document.getElementById("route");
+        if (_routeEl && !_routeEl.textContent.trim()){
+          const thisCs = cs;
+          setTimeout(()=>{
+            try{
+              if (_last === thisCs && _routeEl && !_routeEl.textContent.trim()) _set("EN ROUTE");
+            }catch(e){}
+          }, 1800);
+        }
+
+        // v116: throttle refresh fetches per callsign
+        const _lastFetch = _routeFetchGate.get(cs) || 0;
+        const _canFetch = (Date.now() - _lastFetch) > ROUTE_REFRESH_MIN_MS;
+        // v119: gate timestamp set after fetch attempt
+        // v112: delay any flip decision until we've seen this callsign at least twice
+        window.__FW_ROUTE_SEEN__ = window.__FW_ROUTE_SEEN__ || new Map();
+        const _seen = window.__FW_ROUTE_SEEN__;
+        const _n = (_seen.get(cs) || 0) + 1;
+        _seen.set(cs, _n);
+        window.__FW_ROUTE_ALLOW_FLIP__ = (_n >= 2);
+        if (!cs){ _set("EN ROUTE"); return; }
+        if (cs !== _last){
+          _last = cs;
+          try{
+            const ls = window.__FW_LS__;
+            const cached = (ls && ls.get) ? ls.get(`route.${cs}`) : null;
+            const cachedRoute = cached && cached.route ? __fwFixArrow(cached.route) : null;
+            const lastGood = _lastGoodRouteV122.get(cs) || null;
+            if (cachedRoute && cachedRoute.includes("→")) {
+              _set(cachedRoute);
+              _lastGoodRouteV122.set(cs, cachedRoute);
+            } else if (lastGood && lastGood.includes("→")) {
+              _set(lastGood);
+            } else {
+              _set("EN ROUTE");
+            }
+          }catch(e){ _set("EN ROUTE"); }
+        }
+        let txt = null;
+        if (_canFetch) {
+          _routeFetchGate.set(cs, Date.now());
+          txt = await _fetch(cs);
+          if (!txt) {
+            // allow a quicker retry if upstream was slow/empty
+            _routeFetchGate.set(cs, Date.now() - (ROUTE_REFRESH_MIN_MS - ROUTE_RETRY_SOON_MS));
+          }
+        }
+        if (txt && _last === cs) {
+          _set(__fwFixArrow(txt));
+          // v115: persist route best-effort
+          try{
+            const ls2 = window.__FW_LS__;
+            if (ls2 && ls2.set){
+              const neg = (!txt || txt==="unavailable" || txt==="en route");
+              ls2.set(`route.${cs}`, {route: txt, ts: Date.now()}, neg ? ROUTE_P_NEG_TTL_MS : ROUTE_P_TTL_MS);
+            }
+          }catch(e){}
+        } else if (_last === cs) {
+          _set("EN ROUTE");
+        }
+      } catch(e) {
+        _set("EN ROUTE");
+      }
+    }
+
+    window.__FW_UPDATE_ROUTE__ = update;
+  })();
+}
+
+
+// v104: visible build stamp (helps confirm cache is updated)
+const FW_BUILD_STAMP = "2026-02-02 21:26 UTC";
+
+
+
+function setVersionStamp(){
+  try{
+    const vEl = document.getElementById("fw-version");
+    if (vEl) vEl.textContent = "v128";
+    const bEl = document.getElementById("fw-build");
+    if (bEl) bEl.textContent = FW_BUILD_STAMP;
+  }catch(e){}
+}
+setVersionStamp();
+
+function setStatusLine(text){
+  const el = document.getElementById("status");
+  if (!el) return;
+  el.textContent = text || "Radar: —";
+}
+
+
+// v92: closest-flight route lookup (AeroDataBox Worker)
+const AERO_PROXY_ORIGIN = "https://flightsabove.t2hkmhgbwz.workers.dev";
+const ROUTE_CACHE_TTL_MS = 60 * 60 * 1000; // 60 min
+const routeCache = new Map(); // callsign -> {ts, text}
+let lastRouteKey = "";
+let routeBackoffUntil = 0;
+
+function _now(){ return Date.now(); }
+function routeCacheGet(key){
+  const it = routeCache.get(key);
+  if (!it) return null;
+  if (_now() - it.ts > ROUTE_CACHE_TTL_MS) { routeCache.delete(key); return null; }
+  return it.text;
+}
+function routeCacheSet(key, text){
+  routeCache.set(key, {ts:_now(), text});
+}
+function fixArrow(s){
+  // Fix common mojibake arrows -> "→"
+  return String(s||"")
+    .replace(/â†’/g, "→")
+    .replace(/â/g, "→")
+    .trim();
+}
+function cleanCity(s){
+  // Some municipality/city strings can end with "/" or contain odd spacing.
+  return String(s||"").replace(/\s+/g, " ").replace(/\/+$/g, "").trim();
+}
+function setRouteLine(text){
+  const el = document.getElementById("route");
+  if (!el) return;
+  const t = String(text||"").trim();
+  // Always show something so you can tell it's alive
+  el.textContent = t ? t : "EN ROUTE";
+}
+
+async function fetchRouteTextForCallsign(callsign){
+  const cs = String(callsign||"").trim().toUpperCase();
+  if (!cs) return null;
+
+  const cached = routeCacheGet(cs);
+  if (cached) return cached;
+
+  if (_now() < routeBackoffUntil) return null;
+
+  const base = String(AERO_PROXY_ORIGIN||"").replace(/\/$/, "");
+  if (!base) return null;
+
+  const url = `${base}/aero/${encodeURIComponent(cs)}`;
+  try{
+    const res = await fetch(url, {method:"GET", cache:"no-store"});
+    if (res.status === 429){
+      routeBackoffUntil = _now() + 2*60*1000;
+      return null;
+    }
+    if (!res.ok) return null;
+
+    const j = await res.json();
+    let txt = "";
+    // Prefer constructing from origin/destination (avoids encoding issues in j.route)
+    if (j && j.origin && j.destination){
+      const o = j.origin, d = j.destination;
+      const oc = cleanCity(o.municipalityName || o.city || o.name || "");
+      const dc = cleanCity(d.municipalityName || d.city || d.name || "");
+      const oi = (o.iata || o.icao || "");
+      const di = (d.iata || d.icao || "");
+      const left = (oc && oi) ? `${oc} (${oi})` : (oc || oi);
+      const right = (dc && di) ? `${dc} (${di})` : (dc || di);
+      if (left && right) txt = `${left} → ${right}`;
+    }
+    // If still empty, fall back to the string route field
+    if (!txt && j && typeof j.route === "string" && j.route.trim()) txt = j.route;
+
+    if (!txt && j && j.origin && j.destination){
+      const o = j.origin, d = j.destination;
+      const oc = cleanCity(o.municipalityName || o.city || o.name || "");
+      const dc = cleanCity(d.municipalityName || d.city || d.name || "");
+      const oi = (o.iata || o.icao || "");
+      const di = (d.iata || d.icao || "");
+      const left = (oc && oi) ? `${oc} (${oi})` : (oc || oi);
+      const right = (dc && di) ? `${dc} (${di})` : (dc || di);
+      if (left && right) txt = `${left} → ${right}`;
+    }
+
+    txt = fixArrow(txt);
+    txt = txt.replace(/\/\+\s*\(/g, " (").replace(/\/\+\s*→/g, " →").replace(/→\s*\/\+\s*/g, "→ ");
+    if (!txt) return null;
+    routeCacheSet(cs, txt);
+    return txt;
+  }catch(e){
+    return null;
+  }
+}
+let SCROLL5 = false;
+// v49 UI upgrade on top of v48 baseline
+const PROXY = "https://flightsabove.t2hkmhgbwz.workers.dev/";
+
+
+// v54: city names + airline logos + best-effort aircraft model
+const AIRPORT_CITY = {
+  // Northwest Arkansas + nearby
+  XNA:"Fayetteville/Bentonville, AR", FYV:"Fayetteville, AR", ROG:"Rogers, AR", BVX:"Batesville, AR",
+  FSM:"Fort Smith, AR", LIT:"Little Rock, AR", TUL:"Tulsa, OK", MKO:"Muskogee, OK", OKC:"Oklahoma City, OK",
+  ICT:"Wichita, KS", MCI:"Kansas City, MO", JLN:"Joplin, MO", SGF:"Springfield, MO", STL:"St. Louis, MO",
+  MEM:"Memphis, TN", BNA:"Nashville, TN", MSY:"New Orleans, LA",
+  // Major US hubs and popular destinations
+  ATL:"Atlanta, GA", ORD:"Chicago, IL", MDW:"Chicago (Midway), IL", DEN:"Denver, CO",
+  DFW:"Dallas–Fort Worth, TX", DAL:"Dallas (Love), TX", IAH:"Houston, TX", HOU:"Houston (Hobby), TX",
+  PHX:"Phoenix, AZ", LAS:"Las Vegas, NV", SLC:"Salt Lake City, UT",
+  LAX:"Los Angeles, CA", SFO:"San Francisco, CA", OAK:"Oakland, CA", SAN:"San Diego, CA", SJC:"San Jose, CA",
+  SNA:"Orange County, CA", BUR:"Burbank, CA", SMF:"Sacramento, CA", SEA:"Seattle, WA", PDX:"Portland, OR",
+  JFK:"New York, NY", LGA:"New York (LaGuardia), NY", EWR:"Newark, NJ", BOS:"Boston, MA",
+  IAD:"Washington Dulles, VA", DCA:"Washington National, DC", PHL:"Philadelphia, PA", BWI:"Baltimore, MD",
+  CLT:"Charlotte, NC", RDU:"Raleigh-Durham, NC", MCO:"Orlando, FL", TPA:"Tampa, FL",
+  MIA:"Miami, FL", FLL:"Fort Lauderdale, FL", RSW:"Fort Myers, FL", SRQ:"Sarasota, FL",
+  PNS:"Pensacola, FL", VPS:"Destin/Ft Walton Beach, FL",
+  MSP:"Minneapolis–St. Paul, MN", DTW:"Detroit, MI", CLE:"Cleveland, OH", CVG:"Cincinnati, OH",
+  // Mexico / Caribbean
+  CUN:"Cancún, MX", CZM:"Cozumel, MX", SJD:"San José del Cabo, MX", PVR:"Puerto Vallarta, MX",
+  MEX:"Mexico City, MX", GDL:"Guadalajara, MX", PUJ:"Punta Cana, DO", MBJ:"Montego Bay, JM",
+  NAS:"Nassau, BS", AUA:"Aruba, AW", SJU:"San Juan, PR", STT:"St. Thomas, VI", STX:"St. Croix, VI"
+};
+
+const AIRLINE_NAME = {
+  AAL:"American", ENY:"Envoy", JIA:"PSA", RPA:"Republic",
+  DAL:"Delta", EDV:"Endeavor", SKW:"SkyWest",
+  UAL:"United", UCA:"CommuteAir",
+  SWA:"Southwest", NKS:"Spirit", JBU:"JetBlue", FFT:"Frontier", ASA:"Alaska", AAY:"Allegiant",
+  WJA:"WestJet",
+  EJA:"NetJets",
+  FDX:"FedEx",
+  UPS:"UPS",
+  QXE:"Horizon",
+  AWI:"Air Wisconsin",
+};
+
+// Simple, original SVG marks (not official logos) for readability.
+const USE_MEDIA_KIT_LOGOS = false; // later: set true and add assets/logos/ for official marks
+
+const AIRLINE_SVG = {
+  AAL: `<svg viewBox="0 0 100 100" aria-label="American"><rect x="6" y="6" width="88" height="88" rx="18" fill="none" stroke="currentColor" stroke-width="6"/><text x="50" y="60" text-anchor="middle" font-size="34" font-weight="950" fill="currentColor">AA</text></svg>`,
+  DAL: `<svg viewBox="0 0 100 100" aria-label="Delta"><rect x="6" y="6" width="88" height="88" rx="18" fill="none" stroke="currentColor" stroke-width="6"/><text x="50" y="60" text-anchor="middle" font-size="34" font-weight="950" fill="currentColor">DL</text></svg>`,
+  UAL: `<svg viewBox="0 0 100 100" aria-label="United"><rect x="6" y="6" width="88" height="88" rx="18" fill="none" stroke="currentColor" stroke-width="6"/><text x="50" y="60" text-anchor="middle" font-size="34" font-weight="950" fill="currentColor">UA</text></svg>`,
+  SWA: `<svg viewBox="0 0 100 100" aria-label="Southwest"><rect x="6" y="6" width="88" height="88" rx="18" fill="none" stroke="currentColor" stroke-width="6"/><text x="50" y="60" text-anchor="middle" font-size="34" font-weight="950" fill="currentColor">WN</text></svg>`,
+  JBU: `<svg viewBox="0 0 100 100" aria-label="JetBlue"><rect x="6" y="6" width="88" height="88" rx="18" fill="none" stroke="currentColor" stroke-width="6"/><text x="50" y="60" text-anchor="middle" font-size="34" font-weight="950" fill="currentColor">B6</text></svg>`,
+  FFT: `<svg viewBox="0 0 100 100" aria-label="Frontier"><rect x="6" y="6" width="88" height="88" rx="18" fill="none" stroke="currentColor" stroke-width="6"/><text x="50" y="60" text-anchor="middle" font-size="34" font-weight="950" fill="currentColor">F9</text></svg>`,
+  NKS: `<svg viewBox="0 0 100 100" aria-label="Spirit"><rect x="6" y="6" width="88" height="88" rx="18" fill="none" stroke="currentColor" stroke-width="6"/><text x="50" y="60" text-anchor="middle" font-size="34" font-weight="950" fill="currentColor">NK</text></svg>`,
+  ASA: `<svg viewBox="0 0 100 100" aria-label="Alaska"><rect x="6" y="6" width="88" height="88" rx="18" fill="none" stroke="currentColor" stroke-width="6"/><text x="50" y="60" text-anchor="middle" font-size="34" font-weight="950" fill="currentColor">AS</text></svg>`,
+  AAY: `<svg viewBox="0 0 100 100" aria-label="Allegiant"><rect x="6" y="6" width="88" height="88" rx="18" fill="none" stroke="currentColor" stroke-width="6"/><text x="50" y="60" text-anchor="middle" font-size="34" font-weight="950" fill="currentColor">G4</text></svg>`,
+  ENY: `<svg viewBox="0 0 100 100" aria-label="Envoy"><rect x="6" y="6" width="88" height="88" rx="18" fill="none" stroke="currentColor" stroke-width="6"/><text x="50" y="60" text-anchor="middle" font-size="34" font-weight="950" fill="currentColor">EN</text></svg>`,
+  SKW: `<svg viewBox="0 0 100 100" aria-label="SkyWest"><rect x="6" y="6" width="88" height="88" rx="18" fill="none" stroke="currentColor" stroke-width="6"/><text x="50" y="60" text-anchor="middle" font-size="34" font-weight="950" fill="currentColor">OO</text></svg>`
+};
+
+// v60: group regional carriers under parent brands (best-effort)
+// keys are operator/callsign prefixes we see in the feed
+const REGIONAL_PARENT = {
+  // American + American Eagle network,
+  ENY:"AAL", JIA:"AAL", RPA:"AAL", PDT:"AAL", ASH:"AAL",
+  // Delta Connection,
+  EDV:"DAL", CPZ:"DAL",
+  // United Express,
+  UCA:"UAL", GJS:"UAL", ASQ:"UAL",
+  QXE:"ASA",
+  AWI:"UAL",
+  FDX:"FDX",
+  UPS:"UPS",
+  EJA:"EJA",
+  WJA:"WJA",
+};
+
+// Optional label for the regional operator itself
+const REGIONAL_NAME = {
+  ENY:"Envoy", JIA:"PSA", RPA:"Republic", PDT:"Piedmont", ASH:"Mesa",
+  EDV:"Endeavor", CPZ:"Compass", UCA:"CommuteAir", GJS:"GoJet", ASQ:"ExpressJet", SKW:"SkyWest",
+  QXE:"Horizon",
+  AWI:"Air Wisconsin",
+  WJA:"WestJet",
+  EJA:"NetJets",
+  FDX:"FedEx",
+  UPS:"UPS",
+};
+
+function parentBrandCodeFromPrefix(prefix){
+  if (!prefix) return "";
+  return REGIONAL_PARENT[prefix] || prefix;
+}
+
+function parentBrandNameFromCode(code){
+  if (!code) return "—";
+  const names = { AAL:"American", DAL:"Delta", UAL:"United", SWA:"Southwest" };
+  return names[code] || AIRLINE_NAME[code] || code;
+}
+
+function regionalSubLabel(prefix, parentCode){
+  if (!prefix || !parentCode) return "";
+  if (prefix === parentCode) return "";
+  const r = REGIONAL_NAME[prefix] || prefix;
+  if (parentCode === "AAL") return `EAGLE • ${r}`;
+  if (parentCode === "DAL") return `CONNECTION • ${r}`;
+  if (parentCode === "UAL") return `EXPRESS • ${r}`;
+  if (parentCode === "ASA") return `HORIZON • ${r}`;
+  return r;
+}
+
+// Rough aircraft family hints by common operator (best-effort only)
+const AIRLINE_FLEET_HINT = {
+  SWA:"B737-family", AAL:"A320/B737 mix", DAL:"A320/B737 mix", UAL:"A320/B737 mix",
+  ENY:"E175/CRJ", JIA:"CRJ", RPA:"E175/ERJ", SKW:"E175/CRJ", EDV:"CRJ"
+};
+
+// ADSBDB lookups can be rate limited; we do ONE lookup per 30s max and back off on 429.
+let adsbCache = new Map(); // callsign -> {ts,data}
+let adsbNextAllowedTs = 0;
+let adsbBackoffUntil = 0;
+
+function airportLabel(code){
+  if (!code) return "—";
+  const c = String(code).toUpperCase();
+  const city = AIRPORT_CITY[c];
+  return city ? `${c} (${city})` : c;
+}
+
+function airlineCodeFromCallsign(callsign){
+  if (!callsign) return "";
+  const cs = String(callsign).trim().toUpperCase();
+  const m = cs.match(/^([A-Z]{3})/);
+  return m ? m[1] : "";
+}
+            
+// v80: passenger airline ICAO code allowlist (3-letter prefixes)
+const PASSENGER_ICAO_CODES = new Set([
+  "AAL","DAL","UAL","SWA","ASA","JBU","FFT","NKS","AAY","SKW","MXY",
+  "ENY","JIA","RPA","PDT","EDV","AWI","ASH","CPZ","GJS","QXE",
+  "WJA","ACA","WEN","ROU","AMX","VOI","VIV","CMP",
+  "BAW","VIR","AFR","DLH","KLM","IBE","TAP","SAS","SIA","EVA","ANA","JAL","KAL","AAR","QTR","UAE","ETD","THY"
+]);
+
+
+
+    
+// v89: non-passenger operators to exclude when "Passenger Airlines Only" is enabled
+const NON_PASSENGER_ICAO = new Set([
+  "CAP", // Civil Air Patrol
+  "TRF", // Tradeflight (cargo/charter)
+  "FDX", // FedEx
+  "UPS", // UPS
+  "ABX", // Airborne Express
+  "GTI", // Atlas Air
+  "CKS", // Kalitta Air
+  "AJT", // Amerijet
+  "KOW", // common cargo/charter in area
+
+  "JTZ", // non-scheduled/charter
+  "JTL", // non-scheduled/charter
+  "EJA", // non-scheduled/charter
+  "XOJ", // non-scheduled/charter
+  "LXJ", // non-scheduled/charter
+  "NJE", // non-scheduled/charter
+]);
+// v66: commercial filtering (keep passenger/regional/cargo; drop private/GA/mil)
+// NOTE: This is heuristic: it uses callsign prefixes, which is what we reliably have.
+const COMMERCIAL_CARRIER_CODES = new Set([
+  "SWA","AAL","DAL","UAL","ASA","JBU","FFT","NKS","AAY",
+  // Regional
+  "ENY","SKW","JIA","RPA","EDV","UCA","GJS","ASQ","PDT","ASH",
+  // Cargo
+  "FDX","UPS","ABX"
+]);
+
+const PRIVATE_PREFIXES = new Set(["CAP","KOW","EJA"]); // CAP=Civil Air Patrol, EJA=NetJets (private)
+function isCommercialCallsign(callsign){
+  if (!callsign) return false;
+  const cs = String(callsign).trim().toUpperCase();
+  if (/^N\d/.test(cs)) return false; // GA/private tail numbers
+  const ns = cs.replace(/\s+/g, "");
+  const m = ns.match(/^([A-Z]{3})\d/);
+  if (!m) return false;
+  const pref = m[1];
+  if (NON_PASSENGER_ICAO.has(pref)) return false;
+  // Passenger airlines allowlist (may be COMMERCIAL_CARRIER_CODES in older builds)
+  if (typeof PASSENGER_ICAO_CODES !== "undefined") return PASSENGER_ICAO_CODES.has(pref);
+  if (typeof COMMERCIAL_CARRIER_CODES !== "undefined") return COMMERCIAL_CARRIER_CODES.has(pref);
+  return false;
+}
+
+function operatorBrandSVG(cs){
+  const code = airlineCodeFromCallsign(cs) || "✈";
+  const name = AIRLINE_NAME[code] || code;
+  return `<svg viewBox="0 0 100 100" aria-label="${name}">
+    <rect x="6" y="6" width="88" height="88" rx="18" fill="none" stroke="currentColor" stroke-width="6"/>
+    <text x="50" y="56" text-anchor="middle" font-size="34" font-weight="950" fill="currentColor">${code.slice(0,3)}</text>
+    <text x="50" y="78" text-anchor="middle" font-size="12" font-weight="800" fill="currentColor">${name.replace(/&/g,"and").slice(0,14)}</text>
+  </svg>`;
+}
+
+function logoSVGFromCallsign(cs){
+  const code = airlineCodeFromCallsign(cs);
+  if (code && AIRLINE_SVG[code]) return AIRLINE_SVG[code];
+  const label = code || "✈";
+  return `<svg viewBox="0 0 100 100" aria-label="${label}"><rect x="6" y="6" width="88" height="88" rx="18" fill="none" stroke="currentColor" stroke-width="6"/><text x="50" y="60" text-anchor="middle" font-size="34" font-weight="950" fill="currentColor">${label}</text></svg>`;
+}
+
+function logoTextFromCallsign(cs){
+  const code = airlineCodeFromCallsign(cs);
+  return code || "✈";
+}
+
+function modelHintFromCallsign(cs){
+  const code = airlineCodeFromCallsign(cs);
+  if (!code) return "—";
+  const name = AIRLINE_NAME[code] || code;
+  const hint = AIRLINE_FLEET_HINT[code] ? ` • ${AIRLINE_FLEET_HINT[code]}` : "";
+  return `${name}${hint}`;
+}
+
+async function fetchAdsbdbForCallsign(callsign){
+  const now = Date.now();
+  const key = (callsign||"").trim().toUpperCase();
+  if (!key) return null;
+
+  // cache 10 minutes
+  const cached = adsbCache.get(key);
+  if (cached && (now - cached.ts) < 10*60*1000) return cached.data;
+
+  if (now < adsbBackoffUntil) return null;
+  if (now < adsbNextAllowedTs) return null;
+
+  adsbNextAllowedTs = now + 30*1000; // one call per 30s
+
+  const url = `${PROXY}adsb/${encodeURIComponent(key)}`;
+
+  try{
+    const res = await fetchWithTimeout(url, 6500);
+    if (res.status === 429){
+      adsbBackoffUntil = now + 5*60*1000;
+      return null;
+    }
+    if (!res.ok) return null;
+    const js = await res.json();
+    adsbCache.set(key, {ts: now, data: js});
+    return js;
+  }catch(e){
+    return null;
+  }
+}
+
+const XNA_FALLBACK = { lat: 36.2819, lon: -94.3068 };
+
+let HOME_LAT = XNA_FALLBACK.lat;
+let HOME_LON = XNA_FALLBACK.lon;
+
+// v98: If location permission is blocked/failed, fall back to XNA area so radar is never "0" just due to coords.
+const DEFAULT_LAT = 36.2819;   // XNA (Northwest Arkansas National Airport)
+const DEFAULT_LON = -94.3068;
+function ensureHomeCoords(){
+  const latOk = Number.isFinite(HOME_LAT) && Math.abs(HOME_LAT) > 1;
+  const lonOk = Number.isFinite(HOME_LON) && Math.abs(HOME_LON) > 1;
+  if (!latOk || !lonOk){
+    HOME_LAT = DEFAULT_LAT;
+    HOME_LON = DEFAULT_LON;
+    return "default (XNA)";
+  }
+  return "gps";
+}
+
+
+let RANGE_MI = Infinity;
+let COMMERCIAL_ONLY = true;
+
+let flights = [];
+let currentIndex = 0;
+let current = null;
+
+let scrollMode = "rotate"; // rotate | closest
+let rotateEveryMs = 7000;
+let rotateTimer = null;
+let lastDisplayedKey = null;
+let hasRenderedOnce = false;
+
+
+function setText(id, value){
+  const el = document.getElementById(id);
+  const v = (value === undefined || value === null) ? "" : String(value);
+  if (el && el.textContent !== v) el.textContent = v;
+}
+
+function setHTML(id, html){
+  const el = document.getElementById(id);
+  const h = (html === undefined || html === null) ? "" : String(html);
+  if (el && el.innerHTML !== h) el.innerHTML = h;
+}
+
+function setClass(id, cls){
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (el.className !== cls) el.className = cls;
+}
+
+function setStatus(msg){
+  const el = document.getElementById("fw-status");
+  if (el && el.textContent !== msg) el.textContent = msg;
+}
+
+function homePlaceLabel(){
+  const dToXNA = haversineMi(HOME_LAT, HOME_LON, XNA_FALLBACK.lat, XNA_FALLBACK.lon);
+  if (dToXNA <= 60) return "Fayetteville/Bentonville, AR (XNA area)";
+  return `${HOME_LAT.toFixed(3)}, ${HOME_LON.toFixed(3)}`;
+}
+
+function setHomeLine(){
+  const el = document.getElementById("homeLine");
+  if (!el) return;
+  el.textContent = `HOME: ${homePlaceLabel()}`;
+}
+function setFade(){ /* disabled in v52 */ }
+function deg2rad(d){ return d*Math.PI/180; }
+function haversineMi(lat1, lon1, lat2, lon2){
+  const R = 3958.7613;
+  const dLat = deg2rad(lat2-lat1);
+  const dLon = deg2rad(lon2-lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(deg2rad(lat1))*Math.cos(deg2rad(lat2))*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(a));
+}
+function bearing(lat1, lon1, lat2, lon2){
+  const φ1=deg2rad(lat1), φ2=deg2rad(lat2);
+  const y=Math.sin(deg2rad(lon2-lon1))*Math.cos(φ2);
+  const x=Math.cos(φ1)*Math.sin(φ2)-Math.sin(φ1)*Math.cos(φ2)*Math.cos(deg2rad(lon2-lon1));
+  return (Math.atan2(y,x)*180/Math.PI+360)%360;
+}
+function dirText(deg){
+  if (!Number.isFinite(deg)) return "—";
+  const dirs=["N","NE","E","SE","S","SW","W","NW","N"];
+  return dirs[Math.round(deg/45)];
+}
+async function fetchWithTimeout(url, ms=6500){
+  const ctrl = new AbortController();
+  const t = setTimeout(()=>ctrl.abort(), ms);
+  try{
+    const res = await fetch(url, { signal: ctrl.signal, cache: "no-store" });
+    clearTimeout(t);
+    return res;
+  }catch(e){
+    clearTimeout(t);
+    throw e;
+  }
+}
+function milesToDegLat(mi){ return mi/69.0; }
+function milesToDegLon(mi, lat){ return mi/(Math.cos(deg2rad(lat))*69.172); }
+function looksCommercial(cs){
+  if (!cs) return false;
+  const s = cs.trim().toUpperCase();
+  if (s.length < 3) return false;
+  return /^[A-Z]{2,3}\d{1,5}[A-Z]?$/.test(s);
+}
+function readStateRow(row){
+  const callsign = (row[1] || "").trim().toUpperCase();
+  const lat = row[6], lon = row[5];
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  const dist = haversineMi(HOME_LAT, HOME_LON, lat, lon);
+  const velMs = row[9];
+  const trk = row[10];
+  const altM = (Number.isFinite(row[13]) ? row[13] : row[7]);
+  return {
+    callsign,
+    lat, lon,
+    dist,
+    trk,
+    spdMph: Number.isFinite(velMs) ? velMs*2.236936 : null,
+    altFt: Number.isFinite(altM) ? altM*3.28084 : null,
+    originCountry: row[2] || "",
+    icao24: row[0] || ""
+  };
+}
+
+function updateTicker(){ /* v68: ticker removed */ }
+
+function pickCurrent(){
+  if (!flights.length) return null;
+  if (scrollMode === "closest") return flights[0];
+  currentIndex = (currentIndex % flights.length + flights.length) % flights.length;
+  return flights[currentIndex];
+}
+
+function render(){
+  try{ updateLastUpdate(); }catch(e){}
+
+  setHomeLine();
+
+  const csEl = document.getElementById("cs");
+  const routeEl = document.getElementById("route");
+  const modelEl = document.getElementById("model");
+  const altEl = document.getElementById("alt");
+  const spdEl = document.getElementById("spd");
+  const distEl = document.getElementById("dist");
+  const dirEl = document.getElementById("dir");
+  const metaEl = document.getElementById("meta");
+  const airlineNameEl = document.getElementById("airline-name");
+  const airlineSubEl = document.getElementById("airline-sub");
+  const logoEl = document.getElementById("logo");
+
+  if (!current){
+    setText("cs","—");
+    setText("route","NO NEARBY FLIGHTS");
+    setText("model","—");
+    setText("alt","—");
+    setText("spd","—");
+    setText("dist","—");
+    setText("dir","—");
+    setText("meta","Adjust range or turn off commercial-only to see more traffic.");;
+    if (logoEl){
+      if (logoEl.getAttribute("data-airline") !== "") logoEl.setAttribute("data-airline","");
+      setHTML("logo", operatorBrandSVG("")); 
+    }
+    return;
+  }
+
+  const op = airlineCodeFromCallsign(current.callsign);
+  const parent = parentBrandCodeFromPrefix(op);
+  const airlineName = parentBrandNameFromCode(parent);
+  if (airlineNameEl) setText("airline-name", airlineName);
+  if (airlineSubEl) setText("airline-sub", regionalSubLabel(op, parent) || " ");
+  setText("cs",(current.callsign || "UNKNOWN"));
+  try{ updateSecondaryBoxes(flights, currentIndex); }catch(e){}
+  if (logoEl){
+    const opCode = airlineCodeFromCallsign(current.callsign) || "";
+    const code = parentBrandCodeFromPrefix(opCode) || opCode;
+    if (logoEl.getAttribute("data-airline") !== code) logoEl.setAttribute("data-airline", code);
+    setHTML("logo", operatorBrandSVG(current.callsign));
+  }
+  setText("model", modelHintFromCallsign(current.callsign));
+  setText("route", current.routePretty || "—");
+  // model is set from hints; a real model may overwrite it later
+
+  setText("alt", current.altFt ? `${Math.round(current.altFt).toLocaleString()} FT` : "—");
+  setText("spd", current.spdMph ? `${Math.round(current.spdMph)} MPH` : "—");
+  setText("dist", `${current.dist.toFixed(1)} MI`);
+
+  const b = bearing(HOME_LAT, HOME_LON, current.lat, current.lon);
+  setText("dir", `${dirText(b)} ${Math.round(b)}°`);
+
+  setText("meta", current.metaPretty || `COUNTRY: ${current.originCountry || "—"} • ICAO24: ${current.icao24 || "—"}`);
+  if (window.__FW_UPDATE_ROUTE__) window.__FW_UPDATE_ROUTE__();
+  if (window.__FW_UPDATE_AIRCRAFT__) window.__FW_UPDATE_AIRCRAFT__();
+}
+
+
+
+async function loadFlights(){
+  // v95: RANGE_MI can be Infinity ("any"). OpenSky needs a finite bbox.
+  const coordSource = ensureHomeCoords();
+  const queryRadiusMi = Number.isFinite(RANGE_MI) ? RANGE_MI : 250; // query ~250mi box, still show closest overall
+
+  // v118: fixed-size bbox around current location (performance); no range logic
+  const bb = fwGetBboxV125(HOME_LAT, HOME_LON);
+  const lamin = bb.lamin.toFixed(4);
+  const lamax = bb.lamax.toFixed(4);
+  const lomin = bb.lomin.toFixed(4);
+  const lomax = bb.lomax.toFixed(4);
+
+  const url = `${PROXY}opensky/states?lamin=${lamin}&lomin=${lomin}&lamax=${lamax}&lomax=${lomax}`;
+  const res = await fetchWithTimeout(url, 6500);
+  if (!res.ok) throw new Error(`OpenSky ${res.status}`);
+  const js = await res.json();
+
+  const rows = Array.isArray(js?.states) ? js.states : [];
+  const rawCount = rows.length;
+  const parsed = [];
+  for (const r of rows){
+    const f = readStateRow(r);
+    if (!f) continue;
+    // If RANGE_MI is finite, filter by it. If "any" (Infinity), do not filter by distance.
+    if (Number.isFinite(RANGE_MI) && f.dist > RANGE_MI) continue;
+    if (COMMERCIAL_ONLY && !isCommercialCallsign(f.callsign)) continue;
+    parsed.push(f);
+  }
+  parsed.sort((a,b)=>a.dist-b.dist);
+  flights = parsed.slice(0, 5);
+  try{ setStatusLine(`Radar: ${rawCount} flights • Showing: ${flights.length} • Loc: ${coordSource} (${HOME_LAT.toFixed(3)}, ${HOME_LON.toFixed(3)})`); }catch(e){}
+  current = pickCurrent();
+  window.__FW_CURRENT_FLIGHT = current;
+  try{ __fwMarkStableKey(current && current.callsign, current && current.icao24); }catch(e){}
+  // v120: re-kick enrichers shortly after to avoid race on fast refresh
+  try{
+    const _cs = String((current && current.callsign) ? current.callsign : "");
+    const _hx = String((current && current.icao24) ? current.icao24 : "");
+    setTimeout(()=>{
+      try{ if (window.__FW_CURRENT_FLIGHT && String(window.__FW_CURRENT_FLIGHT.callsign||"")===_cs && window.__FW_FORCE_ROUTE__) window.__FW_FORCE_ROUTE__(); }catch(e){}
+      try{ if (window.__FW_CURRENT_FLIGHT && String(window.__FW_CURRENT_FLIGHT.icao24||"")===_hx && window.__FW_UPDATE_AIRCRAFT__) window.__FW_UPDATE_AIRCRAFT__(); }catch(e){}
+    }, 850);
+  }catch(e){}
+  // v117: kick off enrichers immediately on main-tile change
+  try{ if (window.__FW_FORCE_ROUTE__) window.__FW_FORCE_ROUTE__(); }catch(e){}
+  try{ if (window.__FW_UPDATE_AIRCRAFT__) window.__FW_UPDATE_AIRCRAFT__(); }catch(e){}
+  if (window.__FW_UPDATE_AIRCRAFT__) window.__FW_UPDATE_AIRCRAFT__();
+  if (window.__FW_UPDATE_ROUTE__) window.__FW_UPDATE_ROUTE__();
+  try{ setStatusLine(`Radar: ${rawCount} flights • Showing: ${flights.length} • Loc: ${coordSource} (${HOME_LAT.toFixed(3)}, ${HOME_LON.toFixed(3)})`); }catch(e){}
+  if (current){ current.routePretty = null; current.metaPretty = null; }
+  updateTicker();
+  window.__FW_CURRENT_FLIGHT = current;
+  try{ __fwMarkStableKey(current && current.callsign, current && current.icao24); }catch(e){}
+  // v120: re-kick enrichers shortly after to avoid race on fast refresh
+  try{
+    const _cs = String((current && current.callsign) ? current.callsign : "");
+    const _hx = String((current && current.icao24) ? current.icao24 : "");
+    setTimeout(()=>{
+      try{ if (window.__FW_CURRENT_FLIGHT && String(window.__FW_CURRENT_FLIGHT.callsign||"")===_cs && window.__FW_FORCE_ROUTE__) window.__FW_FORCE_ROUTE__(); }catch(e){}
+      try{ if (window.__FW_CURRENT_FLIGHT && String(window.__FW_CURRENT_FLIGHT.icao24||"")===_hx && window.__FW_UPDATE_AIRCRAFT__) window.__FW_UPDATE_AIRCRAFT__(); }catch(e){}
+    }, 850);
+  }catch(e){}
+  // v117: kick off enrichers immediately on main-tile change
+  try{ if (window.__FW_FORCE_ROUTE__) window.__FW_FORCE_ROUTE__(); }catch(e){}
+  try{ if (window.__FW_UPDATE_AIRCRAFT__) window.__FW_UPDATE_AIRCRAFT__(); }catch(e){}
+  if (window.__FW_UPDATE_AIRCRAFT__) window.__FW_UPDATE_AIRCRAFT__();
+  if (window.__FW_UPDATE_ROUTE__) window.__FW_UPDATE_ROUTE__();
+}
+
+function detectLocation(){
+  if (!navigator.geolocation) return;
+  let done = false;
+  const t = setTimeout(()=>{ done=true; }, 3000);
+  navigator.geolocation.getCurrentPosition(
+    (pos)=>{
+      if (done) return;
+      done = true; clearTimeout(t);
+      HOME_LAT = pos.coords.latitude;
+      HOME_LON = pos.coords.longitude;
+      setHomeLine();
+    },
+    ()=>{ done=true; clearTimeout(t); },
+    { enableHighAccuracy:false, maximumAge:600000, timeout:3000 }
+  );
+}
+
+function hookControls(){
+  const rs = document.getElementById("rangeSelect");
+  const ms = document.getElementById("modeSelect");
+  const hint = document.getElementById("range-hint");
+  const c = document.getElementById("commercialOnly");
+
+  function applyRange(){
+    if (!rs) return;
+    const v = rs.value;
+    RANGE_MI = (v === "any") ? Infinity : Number(v);
+    if (hint) hint.textContent = (v === "any") ? "ANY: showing the closest aircraft anywhere" : "";
+    setStatus("SCANNING AIRSPACE…");
+    setHomeLine();
+  }
+
+  function applyMode(){
+    if (!ms) return;
+    scrollMode = (ms.value === "rotate5") ? "rotate" : "closest";
+    currentIndex = 0;
+    current = pickCurrent();
+    render();
+    restartRotate();
+  }
+
+  if (rs) rs.addEventListener("change", ()=>{ applyRange(); });
+  if (ms) ms.addEventListener("change", ()=>{ applyMode(); });
+
+  if (c){
+    c.checked = COMMERCIAL_ONLY;
+    c.addEventListener("change", ()=>{
+      COMMERCIAL_ONLY = !!c.checked;
+      setStatus("SCANNING AIRSPACE…");
+    });
+  }
+
+  // defaults
+  if (rs){ rs.value = "25"; }
+  if (ms){ ms.value = "closest"; }
+  applyRange();
+  applyMode();
+}
+
+function restartRotate(){
+  try{ if (rotateTimer) { clearInterval(rotateTimer); rotateTimer = null; } }catch(e){}
+  try{ render(); }catch(e){}
+  if (scrollMode === "rotate"){
+    rotateTimer = setInterval(()=>{
+      if (!flights || !flights.length) return;
+      currentIndex = (currentIndex + 1) % flights.length;
+      render();
+    }, rotateEveryMs);
+  }
+}
+
+let ticking = false;
+async function tick(){
+  if (ticking) return;
+  ticking = true;
+  try{
+    await loadFlights();
+
+    // Optional: enrich ONLY the displayed flight (route + exact model) with backoff-safe lookup
+    if (current && current.callsign){
+      const extra = await fetchAdsbdbForCallsign(current.callsign);
+      if (extra && (extra.origin || extra.destination || extra.route)){
+        const o = extra.origin?.iata || extra.origin?.icao || "";
+        const d = extra.destination?.iata || extra.destination?.icao || "";
+        if (o && d){
+          const oLbl = airportLabel(o);
+          const dLbl = airportLabel(d);
+          current.routePretty = `${oLbl} → ${dLbl}`;
+          const reg = extra.registration ? `REG: ${extra.registration} • ` : "";
+          const mdl = extra.model ? `MODEL: ${extra.model}` : "";
+          current.metaPretty = `SOURCE: ADSBDB • ${reg}${mdl}`.trim();
+          if (extra.model) setText("model", extra.model);
+        }
+      }
+    }
+
+    // Only animate when the displayed flight changes (prevents flashing)
+    const key = (current && current.callsign) ? current.callsign : String(currentIndex);
+    if (key !== lastDisplayedKey){ lastDisplayedKey = key; if (hasRenderedOnce) setFade(); }
+
+    if (flights.length){
+      setStatus(`TRACKING ${flights.length} CLOSEST FLIGHT${flights.length===1?"":"S"}…`);
+    } else {
+      setStatus("NO NEARBY FLIGHTS");
+    }
+    setFade();
+    render();
+    hasRenderedOnce = true;
+  }catch(e){
+    setStatus("RADAR TEMPORARILY UNAVAILABLE");
+    render();
+  }finally{
+    ticking = false;
+  }
+}
+
+function start(){
+  document.getElementById("fw-version").textContent = "v128";
+  hookControls();
+  detectLocation(); // doesn't block
+  setStatus("SCANNING AIRSPACE…");
+  render();
+  tick();
+  setInterval(tick, 3000);
+  restartRotate();
+}
+
+document.addEventListener("DOMContentLoaded", start);
+
+
+// v62: highlight ANY label when max selected
+(function(){
+  const slider = document.getElementById("range");
+  const labels = document.getElementById("range-labels");
+  if (!slider || !labels) return;
+  const anyEl = labels.querySelector(".any");
+  function update(){
+    if (Number(slider.value) >= Number(slider.max)) {
+      anyEl.style.opacity = "1";
+    } else {
+      anyEl.style.opacity = ".7";
+    }
+  }
+  slider.addEventListener("input", update);
+  update();
+})();
+
+
+// v63: show hint when range is ANY
+(function(){
+  const slider = document.getElementById("range");
+  const hint = document.getElementById("range-hint");
+  if (!slider || !hint) return;
+  function update(){
+    if (Number(slider.value) >= Number(slider.max)) {
+      hint.textContent = "ANY: showing the closest aircraft anywhere";
+    } else {
+      hint.textContent = "";
+    }
+  }
+  slider.addEventListener("input", update);
+  update();
+})();
+
+
+// v66: range UI (ANY label + hint)
+function updateRangeUI(){ /* v80 removed */ }
+
+
+// v68: show next 4 flights as boxes under main card (no ticker)
+function updateSecondaryBoxes(queue, currentIndex){
+  const ids = ["sec1","sec2","sec3","sec4"];
+  for (let i=0;i<4;i++){
+    const el = document.getElementById(ids[i]);
+    if (!el) continue;
+    const csEl = el.querySelector(".secCS");
+    const miniEl = el.querySelector(".secMini");
+
+    if (!queue || queue.length < 2){
+      if (csEl) csEl.textContent = "—";
+      if (miniEl) miniEl.textContent = "—";
+      continue;
+    }
+    const f = queue[(currentIndex + 1 + i) % queue.length];
+    if (!f){
+      if (csEl) csEl.textContent = "—";
+      if (miniEl) miniEl.textContent = "—";
+      continue;
+    }
+    const cs = f.callsign || "—";
+    const dist = Number.isFinite(f.dist) ? `${Math.round(f.dist)}MI` : "—";
+    const brg = Number.isFinite(f.trk) ? dirText(f.trk) : "—";
+    const alt = Number.isFinite(f.altFt) ? `${Math.round(f.altFt)}FT` : "—";
+    const spd = Number.isFinite(f.spdMph) ? `${Math.round(f.spdMph)}MPH` : "—";
+    const mini = `${dist} ${brg} • ${alt} • ${spd}`;
+
+    if (csEl && csEl.textContent !== cs) csEl.textContent = cs;
+    if (miniEl && miniEl.textContent !== mini) miniEl.textContent = mini;
+  }
+}
+
+
+// v69: bearing to compass
+function compassFromBearing(deg){
+  if (!isFinite(deg)) return "—";
+  const dirs = ["N","NE","E","SE","S","SW","W","NW"];
+  const idx = Math.round(((deg % 360) / 45)) % 8;
+  return dirs[idx];
+}
+
+
+function rotateStep(){
+  if (!queue || !queue.length) return;
+  currentIndex = (currentIndex + 1) % queue.length;
+  renderCurrent();
+}
+
+
+// v80: toggles (passenger airlines only + scroll5)
+(function(){
+  const c = document.getElementById("commercialOnly");
+  const s = document.getElementById("scroll5");
+  function sync(){
+    COMMERCIAL_ONLY = c ? !!c.checked : true;
+    SCROLL5 = s ? !!s.checked : false;
+    scrollMode = SCROLL5 ? "rotate" : "closest";
+    currentIndex = 0;
+    restartRotate();
+  }
+  if (c) c.addEventListener("change", sync);
+  if (s) s.addEventListener("change", sync);
+  sync();
+})();
+
+
+function applyFiltersAndLimit(){
+  // v94: show counts + fallback so the screen never goes blank due to filtering
+  const statusEl = document.getElementById("status");
+  const raw = (typeof window.__fw_rawFlights !== "undefined" && window.__fw_rawFlights) ? window.__fw_rawFlights : (window.__fw_rawFlights || []);
+  window.__fw_rawFlights = raw;
+
+  const passengerOnly = !!(window.FW_STATE && window.FW_STATE.passengerOnly);
+  let filtered = raw;
+
+  if (passengerOnly) {
+    const passengerMatches = raw.filter(f => isCommercialCallsign(f && f.callsign));
+    filtered = passengerMatches;
+
+    if (passengerMatches.length === 0 && raw.length > 0) {
+      // fallback so user sees *something* (callsigns may be missing or mix is non-passenger)
+      filtered = raw;
+      if (statusEl) statusEl.textContent = `Radar: ${raw.length} flights (no passenger matches — showing closest overall)`;
+    } else {
+      if (statusEl) statusEl.textContent = `Radar: ${raw.length} flights • Showing passenger: ${Math.min(5, passengerMatches.length)}`;
+    }
+  } else {
+    if (statusEl) statusEl.textContent = `Radar: ${raw.length} flights • Showing: ${Math.min(5, raw.length)}`;
+  }
+
+  // Sort by distance if present
+  filtered = filtered.slice().sort((a,b)=> (a?.distance_mi ?? a?.distance ?? 1e9) - (b?.distance_mi ?? b?.distance ?? 1e9));
+
+  flights = filtered.slice(0, 5);
+}
+
+// v83: regional airline grouping
+const REGIONAL_PARENT_MAP = {
+  'ENY':'American', 'JIA':'American', 'PDT':'American', 'RPA':'American',
+  'EDV':'Delta', 'GJS':'Delta', 'SKW':'Delta',
+  'ASH':'United', 'AWI':'United', 'CPZ':'United',
+  'QXE':'Alaska'
+};
+
+function resolveAirlineName(f){
+  const cs = (f.callsign||'').toUpperCase();
+  const pref = cs.slice(0,3);
+  if (REGIONAL_PARENT_MAP[pref]) return REGIONAL_PARENT_MAP[pref];
+  return f.airline || pref || '—';
+}
+
+
+function updateLastUpdate(){
+  const el = document.getElementById("lastUpdate");
+  const dot = document.getElementById("liveIndicator");
+  if (!el) return;
+  const d = new Date();
+  el.textContent = "LAST UPDATE: " + d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  if (dot){
+    dot.classList.remove("pulse");
+    void dot.offsetWidth; // restart animation
+    dot.classList.add("pulse");
+  }
+}
