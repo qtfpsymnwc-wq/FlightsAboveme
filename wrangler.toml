@@ -1,0 +1,7 @@
+name = "flightsabove"
+main = "worker.js"
+compatibility_date = "2026-02-04"
+
+[vars]
+AERODATA_HOST = "aerodatabox.p.rapidapi.com"
+OPENSKY_CLIENT_ID = "clark.chrisd@gmail.com-api-client"
