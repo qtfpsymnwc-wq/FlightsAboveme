@@ -2,7 +2,7 @@
 // Option A: Pages hosts this UI, Worker hosts API.
 // Set API_BASE to your Worker domain. (No trailing slash)
 const API_BASE = "https://flightsabove.t2hkmhgbwz.workers.dev";
-const UI_VERSION = "v170";
+const UI_VERSION = "v171";
 const POLL_MS = 3500;
 
 // Persist Aerodatabox + aircraft enrichments across refreshes.
@@ -57,6 +57,20 @@ function guessAirline(callsign){
   const map={AAL:'American',ASA:'Alaska',DAL:'Delta',FFT:'Frontier',JBU:'JetBlue',NKS:'Spirit',SKW:'SkyWest',SWA:'Southwest',UAL:'United',AAY:'Allegiant',ENY:'Envoy',JIA:'PSA',RPA:'Republic',GJS:'GoJet',EDV:'Endeavor'};
   return map[p3]||null;
 }
+
+function airlineKeyFromCallsign(callsign){
+  const cs=(callsign||'').trim().toUpperCase();
+  // ICAO airline prefix is typically 3 letters (e.g., DAL1234)
+  const m = cs.match(/^([A-Z]{3})/);
+  return m ? m[1] : null;
+}
+
+function logoUrlForCallsign(callsign){
+  const key = airlineKeyFromCallsign(callsign);
+  const file = key ? `${key}.svg` : `_GENERIC.svg`;
+  // cache-bust per UI version
+  return `assets/logos/${file}?v=${encodeURIComponent(UI_VERSION)}`;
+}
 function fmtMi(mi) {
   if (!Number.isFinite(mi)) return "—";
   return mi.toFixed(mi < 10 ? 1 : 0) + " mi";
@@ -90,6 +104,18 @@ function renderPrimary(f, radarMeta){
   $("callsign").textContent = f.callsign || "—";
   $("icao24").textContent = f.icao24 || "—";
   $("airline").textContent = f.airlineName || f.airlineGuess || guessAirline(f.callsign) || f.country || "—";
+
+  // Airline logo (stored as static assets in Pages)
+  try {
+    const img = $("airlineLogo");
+    if (img) {
+      img.src = logoUrlForCallsign(f.callsign);
+      img.classList.remove('hidden');
+      const key = airlineKeyFromCallsign(f.callsign);
+      img.alt = key ? `${key} logo` : 'Airline logo';
+    }
+  } catch (_) {}
+
   $("alt").textContent = fmtAlt(f.baroAlt);
   $("spd").textContent = fmtSpd(f.velocity);
   $("dist").textContent = fmtMi(f.distanceMi);

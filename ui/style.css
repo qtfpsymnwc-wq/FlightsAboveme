@@ -40,6 +40,9 @@ body{
   padding:14px;
 }
 .primaryHeader{display:flex; justify-content:space-between; gap:10px}
+.primaryTop{display:flex;align-items:center;gap:12px}
+.airlineLogo{width:44px;height:44px;border-radius:12px;flex:0 0 auto;border:1px solid var(--line);background:rgba(255,255,255,.06)}
+.airlineLogo.hidden{display:none}
 .callsign{font-size:28px;font-weight:800; letter-spacing:.5px}
 .route{color:var(--muted); margin-top:4px}
 .model{margin-top:10px; font-size:14px}
