@@ -1,5 +1,5 @@
 /**
- * FlightWall API Worker (v167)
+ * FlightWall API Worker (v168)
  *
  * Endpoints:
  *  - GET /health
@@ -24,7 +24,7 @@ export default {
     }
 
     if (url.pathname === "/health") {
-      return json({ ok: true, ts: new Date().toISOString(), version: "v167" }, 200, cors);
+      return json({ ok: true, ts: new Date().toISOString(), version: "v168" }, 200, cors);
     }
 
     const parts = url.pathname.split("/").filter(Boolean);
@@ -103,6 +103,9 @@ export default {
           callsign,
           origin,
           destination,
+          airlineName: f?.airline?.name || f?.airline?.shortName || null,
+          aircraftModel: f?.aircraft?.model || f?.aircraft?.modelCode || null,
+          aircraftType: f?.aircraft?.typeName || f?.aircraft?.iataCodeShort || f?.aircraft?.icaoCode || null,
           route: (origin && destination) ? `${fmtEnd(origin)} → ${fmtEnd(destination)}` : "unavailable",
           source: "aerodatabox"
         }), {
