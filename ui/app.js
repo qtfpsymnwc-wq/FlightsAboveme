@@ -3,6 +3,7 @@
 // Set API_BASE to your Worker domain. (No trailing slash)
 const API_BASE = "https://flightsabove.t2hkmhgbwz.workers.dev";
 const UI_VERSION = "v180";
+const RELEASE_VERSION = "v1.1.0";
 const POLL_MS = 3500;
 
 // Persist Aerodatabox + aircraft enrichments across refreshes.
