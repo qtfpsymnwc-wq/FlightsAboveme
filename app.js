@@ -1,0 +1,239 @@
+// FlightWall UI (v167)
+// Option A: Pages hosts this UI, Worker hosts API.
+// Set API_BASE to your Worker domain. (No trailing slash)
+const API_BASE = "https://flightsabove.t2hkmhgbwz.workers.dev";
+const UI_VERSION = "v167";
+const POLL_MS = 3500;
+
+const $ = (id) => document.getElementById(id);
+const errBox = $("errBox");
+
+function showErr(msg){
+  try {
+    errBox.textContent = msg;
+    errBox.classList.remove("hidden");
+  } catch {}
+}
+window.addEventListener("error", (e)=>showErr("JS error: " + (e?.message || e)));
+window.addEventListener("unhandledrejection", (e)=>showErr("Promise rejection: " + (e?.reason?.message || e?.reason || e)));
+
+function nm(s){ return (s ?? "").toString().trim(); }
+
+function haversineMi(lat1, lon1, lat2, lon2){
+  const R = 3958.7613;
+  const toRad = (d)=>d*Math.PI/180;
+  const dLat = toRad(lat2-lat1);
+  const dLon = toRad(lon2-lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(a));
+}
+
+function headingToText(deg){
+  if (!Number.isFinite(deg)) return "—";
+  const dirs = ["N","NE","E","SE","S","SW","W","NW"];
+  const idx = Math.round((((deg%360)+360)%360) / 45) % 8;
+  return dirs[idx] + ` (${Math.round(deg)}°)`;
+}
+
+function fmtAlt(m) {
+  if (!Number.isFinite(m)) return "—";
+  const ft = m * 3.28084;
+  return Math.round(ft).toLocaleString() + " ft";
+}
+function fmtSpd(ms) {
+  if (!Number.isFinite(ms)) return "—";
+  const kt = ms * 1.943844;
+  return Math.round(kt) + " kt";
+}
+function fmtMi(mi) {
+  if (!Number.isFinite(mi)) return "—";
+  return mi.toFixed(mi < 10 ? 1 : 0) + " mi";
+}
+
+function bboxAround(lat, lon){
+  const dLat = 0.6;
+  const dLon = 0.8;
+  return {
+    lamin: (lat - dLat).toFixed(4),
+    lamax: (lat + dLat).toFixed(4),
+    lomin: (lon - dLon).toFixed(4),
+    lomax: (lon + dLon).toFixed(4),
+  };
+}
+
+async function fetchJSON(url, timeoutMs=8000){
+  const ctrl = new AbortController();
+  const t = setTimeout(()=>ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal, cache: "no-store", credentials: "omit" });
+    const text = await res.text();
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0,160)}`);
+    return JSON.parse(text);
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+function renderPrimary(f, radarMeta){
+  $("callsign").textContent = f.callsign || "—";
+  $("icao24").textContent = f.icao24 || "—";
+  $("airline").textContent = f.country || "—";
+  $("alt").textContent = fmtAlt(f.baroAlt);
+  $("spd").textContent = fmtSpd(f.velocity);
+  $("dist").textContent = fmtMi(f.distanceMi);
+  $("dir").textContent = headingToText(f.trueTrack);
+
+  $("route").textContent = f.routeText || "—";
+  $("model").textContent = f.modelText || "—";
+  $("reg").textContent = f.registration || "—";
+
+  $("radarLine").textContent = `Radar: ${radarMeta.count} flights • Showing: ${radarMeta.showing}`;
+  $("debugLine").textContent = `UI ${UI_VERSION} • API ${radarMeta.apiVersion || "?"}`;
+}
+
+function renderList(list){
+  const el = $("list");
+  el.innerHTML = "";
+  list.forEach((f)=>{
+    const row = document.createElement("div");
+    row.className = "row";
+    row.innerHTML = `
+      <div class="left">
+        <div class="cs">${f.callsign || "—"}</div>
+        <div class="sub">${fmtMi(f.distanceMi)} • ${fmtAlt(f.baroAlt)} • ${fmtSpd(f.velocity)}</div>
+      </div>
+      <div class="badge">${f.icao24 || ""}</div>
+    `;
+    el.appendChild(row);
+  });
+}
+
+function normalizeCallsign(cs){
+  return nm(cs).replace(/\s+/g,"").toUpperCase();
+}
+
+function cleanAirportName(s){
+  return nm(s).replace(/\/+\s*$/,"").trim();
+}
+
+async function enrichRoute(primary){
+  const cs = normalizeCallsign(primary.callsign);
+  if (!cs) return;
+  try {
+    const data = await fetchJSON(`${API_BASE}/flight/${encodeURIComponent(cs)}`, 9000);
+    if (data && data.ok) {
+      const o = data.origin?.iata ? `${cleanAirportName(data.origin.municipalityName || data.origin.shortName || data.origin.name)} (${data.origin.iata})` : "";
+      const d = data.destination?.iata ? `${cleanAirportName(data.destination.municipalityName || data.destination.shortName || data.destination.name)} (${data.destination.iata})` : "";
+      primary.routeText = (o && d) ? `${o} → ${d}` : (data.route || "—");
+    }
+  } catch {}
+}
+
+async function enrichAircraft(primary){
+  const hex = nm(primary.icao24).toLowerCase();
+  if (!hex) return;
+  try {
+    const data = await fetchJSON(`${API_BASE}/aircraft/icao24/${encodeURIComponent(hex)}`, 9000);
+    if (data && data.ok && data.found) {
+      const mfg = nm(data.manufacturer);
+      const model = nm(data.model);
+      const code = nm(data.modelCode);
+      primary.modelText = (mfg ? (mfg + " ") : "") + (model || "—") + (code && code !== model ? ` (${code})` : "");
+      primary.registration = nm(data.registration) || primary.registration;
+    }
+  } catch {}
+}
+
+async function main(){
+  $("statusText").textContent = "Locating…";
+  let apiVersion = "?";
+  try {
+    const h = await fetchJSON(`${API_BASE}/health`, 6000);
+    apiVersion = h?.version || "?";
+  } catch {}
+
+  const pos = await new Promise((resolve, reject)=>{
+    if (!navigator.geolocation) return reject(new Error("Geolocation not supported"));
+    navigator.geolocation.getCurrentPosition(
+      (p)=>resolve(p),
+      (e)=>reject(new Error(e.message || "Location denied")),
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 5000 }
+    );
+  }).catch((e)=>{
+    $("statusText").textContent = "Location failed";
+    showErr(String(e.message || e));
+    throw e;
+  });
+
+  const lat = pos.coords.latitude;
+  const lon = pos.coords.longitude;
+  const bb = bboxAround(lat, lon);
+
+  $("statusText").textContent = "Radar…";
+
+  let lastPrimaryKey = "";
+  async function tick(){
+    try {
+      const url = new URL(`${API_BASE}/opensky/states`);
+      Object.entries(bb).forEach(([k,v])=>url.searchParams.set(k,v));
+      const data = await fetchJSON(url.toString(), 9000);
+      const states = Array.isArray(data?.states) ? data.states : [];
+      const radarMeta = {
+        count: states.length,
+        showing: Math.min(states.length, 5),
+        apiVersion
+      };
+
+      if (!states.length) {
+        $("statusText").textContent = "No flights";
+        renderPrimary({callsign:"—", icao24:"—"}, radarMeta);
+        $("list").innerHTML = "";
+        return;
+      }
+
+      const flights = states.map((s)=>{
+        const icao24 = nm(s[0]).toLowerCase();
+        const callsign = nm(s[1]);
+        const country = nm(s[2]);
+        const lon2 = (typeof s[5] === "number") ? s[5] : NaN;
+        const lat2 = (typeof s[6] === "number") ? s[6] : NaN;
+        const baroAlt = (typeof s[7] === "number") ? s[7] : NaN;
+        const velocity = (typeof s[9] === "number") ? s[9] : NaN;
+        const trueTrack = (typeof s[10] === "number") ? s[10] : NaN;
+        const distanceMi = (Number.isFinite(lat2) && Number.isFinite(lon2)) ? haversineMi(lat, lon, lat2, lon2) : Infinity;
+        return {
+          icao24, callsign, country,
+          lat: lat2, lon: lon2,
+          baroAlt, velocity, trueTrack,
+          distanceMi,
+          routeText: "—",
+          modelText: "—",
+          registration: "—",
+        };
+      }).filter(f => Number.isFinite(f.distanceMi)).sort((a,b)=>a.distanceMi-b.distanceMi);
+
+      const primary = flights[0];
+      const top5 = flights.slice(0,5);
+
+      $("statusText").textContent = "Live";
+      renderPrimary(primary, radarMeta);
+      renderList(top5);
+
+      const key = `${primary.icao24}|${normalizeCallsign(primary.callsign)}`;
+      if (key && key !== lastPrimaryKey) {
+        lastPrimaryKey = key;
+        Promise.allSettled([enrichRoute(primary), enrichAircraft(primary)]).then(()=>{
+          renderPrimary(primary, radarMeta);
+        });
+      }
+    } catch(e) {
+      $("statusText").textContent = "Radar error";
+      showErr(String(e.message || e));
+    }
+  }
+
+  await tick();
+  setInterval(tick, POLL_MS);
+}
+
+main();

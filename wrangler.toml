@@ -1,0 +1,6 @@
+name = "flightwall-api"
+main = "worker.js"
+compatibility_date = "2026-02-04"
+
+[vars]
+AERODATA_HOST = "aerodatabox.p.rapidapi.com"
