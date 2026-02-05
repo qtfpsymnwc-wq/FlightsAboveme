@@ -2,7 +2,7 @@
 // Option A: Pages hosts this UI, Worker hosts API.
 // Set API_BASE to your Worker domain. (No trailing slash)
 const API_BASE = "https://flightsabove.t2hkmhgbwz.workers.dev";
-const UI_VERSION = "v173";
+const UI_VERSION = "v176";
 const POLL_MS = 3500;
 
 // Persist Aerodatabox + aircraft enrichments across refreshes.
@@ -153,6 +153,30 @@ function normalizeCallsign(cs){
   return nm(cs).replace(/\s+/g,"").toUpperCase();
 }
 
+
+// ----- Tier filtering -----
+// Tier A: major passenger carriers (default)
+// Tier B: expands to include regional partners + common cargo carriers
+const TIER_A_PREFIXES = ["AAL","DAL","UAL","SWA","ASA","FFT","NKS","JBU","AAY"];
+const TIER_B_EXTRA_PREFIXES = ["SKW","ENY","EDV","JIA","RPA","GJS","UPS","FDX"];
+const TIER_ALL_PREFIXES = [...new Set([...TIER_A_PREFIXES, ...TIER_B_EXTRA_PREFIXES])];
+
+function callsignPrefix(cs){
+  const s = normalizeCallsign(cs);
+  // Prefer 3-letter airline prefix when present (AAL1234, DAL2181, etc)
+  const m = s.match(/^[A-Z]{3}/);
+  if (m) return m[0];
+  return s.slice(0,3);
+}
+
+function passesTier(cs, tier){
+  const p = callsignPrefix(cs);
+  if (!p) return false;
+  if (tier === "B") return TIER_ALL_PREFIXES.includes(p);
+  return TIER_A_PREFIXES.includes(p);
+}
+
+
 function cacheKeyForFlight(f){
   const hex = nm(f?.icao24).toLowerCase();
   const cs = normalizeCallsign(f?.callsign);
@@ -228,6 +252,46 @@ async function enrichAircraft(primary){
 
 async function main(){
   $("statusText").textContent = "Locating…";
+
+  // UI controls
+  const tierSegment = document.getElementById("tierSegment");
+  const showMilEl = document.getElementById("showMil");
+
+  let tier = (localStorage.getItem("fw_tier") || "A").toUpperCase();
+  if (tier !== "A" && tier !== "B") tier = "A";
+
+  let showMil = localStorage.getItem("fw_showMil") === "1";
+
+  function syncTierButtons(){
+    if (!tierSegment) return;
+    [...tierSegment.querySelectorAll("button[data-tier]")].forEach((b)=>{
+      const t = (b.getAttribute("data-tier") || "A").toUpperCase();
+      b.classList.toggle("active", t === tier);
+    });
+  }
+
+  if (tierSegment) {
+    tierSegment.addEventListener("click", (e)=>{
+      const btn = e.target && e.target.closest ? e.target.closest("button[data-tier]") : null;
+      if (!btn) return;
+      tier = (btn.getAttribute("data-tier") || "A").toUpperCase();
+      if (tier !== "A" && tier !== "B") tier = "A";
+      localStorage.setItem("fw_tier", tier);
+      syncTierButtons();
+      tick(true);
+    });
+    syncTierButtons();
+  }
+
+  if (showMilEl) {
+    showMilEl.checked = showMil;
+    showMilEl.addEventListener("change", ()=>{
+      showMil = !!showMilEl.checked;
+      localStorage.setItem("fw_showMil", showMil ? "1" : "0");
+      tick(true);
+    });
+  }
+
   let apiVersion = "?";
   try {
     const h = await fetchJSON(`${API_BASE}/health`, 6000);

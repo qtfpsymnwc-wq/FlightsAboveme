@@ -13,11 +13,24 @@
         <div class="dot"></div>
         <div>
           <div class="title">FlightWall</div>
-          <div class="subtitle">Closest flight overhead • Live ADS‑B</div>
+          <div class="subtitle">Closest flight overhead • Live ADS-B</div>
         </div>
       </div>
-      <div class="status">
-        <span id="statusText">Booting…</span>
+
+      <div class="right">
+        <div class="segment" id="tierSegment" aria-label="Airline Tier">
+          <button type="button" data-tier="A" class="active">Tier A</button>
+          <button type="button" data-tier="B">Tier B</button>
+        </div>
+
+        <label class="check">
+          <input id="showMil" type="checkbox" />
+          <span>Show military / government</span>
+        </label>
+
+        <div class="status">
+          <span id="statusText">Booting…</span>
+        </div>
       </div>
     </header>
 
