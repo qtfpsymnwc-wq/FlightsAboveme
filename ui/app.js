@@ -1,8 +1,8 @@
-// FlightWall UI (v172)
+// FlightWall UI (v170)
 // Option A: Pages hosts this UI, Worker hosts API.
 // Set API_BASE to your Worker domain. (No trailing slash)
 const API_BASE = "https://flightsabove.t2hkmhgbwz.workers.dev";
-const UI_VERSION = "v172";
+const UI_VERSION = "v171";
 const POLL_MS = 3500;
 
 // Persist Aerodatabox + aircraft enrichments across refreshes.
@@ -123,10 +123,7 @@ function renderPrimary(f, radarMeta){
 
   $("route").textContent = f.routeText || "—";
   $("model").textContent = f.modelText || "—";
-  const regVal = nm(f.registration);
-  const regRow = document.getElementById("regRow");
-  if (regRow) regRow.style.display = regVal ? "flex" : "none";
-  $("reg").textContent = regVal || "";
+  $("reg").textContent = f.registration || "—";
 
   $("radarLine").textContent = `Radar: ${radarMeta.count} flights • Showing: ${radarMeta.showing}`;
   $("debugLine").textContent = `UI ${UI_VERSION} • API ${radarMeta.apiVersion || "?"}`;
