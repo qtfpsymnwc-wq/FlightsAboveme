@@ -2,41 +2,8 @@
 // Option A: Pages hosts this UI, Worker hosts API.
 // Set API_BASE to your Worker domain. (No trailing slash)
 const API_BASE = "https://flightsabove.t2hkmhgbwz.workers.dev";
-const UI_VERSION = "v177";
-\1
-
-// --- Tier filtering (v177) ---
-// Tier A (default): commercial passenger + regionals (no cargo/private/military)
-// Tier B: adds cargo + private + government/military
-const TIER_STORAGE_KEY = "flightwall_tier_mode"; // "A" or "B"
-
-const PASSENGER_ICAO = new Set([
-  "AAL","DAL","UAL","SWA","ASA","FFT","JBU","NKS","AAY",
-  // regionals
-  "SKW","ENY","EDV","JIA","RPA","GJS","ASH","QXE","AWI","PDT","CPZ","UCA","EJA","NJE"
-]);
-
-const CARGO_ICAO = new Set(["FDX","UPS","ABX","GTI","CKS","KAL","BOX","MXY","ATN","FXF"]);
-
-function getIcaoPrefix(callsign){
-  const cs = (callsign || "").trim().toUpperCase();
-  // keep only A-Z0-9 and take first 3
-  const clean = cs.replace(/[^A-Z0-9]/g, "");
-  return clean.slice(0,3);
-}
-
-function classifyTier(f){
-  const icao = (f?.airlineCode || getIcaoPrefix(f?.callsign)).toUpperCase();
-  if (!icao || icao.length < 2) return "B"; // unknown => Tier B bucket
-  if (CARGO_ICAO.has(icao)) return "B";
-  if (PASSENGER_ICAO.has(icao)) return "A";
-  // If callsign is clearly human airline-style but unknown, treat as A; numeric-only -> B
-  const cs = (f?.callsign || "").trim();
-  if (/[A-Z]/i.test(cs)) return "A";
-  return "B";
-}
-
-function isTierAFlight(f){ return classifyTier(f) === "A"; }
+const UI_VERSION = "v176";
+const POLL_MS = 3500;
 
 // Persist Aerodatabox + aircraft enrichments across refreshes.
 // Keyed by icao24 + callsign to avoid "route flashes then disappears".
@@ -444,16 +411,3 @@ async function main(){
 }
 
 main();
-
-
-function selectClosestForMain(flights){
-  const mode = getTierMode();
-  const eligible = (mode === "B") ? flights : flights.filter(isTierAFlight);
-  return eligible[0] || flights[0] || null;
-}
-
-
-function shouldSuppressFetchAbort(err){
-  const msg = (err && (err.message || err.toString())) ? String(err.message || err.toString()) : "";
-  return err?.name === "AbortError" || /aborted|abort/i.test(msg);
-}
