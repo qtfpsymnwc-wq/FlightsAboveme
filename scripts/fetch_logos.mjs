@@ -1,97 +1,131 @@
 /**
- * fetch_logos.mjs
+ * scripts/fetch_logos.mjs
  *
  * Downloads airline logo SVGs into ui/assets/logos/<ICAO>.svg
  *
- * Why: I can't bundle trademarked airline logos in the repo by default.
- * This script pulls them from public sources during your build/deploy step.
- *
- * Usage (locally):
+ * Cloudflare Pages build command:
  *   node scripts/fetch_logos.mjs
  *
- * Usage (Cloudflare Pages Build command):
- *   node scripts/fetch_logos.mjs && npx wrangler deploy
+ * Why Special:FilePath?
+ * - It stays stable even when Wikimedia upload URLs change.
+ * - It reduces 404s caused by hardcoded /wikipedia/commons/<hash> paths.
  *
  * Notes:
- * - Logos are trademarks. Make sure you have rights to use them, especially for commercial use.
- * - If a download fails, the existing placeholder SVG remains.
+ * - Airline logos are trademarks. Ensure you have rights to use them, especially commercially.
+ * - On any failure, the existing placeholder SVG remains.
  */
 import fs from "node:fs";
 import path from "node:path";
-import https from "node:https";
 
 const OUT_DIR = path.resolve("ui/assets/logos");
 
-const SOURCES = {
-  // Majors
-  AAL: "https://upload.wikimedia.org/wikipedia/commons/8/81/American_Airlines_wordmark_%282013%29.svg",
-  DAL: "https://upload.wikimedia.org/wikipedia/commons/9/9d/Delta_logo.svg",
-  UAL: "https://upload.wikimedia.org/wikipedia/commons/8/81/United_Airlines_logo_%281973_-_2010%29.svg",
-  SWA: "https://upload.wikimedia.org/wikipedia/commons/6/6b/Southwest_Airlines_logo_2014.svg",
-  ASA: "https://upload.wikimedia.org/wikipedia/commons/5/5d/Alaska_Airlines_logo.svg",
-  JBU: "https://upload.wikimedia.org/wikipedia/commons/3/3c/JetBlue_Airways_Logo.svg",
+// ICAO -> Wikimedia Commons filename
+// We fetch via: https://commons.wikimedia.org/wiki/Special:FilePath/<FILENAME>
+const FILES = {
+  // US majors / common carriers
+  AAL: "American Airlines wordmark (2013).svg",
+  DAL: "Delta logo.svg",
+  UAL: "United_Airlines_logo_(1973_-_2010).svg",
+  SWA: "Southwest Airlines logo 2014.svg",
+  ASA: "Alaska Airlines Logo.svg",
+  JBU: "JetBlue logo 2011.svg", // fallback if missing; will keep placeholder if 404
+  FFT: "Frontier Airlines Logo.svg",
+  NKS: "Spirit Airlines logo.svg",
+  AAY: "Allegiant Air logo.svg",
+  FDX: "FedEx Express.svg",
 
-  // ULCCs / leisure
-  FFT: "https://upload.wikimedia.org/wikipedia/commons/6/61/Frontier_Airlines_Logo.svg",
-  NKS: "https://upload.wikimedia.org/wikipedia/commons/7/7b/Spirit_Airlines_logo.svg",
-  AAY: "https://upload.wikimedia.org/wikipedia/commons/8/8a/Allegiant_Air_logo.svg",
-
-  // Cargo
-  FDX: "https://upload.wikimedia.org/wikipedia/commons/9/9a/FedEx_Express.svg",
-
-  // Regionals / commuters
-  EDV: "https://upload.wikimedia.org/wikipedia/commons/2/29/Endeavor_Air_Logo.svg",
-  ENY: "https://upload.wikimedia.org/wikipedia/commons/2/23/Envoy_air_logo.svg",
-  SKW: "https://upload.wikimedia.org/wikipedia/commons/5/55/SkyWest_Airlines_%28United_States%29_logo.svg",
-  RPA: "https://upload.wikimedia.org/wikipedia/commons/2/2d/Republic_Airways_2019_Logo.svg",
-  JIA: "https://upload.wikimedia.org/wikipedia/commons/1/13/PSA_Airlines_%28OH%29_Logo.svg",
+  // Regionals you commonly see in OpenSky / AeroDataBox (US)
+  EDV: "Endeavor Air logo.svg",
+  ENY: "Envoy air logo.svg",
+  SKW: "SkyWest Airlines (United States) logo.svg",
+  RPA: "Republic Airways 2019 Logo.svg",
+  JIA: "PSA Airlines (OH) Logo.svg",
 };
 
-function fetchText(url) {
-  return new Promise((resolve, reject) => {
-    https.get(url, { headers: { "User-Agent": "FlightWall/1.1.0" } }, (res) => {
-      if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        return resolve(fetchText(res.headers.location));
-      }
-      if (res.statusCode !== 200) {
-        reject(new Error(`HTTP ${res.statusCode} for ${url}`));
-        res.resume();
-        return;
-      }
-      let data = "";
-      res.setEncoding("utf8");
-      res.on("data", (chunk) => (data += chunk));
-      res.on("end", () => resolve(data));
-    }).on("error", reject);
-  });
+function ensureDir(p) {
+  fs.mkdirSync(p, { recursive: true });
 }
 
-(async () => {
-  fs.mkdirSync(OUT_DIR, { recursive: true });
+function filePathUrl(filename) {
+  // Special:FilePath accepts spaces, parens, etc; encodeURIComponent is safe.
+  return `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(filename)}`;
+}
 
-  const results = [];
-  for (const [icao, url] of Object.entries(SOURCES)) {
-    const outPath = path.join(OUT_DIR, `${icao}.svg`);
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+async function fetchWithRetry(url, tries = 4) {
+  let lastStatus = 0;
+  for (let i = 0; i < tries; i++) {
+    const res = await fetch(url, {
+      redirect: "follow",
+      headers: {
+        "User-Agent": "FlightWallLogoFetch/1.1 (+https://github.com/qtfpsymnwc-wq/FlightsAboveme)",
+        "Accept": "image/svg+xml,image/*,*/*;q=0.8",
+      },
+    });
+
+    lastStatus = res.status;
+
+    if (res.status === 429 || res.status === 503) {
+      // Rate limited / temporarily unavailable – backoff and retry
+      const backoff = 1200 * (i + 1);
+      await sleep(backoff);
+      continue;
+    }
+
+    return res;
+  }
+  return { ok: false, status: lastStatus };
+}
+
+async function main() {
+  ensureDir(OUT_DIR);
+
+  const entries = Object.entries(FILES);
+
+  for (let idx = 0; idx < entries.length; idx++) {
+    const [icao, filename] = entries[idx];
+    const dest = path.join(OUT_DIR, `${icao}.svg`);
+    const url = filePathUrl(filename);
+
     try {
-      const svg = await fetchText(url);
-
-      // Basic sanity check
-      if (!svg.trim().startsWith("<svg") && !svg.includes("<svg")) {
-        throw new Error("Not an SVG response");
+      // Skip download if file already exists and is non-empty.
+      if (fs.existsSync(dest) && fs.statSync(dest).size > 20) {
+        console.log(`↷ ${icao} already exists, skipping`);
+        continue;
       }
 
-      fs.writeFileSync(outPath, svg, "utf8");
-      results.push({ icao, ok: true });
-      console.log(`✓ ${icao} -> ${outPath}`);
+      const res = await fetchWithRetry(url, 4);
+
+      if (!res.ok) {
+        console.log(`⚠ ${icao} failed (HTTP ${res.status} for ${url}). Keeping existing placeholder.`);
+        await sleep(250);
+        continue;
+      }
+
+      const buf = Buffer.from(await res.arrayBuffer());
+
+      // Basic sanity check (avoid writing HTML error pages)
+      const head = buf.slice(0, 200).toString("utf8").toLowerCase();
+      if (head.includes("<!doctype html") || head.includes("<html")) {
+        console.log(`⚠ ${icao} got HTML instead of SVG. Keeping existing placeholder.`);
+        await sleep(250);
+        continue;
+      }
+
+      fs.writeFileSync(dest, buf);
+      console.log(`✓ ${icao} -> ${dest}`);
     } catch (e) {
-      results.push({ icao, ok: false, error: String(e?.message || e) });
-      console.warn(`⚠ ${icao} failed (${e?.message || e}). Keeping existing placeholder.`);
+      console.log(`⚠ ${icao} error (${e?.message || "unknown"}). Keeping existing placeholder.`);
     }
+
+    // Gentle throttle between requests to reduce 429s
+    await sleep(300);
   }
 
-  // Optional: write a small report file
-  fs.writeFileSync(path.resolve("scripts/logo_fetch_report.json"), JSON.stringify({
-    generatedAt: new Date().toISOString(),
-    results,
-  }, null, 2));
-})();
+  console.log("Finished");
+}
+
+await main();
