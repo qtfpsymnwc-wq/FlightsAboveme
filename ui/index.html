@@ -4,89 +4,109 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>FlightWall</title>
-  <link rel="stylesheet" href="./style.css?v=177">
+  <link rel="stylesheet" href="./style.css?v=178">
 </head>
 <body>
   <div id="app">
     <header class="topbar">
       <div class="brand">
-        <div class="dot"></div>
+        <div class="dot" aria-hidden="true"></div>
         <div>
           <div class="title">FlightWall</div>
           <div class="subtitle">Closest flight overhead • Live ADS-B</div>
         </div>
       </div>
 
-      <div class="right">
-          <div class="tier">
-            <label class="switch">
-              <input type="checkbox" id="tierToggle" />
-              <span class="slider"></span>
-            </label>
-            <button class="tierbtn" id="tierInfoBtn" type="button" aria-label="Tier info">Tier A</button>
-          </div>
-
-        <div class="segment" id="tierSegment" aria-label="Airline Tier">
-          <button type="button" data-tier="A" class="active">Tier A</button>
-          <button type="button" data-tier="B">Tier B</button>
+      <div class="controls">
+        <div class="segment" id="tierSegment" aria-label="Tier filter">
+          <button class="seg" data-tier="A" aria-pressed="true">Tier A</button>
+          <button class="seg" data-tier="B" aria-pressed="false">Tier B</button>
         </div>
-
-        <label class="check">
-          <input id="showMil" type="checkbox" />
-          <span>Show military / government</span>
-        </label>
-
-        <div class="status">
-          <span id="statusText">Booting…</span>
-        </div>
+        <button class="iconbtn" id="tierInfoBtn" title="What are tiers?" aria-label="Tier info">i</button>
+        <div class="live" id="liveBadge">Live</div>
       </div>
     </header>
 
-    <main class="layout">
-      <section class="primary card">
-        <div class="primaryHeader">
-          <div>
-            <div class="primaryTop">
-              <img id="airlineLogo" class="airlineLogo hidden" alt="Airline logo" loading="lazy" />
-              <div>
-                <div class="callsign" id="callsign">—</div>
-                <div class="route" id="route">—</div>
-                <div class="model" id="model">—</div>
-              </div>
-            </div>
+    <main class="main">
+      <section class="card primary" id="primary">
+        <div class="primary-top">
+          <div class="logo" id="logoWrap">
+            <img id="logoImg" alt="" />
           </div>
-          <div class="meta">
-            <div class="metaRow"><span class="k">ICAO24</span><span class="v" id="icao24">—</span></div>
-            <div class="metaRow"><span class="k">Airline</span><span class="v" id="airline">—</span></div>
+
+          <div class="primary-left">
+            <div class="callsign" id="callsign">—</div>
+            <div class="route" id="route">—</div>
+            <div class="aircraft" id="aircraft">—</div>
+          </div>
+
+          <div class="primary-right">
+            <div class="meta">
+              <div class="meta-label">ICAO24</div>
+              <div class="meta-value" id="icao24">—</div>
+            </div>
+            <div class="meta">
+              <div class="meta-label">Airline</div>
+              <div class="meta-value" id="airline">—</div>
+            </div>
           </div>
         </div>
 
         <div class="stats">
-          <div class="stat"><div class="k">ALT</div><div class="v" id="alt">—</div></div>
-          <div class="stat"><div class="k">SPD</div><div class="v" id="spd">—</div></div>
-          <div class="stat"><div class="k">DIST</div><div class="v" id="dist">—</div></div>
-          <div class="stat"><div class="k">DIR</div><div class="v" id="dir">—</div></div>
+          <div class="stat">
+            <div class="stat-label">ALT</div>
+            <div class="stat-value" id="alt">—</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">SPD</div>
+            <div class="stat-value" id="spd">—</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">DIST</div>
+            <div class="stat-value" id="dist">—</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">DIR</div>
+            <div class="stat-value" id="dir">—</div>
+          </div>
         </div>
 
-        <div class="footerLine">
-          <span id="radarLine">Radar: —</span>
-          <span id="debugLine"></span>
+        <div class="footer">
+          <div id="radarSummary">Radar: —</div>
+          <div class="versions" id="versions">UI v178 • API —</div>
         </div>
       </section>
 
-      <section class="list card">
-        <div class="listHeader">
-          <div class="listTitle">Nearby flights</div>
-          <div class="listHint">Top 5 closest</div>
+      <section class="card list">
+        <div class="list-header">
+          <div>
+            <div class="list-title">Nearby flights</div>
+            <div class="list-subtitle">Top 5 closest</div>
+          </div>
         </div>
         <div id="list"></div>
       </section>
-    </main>
 
-    <div class="version">v170</div>
-    <div id="errBox" class="errBox hidden"></div>
+      <div class="status" id="status"></div>
+
+      <div class="version" id="uiVersion">v178</div>
+    </main>
   </div>
 
-  <script src="./app.js?v=177"></script>
+  <div class="modal hidden" id="tierInfo" role="dialog" aria-modal="true" aria-labelledby="tierInfoTitle">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div id="tierInfoTitle" class="modal-title">Tier filters</div>
+        <button class="iconbtn" id="tierInfoClose" aria-label="Close">×</button>
+      </div>
+      <div class="modal-body">
+        <p><strong>Tier A</strong>: passenger airlines (majors + regionals). No cargo, private, government, or military.</p>
+        <p><strong>Tier B</strong>: everything in range (passenger + cargo + private + government/military).</p>
+        <p class="muted">Tiers are best-effort based on call sign patterns and may misclassify some flights.</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="./app.js?v=178"></script>
 </body>
 </html>
