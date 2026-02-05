@@ -24,7 +24,7 @@ export default {
     }
 
     if (url.pathname === "/health") {
-      return json({ ok: true, ts: new Date().toISOString(), version: "v177" }, 200, cors);
+      return json({ ok: true, ts: new Date().toISOString(), version: "v168" }, 200, cors);
     }
 
     const parts = url.pathname.split("/").filter(Boolean);
