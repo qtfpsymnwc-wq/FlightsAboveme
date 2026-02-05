@@ -2,7 +2,7 @@
 // Option A: Pages hosts this UI, Worker hosts API.
 // Set API_BASE to your Worker domain. (No trailing slash)
 const API_BASE = "https://flightsabove.t2hkmhgbwz.workers.dev";
-const UI_VERSION = "v176";
+const UI_VERSION = "v180";
 const POLL_MS = 3500;
 
 // Persist Aerodatabox + aircraft enrichments across refreshes.
@@ -14,6 +14,8 @@ const $ = (id) => document.getElementById(id);
 const errBox = $("errBox");
 
 function showErr(msg){
+  const m = String(msg||"");
+  if (/AbortError/i.test(m) || /fetch aborted/i.test(m) || /aborted/i.test(m)) return;
   try {
     errBox.textContent = msg;
     errBox.classList.remove("hidden");
@@ -161,6 +163,36 @@ const TIER_A_PREFIXES = ["AAL","DAL","UAL","SWA","ASA","FFT","NKS","JBU","AAY"];
 const TIER_B_EXTRA_PREFIXES = ["SKW","ENY","EDV","JIA","RPA","GJS","UPS","FDX"];
 const TIER_ALL_PREFIXES = [...new Set([...TIER_A_PREFIXES, ...TIER_B_EXTRA_PREFIXES])];
 
+
+// Grouping for B1:
+// Tier A ("Airlines") = passenger + regionals (excludes cargo/private/military/gov/unknown)
+// Tier B ("Other") = cargo + private/business + military/gov + unknown
+const CARGO_PREFIXES = ["FDX","UPS","GTI","ABX","CKS","KAL","BOX","MXY","ATN"];
+const MIL_GOV_PREFIXES = ["RCH","SAM","GAF","NOW","BAF","DAF","NAV","FNY","SPAR"];
+const PRIVATE_PREFIXES = ["EJA","NJE","XOJ","LXJ","JTL","PJC","DCM","VJT"];
+
+function isNNumberCallsign(cs){
+  const c = normalizeCallsign(cs).replace(/\s+/g,"");
+  return /^N\d/.test(c);
+}
+
+function isAirlinePattern(cs){
+  const c = normalizeCallsign(cs).replace(/\s+/g,"").replace(/[^A-Z0-9]/g,"");
+  return /^[A-Z]{3}\d{1,4}[A-Z]?$/.test(c);
+}
+
+function groupForFlight(cs){
+  const p = callsignPrefix(cs);
+  if (!p) return "B";
+  if (isNNumberCallsign(cs)) return "B";
+  if (CARGO_PREFIXES.includes(p) || MIL_GOV_PREFIXES.includes(p) || PRIVATE_PREFIXES.includes(p)) return "B";
+  // Airlines include majors + regionals list (TIER_ALL_PREFIXES), but exclude common cargo already handled above
+  if (TIER_ALL_PREFIXES.includes(p)) return "A";
+  // If it looks like a standard airline callsign and isn't in our OTHER lists, treat as Airlines
+  if (isAirlinePattern(cs)) return "A";
+  return "B";
+}
+
 function callsignPrefix(cs){
   const s = normalizeCallsign(cs);
   // Prefer 3-letter airline prefix when present (AAL1234, DAL2181, etc)
@@ -257,7 +289,20 @@ async function main(){
   const tierSegment = document.getElementById("tierSegment");
   const showMilEl = document.getElementById("showMil");
 
-  let tier = (localStorage.getItem("fw_tier") || "A").toUpperCase();
+  // Group info modal
+  const groupInfoBtn = document.getElementById("groupInfoBtn");
+  const groupInfo = document.getElementById("groupInfo");
+  const groupInfoOk = document.getElementById("groupInfoOk");
+  const groupInfoClose = document.getElementById("groupInfoClose");
+
+  const openGroupInfo = ()=>{ if (groupInfo) groupInfo.hidden = false; };
+  const closeGroupInfo = ()=>{ if (groupInfo) groupInfo.hidden = true; };
+
+  if (groupInfoBtn) groupInfoBtn.addEventListener("click", openGroupInfo);
+  if (groupInfoOk) groupInfoOk.addEventListener("click", closeGroupInfo);
+  if (groupInfoClose) groupInfoClose.addEventListener("click", closeGroupInfo);
+
+let tier = (localStorage.getItem("fw_tier") || "A").toUpperCase();
   if (tier !== "A" && tier !== "B") tier = "A";
 
   let showMil = localStorage.getItem("fw_showMil") === "1";
@@ -361,8 +406,16 @@ async function main(){
         };
       }).filter(f => Number.isFinite(f.distanceMi)).sort((a,b)=>a.distanceMi-b.distanceMi);
 
-      const primary = flights[0];
-      const top5 = flights.slice(0,5);
+      const shown = flights.filter(f => groupForFlight(f.callsign) === tier);
+      const primary = shown[0] || flights[0];
+      const top5 = shown.slice(0,5);
+
+      if (!top5.length) {
+        $("statusText").textContent = (tier === "A") ? "No airline flights nearby" : "No other traffic nearby";
+        renderPrimary(primary, radarMeta);
+        $("list").innerHTML = "";
+        return;
+      }
 
       // Apply cached enrichments so they don't "flash" and disappear on the next poll.
       for (const f of top5) {
@@ -401,6 +454,7 @@ async function main(){
         });
       }
     } catch(e) {
+      if (e && (e.name === "AbortError" || /aborted/i.test(String(e.message||e)))) { return; }
       $("statusText").textContent = "Radar error";
       showErr(String(e.message || e));
     }

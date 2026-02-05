@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>FlightWall</title>
-  <link rel="stylesheet" href="./style.css?v=167">
+  <link rel="stylesheet" href="./style.css?v=180">
 </head>
 <body>
   <div id="app">
@@ -19,16 +19,10 @@
 
       <div class="right">
         <div class="segment" id="tierSegment" aria-label="Airline Tier">
-          <button type="button" data-tier="A" class="active">Tier A</button>
-          <button type="button" data-tier="B">Tier B</button>
+          <button type="button" data-tier="A" class="active">Airlines</button>
+          <button type="button" data-tier="B">Other</button>
         </div>
-
-        <label class="check">
-          <input id="showMil" type="checkbox" />
-          <span>Show military / government</span>
-        </label>
-
-        <div class="status">
+<div class="status">
           <span id="statusText">Booting…</span>
         </div>
       </div>
@@ -79,6 +73,21 @@
     <div id="errBox" class="errBox hidden"></div>
   </div>
 
-  <script src="./app.js?v=171"></script>
+  <script src="./app.js?v=180"></script>
+
+  <div class="modal" id="groupInfo" hidden>
+    <div class="modal__backdrop" id="groupInfoClose"></div>
+    <div class="modal__card" role="dialog" aria-modal="true" aria-labelledby="groupInfoTitle">
+      <div class="modal__title" id="groupInfoTitle">Groups</div>
+      <div class="modal__body">
+        <p><b>Airlines</b> (default) shows commercial passenger flights, including regional airlines.</p>
+        <p><b>Other</b> shows cargo, private/business aircraft, and government/military flights.</p>
+      </div>
+      <div class="modal__actions">
+        <button class="btn" id="groupInfoOk" type="button">OK</button>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>
