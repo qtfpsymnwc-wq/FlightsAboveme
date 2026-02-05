@@ -2,7 +2,7 @@
 // Option A: Pages hosts this UI, Worker hosts API.
 // Set API_BASE to your Worker domain. (No trailing slash)
 const API_BASE = "https://flightsabove.t2hkmhgbwz.workers.dev";
-const UI_VERSION = "v171";
+const UI_VERSION = "v173";
 const POLL_MS = 3500;
 
 // Persist Aerodatabox + aircraft enrichments across refreshes.
@@ -103,7 +103,10 @@ async function fetchJSON(url, timeoutMs=8000){
 function renderPrimary(f, radarMeta){
   $("callsign").textContent = f.callsign || "—";
   $("icao24").textContent = f.icao24 || "—";
-  $("airline").textContent = f.airlineName || f.airlineGuess || guessAirline(f.callsign) || f.country || "—";
+  // Prefer airline info; avoid showing OpenSky "country" (often just "United States") as the "Airline".
+  const inferredAirline = f.airlineName || f.airlineGuess || guessAirline(f.callsign);
+  const countryFallback = (f.country && f.country !== "United States") ? f.country : "—";
+  $("airline").textContent = inferredAirline || countryFallback;
 
   // Airline logo (stored as static assets in Pages)
   try {
@@ -123,7 +126,7 @@ function renderPrimary(f, radarMeta){
 
   $("route").textContent = f.routeText || "—";
   $("model").textContent = f.modelText || "—";
-  $("reg").textContent = f.registration || "—";
+  // Registration is often unavailable in our data sources; we hide this line in the UI.
 
   $("radarLine").textContent = `Radar: ${radarMeta.count} flights • Showing: ${radarMeta.showing}`;
   $("debugLine").textContent = `UI ${UI_VERSION} • API ${radarMeta.apiVersion || "?"}`;
