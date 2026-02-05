@@ -45,6 +45,13 @@ function fmtSpd(ms) {
   const kt = ms * 1.943844;
   return Math.round(kt) + " kt";
 }
+
+function guessAirline(callsign){
+  const c=(callsign||'').trim().toUpperCase();
+  const p3=c.slice(0,3);
+  const map={AAL:'American',ASA:'Alaska',DAL:'Delta',FFT:'Frontier',JBU:'JetBlue',NKS:'Spirit',SKW:'SkyWest',SWA:'Southwest',UAL:'United',AAY:'Allegiant',ENY:'Envoy',JIA:'PSA',RPA:'Republic',GJS:'GoJet',EDV:'Endeavor'};
+  return map[p3]||null;
+}
 function fmtMi(mi) {
   if (!Number.isFinite(mi)) return "—";
   return mi.toFixed(mi < 10 ? 1 : 0) + " mi";
@@ -125,6 +132,12 @@ async function enrichRoute(primary){
       const o = data.origin?.iata ? `${cleanAirportName(data.origin.municipalityName || data.origin.shortName || data.origin.name)} (${data.origin.iata})` : "";
       const d = data.destination?.iata ? `${cleanAirportName(data.destination.municipalityName || data.destination.shortName || data.destination.name)} (${data.destination.iata})` : "";
       primary.routeText = (o && d) ? `${o} → ${d}` : (data.route || "—");
+      primary.airlineName = data.airlineName || data.airline || primary.airlineName;
+      primary.airlineGuess = primary.airlineGuess || guessAirline(primary.callsign);
+      primary.aircraftType = data.aircraftType || data.aircraft?.type || data.aircraft?.typeName || primary.aircraftType;
+      if (!primary.modelText && (data.aircraftModel || data.aircraft?.model || data.aircraft?.modelName)) {
+        primary.modelText = (data.aircraftModel || data.aircraft?.model || data.aircraft?.modelName);
+      }
     }
   } catch {}
 }
