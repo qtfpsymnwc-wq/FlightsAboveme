@@ -1,9 +1,9 @@
-# Flights Above Me
+Cloudflare Pages UI
 
-Cloudflare Worker for tracking flights overhead.
+Settings:
+- Root directory: ui
+- Build command: (empty)
+- Output directory: ui (or leave blank)
 
-## Files
-- worker.js: main worker
-- airlineLogos.json: airline logo map
-- aircraftTypes.json: aircraft type map
-- test.html: local test page
+IMPORTANT:
+- Edit app.js and set API_BASE to your Worker domain.
