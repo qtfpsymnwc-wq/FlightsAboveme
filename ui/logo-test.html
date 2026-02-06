@@ -1,12 +1,133 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>Logo Test</title>
+  <meta charset="UTF-8" />
+  <title>FlightWall – Airline Logo Test</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: radial-gradient(1200px 600px at top, #1e3a8a, #020617);
+      color: #e5e7eb;
+    }
+    header {
+      padding: 16px;
+    }
+    h1 {
+      margin: 0 0 6px 0;
+      font-size: 20px;
+    }
+    .meta {
+      font-size: 13px;
+      opacity: 0.8;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 12px;
+      padding: 12px;
+    }
+    .card {
+      background: rgba(255,255,255,0.06);
+      border-radius: 14px;
+      padding: 12px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .card.fallback {
+      outline: 2px solid #facc15;
+    }
+    img {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      background: #020617;
+      object-fit: contain;
+    }
+    .icao {
+      font-weight: 600;
+      font-size: 14px;
+    }
+    .name {
+      font-size: 12px;
+      opacity: 0.75;
+    }
+    footer {
+      padding: 12px;
+      font-size: 12px;
+      opacity: 0.6;
+    }
+  </style>
 </head>
 <body>
-  <h2>Logo Test</h2>
-  <img src="/assets/logos/AAL.svg" alt="AAL">
-  <img src="/assets/logos/_GENERIC.svg" alt="GENERIC">
+<header>
+  <h1>FlightWall – Airline Logo Test</h1>
+  <div class="meta">
+    Yellow outline = generic fallback (_GENERIC.svg). Everything else = airline logo.
+  </div>
+</header>
+
+<div class="grid" id="grid"></div>
+
+<footer>
+  Logos loaded from <code>/assets/logos/&lt;ICAO&gt;.svg</code>
+</footer>
+
+<script>
+const airlines = [
+  ["AAL","American Airlines"],
+  ["DAL","Delta Air Lines"],
+  ["UAL","United Airlines"],
+  ["SWA","Southwest Airlines"],
+  ["JBU","JetBlue"],
+  ["ASA","Alaska Airlines"],
+  ["FFT","Frontier"],
+  ["NKS","Spirit"],
+  ["AAY","Allegiant"],
+  ["SKW","SkyWest"],
+  ["ENY","Envoy"],
+  ["EDV","Endeavor Air"],
+  ["RPA","Republic"],
+  ["JIA","PSA Airlines"],
+  ["FDX","FedEx Express"],
+  ["UPS","UPS"],
+  ["BAW","British Airways"],
+  ["DLH","Lufthansa"],
+  ["AFR","Air France"],
+  ["KLM","KLM"],
+  ["QFA","Qantas"],
+  ["UAE","Emirates"],
+  ["QTR","Qatar Airways"],
+  ["THY","Turkish Airlines"],
+  ["ACA","Air Canada"],
+  ["WJA","WestJet"],
+  ["ANA","All Nippon Airways"],
+  ["JAL","Japan Airlines"]
+];
+
+const grid = document.getElementById("grid");
+
+airlines.forEach(([icao, name]) => {
+  const card = document.createElement("div");
+  card.className = "card";
+
+  const img = new Image();
+  img.src = `/assets/logos/${icao}.svg`;
+  img.onerror = () => {
+    img.src = `/assets/logos/_GENERIC.svg`;
+    card.classList.add("fallback");
+  };
+
+  const info = document.createElement("div");
+  info.innerHTML = `<div class="icao">${icao}</div><div class="name">${name}</div>`;
+
+  card.appendChild(img);
+  card.appendChild(info);
+  grid.appendChild(card);
+});
+</script>
 </body>
 </html>
