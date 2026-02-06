@@ -73,6 +73,13 @@ function logoUrlForCallsign(callsign){
   // cache-bust per UI version
   return `assets/logos/${file}?v=${encodeURIComponent(UI_VERSION)}`;
 }
+
+function logoUrlForFlight(f) {
+  const key =
+    (f?.airlineIcao || f?.operatorIcao || airlineKeyFromCallsign(f?.callsign || ""))?.toUpperCase?.() ||
+    airlineKeyFromCallsign(f?.callsign || "");
+  return logoUrlForKey(key);
+}
 function fmtMi(mi) {
   if (!Number.isFinite(mi)) return "—";
   return mi.toFixed(mi < 10 ? 1 : 0) + " mi";
@@ -114,9 +121,9 @@ function renderPrimary(f, radarMeta){
   try {
     const img = $("airlineLogo");
     if (img) {
-      img.src = logoUrlForCallsign(f.callsign);
+      img.src = logoUrlForFlight(f);
       img.classList.remove('hidden');
-      const key = airlineKeyFromCallsign(f.callsign);
+      const key = (f.airlineIcao || f.operatorIcao || airlineKeyFromCallsign(f.callsign || "")) || "";
       img.alt = key ? `${key} logo` : 'Airline logo';
     }
   } catch (_) {}
