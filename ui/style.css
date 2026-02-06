@@ -1,759 +1,161 @@
-/* v49 - bold, wall-friendly, iPad-centered */
 :root{
-  --bg:#00070d;
-  --panel:#00121c;
-  --panel2:#001a26;
-  --line:#00f6ff55;
-  --text:#e8fdff;
-  --muted:#93dee6;
-  --accent:#00f6ff;
+  --bg:#0b1220;
+  --card:#101a2e;
+  --muted:#7f8ba7;
+  --text:#eaf0ff;
+  --accent:#4fd1c5;
+  --line:#1c2a46;
 }
-
-*{ box-sizing:border-box; }
-html,body{ height:100%; margin:0; background:var(--bg); color:var(--text); }
+*{box-sizing:border-box}
 body{
-  font-family: "Arial Black", "Avenir Next Condensed", "Avenir Next", system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-}
-
-.wrap{
-  min-height:100%;
-  display:flex;
-  flex-direction:column;
-  padding:18px;
-  padding-bottom:64px; /* room for ticker */
-  gap:14px;
-  max-width: 1100px;
-  margin: 0 auto; /* center on iPad */
-}
-
-.topbar{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:16px;
-  padding:14px 16px;
-  border:1px solid var(--line);
-  border-radius:18px;
-  background:rgba(0,18,28,.78);
-  backdrop-filter: blur(8px);
-}
-
-.brand-title{
-  font-weight:950;
-  letter-spacing:2px;
-  font-size:22px;
-}
-.brand-sub{
-  margin-top:4px;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-  font-weight:650;
-  color:var(--muted);
-  font-size:13px;
-}
-
-.controls{
-  display:flex;
-  align-items:flex-end;
-  gap:14px;
-  flex-wrap:wrap;
-  justify-content:flex-end;
-}
-
-.ctl{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  font-size:12px;
-  font-weight:900;
-  color:var(--muted);
-  letter-spacing:1px;
-}
-.ctl input[type="range"]{ width:170px; }
-.ctl select{
-  background:rgba(0,18,28,.75);
+  margin:0;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+  background:var(--bg);
   color:var(--text);
-  border:1px solid var(--line);
-  border-radius:10px;
-  padding:6px 8px;
-  font-weight:900;
-  letter-spacing:1px;
 }
-
-.toggle{ gap:8px; }
-
+#app{min-height:100vh}
+.topbar{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 16px;
+  border-bottom:1px solid var(--line);
+}
+.brand{display:flex; gap:10px; align-items:center}
+.dot{width:10px;height:10px;border-radius:999px;background:var(--accent)}
+.title{font-weight:700; letter-spacing:.2px}
+.subtitle{color:var(--muted); font-size:12px; margin-top:2px}
+.status{color:var(--muted); font-size:13px}
+.layout{
+  display:grid;
+  grid-template-columns: 1.2fr .8fr;
+  gap:14px;
+  padding:14px;
+}
+@media (max-width: 900px){
+  .layout{grid-template-columns:1fr}
+}
 .card{
-  flex:1;
+  background:var(--card);
   border:1px solid var(--line);
-  border-radius:24px;
-  padding:18px 18px 16px;
-  background:linear-gradient(180deg, rgba(0,26,38,.86), rgba(0,10,15,.68));
-  display:flex;
-  flex-direction:column;
-  gap:12px;
-  position:relative;
-  overflow:hidden;
-}
-
-.row1{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:12px;
-}
-
-.callsign{
-  font-weight:950;
-  font-size:56px;
-  letter-spacing:1px;
-  line-height:1;
-  text-transform:uppercase;
-}
-
-.rightBox{
-  display:flex;
-  align-items:flex-start;
-  gap:12px;
-}
-
-.badge{
-  width:34px; height:34px;
-  border-radius:50%;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-weight:950;
-  font-size:18px;
-}
-.badge.verified{ background:var(--accent); color:#001018; }
-.badge.estimated{ background:#ffffff22; color:#fff; }
-
-.legend{
-  border:1px solid #00f6ff33;
   border-radius:14px;
-  padding:8px 10px;
-  background:rgba(0,16,24,.55);
-  display:flex;
-  flex-direction:column;
-  gap:6px;
+  padding:14px;
 }
-.lg-row{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-  font-size:12px;
-  font-weight:800;
-  color:var(--muted);
-  letter-spacing:.6px;
-}
-.dot{
-  width:18px; height:18px;
-  border-radius:50%;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  font-weight:950;
-  font-size:12px;
-}
-.dot.verified{ background:var(--accent); color:#001018; }
-.dot.estimated{ background:#ffffff22; color:#fff; }
-
-.row2{
-  display:flex;
-  align-items:baseline;
-  justify-content:space-between;
-  gap:12px;
-  flex-wrap:wrap;
-}
-.route{
-  font-size:32px;
-  font-weight:950;
-  letter-spacing:.5px;
-}
-.model{
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-  font-size:16px;
-  color:var(--muted);
-  font-weight:750;
-}
-
+.primaryHeader{display:flex; justify-content:space-between; gap:10px}
+.primaryTop{display:flex;align-items:center;gap:12px}
+.airlineLogo{width:44px;height:44px;border-radius:12px;flex:0 0 auto;border:1px solid var(--line);background:rgba(255,255,255,.06)}
+.airlineLogo.hidden{display:none}
+.callsign{font-size:28px;font-weight:800; letter-spacing:.5px}
+.route{color:var(--muted); margin-top:4px}
+.model{margin-top:10px; font-size:14px}
+.meta{min-width:160px}
+.metaRow{display:flex; justify-content:space-between; gap:10px; font-size:12px; padding:3px 0}
+.metaRow .k{color:var(--muted)}
 .stats{
   display:grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap:14px;
-  margin-top:6px;
-}
-.kv{
-  border:1px solid var(--line);
-  border-radius:18px;
-  background:rgba(0,16,24,.60);
-  padding:14px 10px;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  gap:6px;
-}
-.k{
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-  font-size:13px;
-  color:var(--muted);
-  font-weight:900;
-  letter-spacing:1.3px;
-  text-align:center;
-  width:100%;
-}
-.v{
-  font-size:30px;
-  font-weight:950;
-  text-align:center;
-  width:100%;
-  white-space:nowrap;
-}
-
-.meta{
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-  font-size:14px;
-  color:var(--muted);
-  font-weight:650;
-}
-
-.footer{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:10px 4px;
-  color:var(--muted);
-}
-.status{
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-  font-weight:800;
-}
-.version{
-  font-size:12px;
-  opacity:.7;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-}
-
-/* Fade disabled (v52) */
-.fw-fade-in{ animation:none !important; }
-
-/* Ticker */
-.ticker{
-  position:fixed;
-  left:0; right:0; bottom:0;
-  height:44px;
-  border-top:1px solid var(--line);
-  background:rgba(0,16,24,.92);
-  overflow:hidden;
-  display:flex;
-  align-items:center;
-}
-.ticker-track{
-  display:inline-block;
-  white-space:nowrap;
-  padding-left:100%;
-  animation: ticker 30s linear infinite;
-  font-weight:900;
-  letter-spacing:.8px;
-  color:var(--text);
-  opacity:.95;
-}
-@keyframes ticker{
-  0%{ transform: translateX(0); }
-  100%{ transform: translateX(-100%); }
-}
-
-/* Phone */
-@media (max-width: 640px){
-  .wrap{ padding:12px; padding-bottom:64px; }
-  .callsign{ font-size:40px; }
-  .route{ font-size:24px; }
-  .v{ font-size:24px; }
-  .stats{ grid-template-columns: repeat(2, minmax(0,1fr)); }
-  .ctl input[type="range"]{ width:150px; }
-  .legend{ display:none; } /* keep phone clean */
-}
-
-/* v53: reduce layout jitter */
-.callsign, .route, .v { font-variant-numeric: tabular-nums; }
-.callsign { min-height: 58px; }
-.route { min-height: 40px; }
-.meta { min-height: 22px; }
-
-/* v54: airline logo block */
-.logo{
-  width:64px;
-  height:64px;
-  border-radius:18px;
-  border:1px solid var(--line);
-  background:rgba(0,16,24,.60);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-weight:950;
-  font-size:22px;
-  letter-spacing:1px;
-  color:var(--text);
-  flex:0 0 auto;
-}
-.row1{ align-items:center; }
-@media (max-width: 640px){
-  .logo{ width:52px; height:52px; border-radius:16px; font-size:18px; }
-}
-
-/* v55: inline SVG logo styling */
-.logo svg{ width: 90%; height: 90%; display:block; }
-
-/* v57: operator branding tiles (generic, not official logos) */
-.logo{ position:relative; overflow:hidden; }
-.logo::before{
-  content:"";
-  position:absolute; inset:-40%;
-  opacity:.22;
-  transform: rotate(18deg);
-  background: repeating-linear-gradient(135deg, currentColor 0, currentColor 10px, transparent 10px, transparent 22px);
-}
-.logo > *{ position:relative; z-index:1; }
-
-/* v58: distinct operator brand tiles (generic, no logos) */
-
-/* Base already present */
-.logo[data-airline="SWA"]{
-  background: linear-gradient(135deg, rgba(255,255,255,.10), rgba(255,255,255,.02));
-}
-.logo[data-airline="SWA"]::before{
-  opacity:.35;
-  background: repeating-linear-gradient(90deg, currentColor 0, currentColor 14px, transparent 14px, transparent 30px);
-}
-
-/* American + Envoy */
-.logo[data-airline="AAL"], .logo[data-airline="ENY"]{
-  background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.02));
-}
-.logo[data-airline="AAL"]::before, .logo[data-airline="ENY"]::before{
-  opacity:.28;
-  background: repeating-linear-gradient(0deg, currentColor 0, currentColor 8px, transparent 8px, transparent 18px);
-}
-
-/* Delta */
-.logo[data-airline="DAL"]{
-  background: linear-gradient(135deg, rgba(255,255,255,.10), rgba(255,255,255,.02));
-}
-.logo[data-airline="DAL"]::before{
-  opacity:.30;
-  background: repeating-linear-gradient(135deg, currentColor 0, currentColor 10px, transparent 10px, transparent 22px);
-}
-
-/* United */
-.logo[data-airline="UAL"]{
-  background: linear-gradient(135deg, rgba(255,255,255,.08), rgba(255,255,255,.02));
-}
-.logo[data-airline="UAL"]::before{
-  opacity:.26;
-  background: repeating-linear-gradient(45deg, currentColor 0, currentColor 6px, transparent 6px, transparent 14px);
-}
-
-/* SkyWest */
-.logo[data-airline="SKW"]{
-  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
-}
-.logo[data-airline="SKW"]::before{
-  opacity:.22;
-  background: repeating-linear-gradient(90deg, currentColor 0, currentColor 6px, transparent 6px, transparent 18px);
-}
-
-/* v59: airline name above callsign */
-.airline-name{
-  font-size: 18px;
-  font-weight: 800;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  opacity: .85;
-  margin-bottom: 2px;
-}
-@media (max-width: 640px){
-  .airline-name{ font-size: 15px; }
-}
-
-/* v60: regional sub-brand */
-.airline-sub{
-  font-size: 12px;
-  font-weight: 750;
-  letter-spacing: .10em;
-  text-transform: uppercase;
-  opacity: .70;
-  margin-top: -2px;
-  margin-bottom: 2px;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-}
-@media (max-width: 640px){
-  .airline-sub{ font-size: 11px; }
-}
-
-/* v61: hide verified/estimated badge */
-.badge{ display:none !important; }
-
-/* v61: airline name more pronounced */
-.airline-name{
-  font-size: 28px !important;
-  font-weight: 950 !important;
-  letter-spacing: .10em !important;
-  opacity: .95 !important;
-  margin-bottom: 6px !important;
-}
-@media (max-width: 640px){
-  .airline-name{ font-size: 22px !important; }
-}
-
-/* v61: seamless ticker (no end cutoff) */
-.tickerTrack{
-  display: inline-flex !important;
-  gap: 48px !important;
-  white-space: nowrap !important;
-  will-change: transform;
-}
-.tickerSpan{ display:inline-flex; gap:48px; }
-@keyframes fwMarqueeSeamless{
-  from{ transform: translateX(0); }
-  to{ transform: translateX(-50%); }
-}
-.tickerTrack.fw-seamless{
-  animation-name: fwMarqueeSeamless !important;
-  animation-timing-function: linear !important;
-  animation-iteration-count: infinite !important;
-}
-
-/* v62: range slider labels */
-.range-labels{
-  display:flex;
-  justify-content: space-between;
-  font-size: 12px;
-  letter-spacing:.08em;
-  opacity:.7;
-  margin-top:4px;
-}
-.range-labels .any{
-  font-weight:900;
-}
-
-/* v63: ANY range hint */
-.range-hint{
-  font-size: 12px;
-  letter-spacing: .04em;
-  opacity: .72;
-  margin-top: 2px;
-  min-height: 14px;
-}
-
-/* v66: remove verified/estimated badge */
-.badge{ display:none !important; }
-
-/* v66: seamless ticker (no jump/cut) */
-.tickerTrack{
-  display:inline-flex !important;
-  white-space: nowrap !important;
-  will-change: transform;
-}
-.tickerSpan{
-  display:inline-flex;
-  gap: 48px;
-  padding-right: 48px;
-}
-@keyframes fwMarqueeSeamless{
-  from{ transform: translateX(0); }
-  to{ transform: translateX(-50%); }
-}
-.tickerTrack.fw-seamless{
-  animation-name: fwMarqueeSeamless !important;
-  animation-timing-function: linear !important;
-  animation-iteration-count: infinite !important;
-}
-
-/* v68: ensure badge never shows */
-#badge,.badge{ display:none !important; }
-
-/* v68: dropdown controls */
-.controlsRow{ display:flex; gap:14px; align-items:flex-end; justify-content:space-between; flex-wrap:wrap; }
-.ctl{ display:flex; flex-direction:column; gap:6px; min-width:150px; }
-.ctlLabel{ font-size:12px; letter-spacing:.12em; opacity:.75; font-weight:800; }
-.ctlSelect{
-  background: rgba(255,255,255,.08);
-  color: inherit;
-  border: 1px solid rgba(255,255,255,.18);
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 16px;
-  font-weight: 850;
-  letter-spacing:.04em;
-  outline:none;
-}
-.ctlCheckRow{ display:flex; align-items:center; gap:10px; font-weight:900; letter-spacing:.06em; opacity:.9; }
-.ctlCheck input{ width:18px; height:18px; }
-.range-hint{ font-size:12px; letter-spacing:.04em; opacity:.72; margin-top:6px; min-height:14px; }
-@media (max-width:640px){
-  .ctl{ min-width:140px; }
-  .ctlSelect{ font-size: 15px; padding: 9px 10px; }
-}
-
-/* v68: secondary 4-flight boxes */
-.secondaryGrid{
-  display:grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-  margin-top: 12px;
-}
-.secondaryBox{
-  border: 1px solid rgba(255,255,255,.12);
-  border-radius: 14px;
-  padding: 10px 10px 8px;
-  background: rgba(255,255,255,.04);
-  min-height: 72px;
-  overflow:hidden;
-}
-.secCS{
-  font-weight: 950;
-  letter-spacing:.06em;
-  font-size: 18px;
-  margin-bottom: 4px;
-}
-.secRoute{
-  font-size: 12px;
-  opacity: .78;
-  line-height: 1.2;
-  letter-spacing:.02em;
-}
-@media (max-width:900px){
-  .secondaryGrid{ grid-template-columns: repeat(2, 1fr); }
-}
-
-#badge,.badge,[data-badge]{display:none !important;}
-
-/* v69: secondary box stats */
-.secTop{ display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
-.secMini{
-  font-size: 11px;
-  font-weight: 850;
-  letter-spacing: .08em;
-  opacity: .80;
-  white-space: nowrap;
-}
-
-/* v70: keep 4 bottom boxes visible without scrolling */
-.secondaryGrid{ grid-template-columns: repeat(4, 1fr) !important; }
-@media (max-width:900px){ .secondaryGrid{ grid-template-columns: repeat(4, 1fr) !important; } }
-@media (max-width:640px){ .secondaryGrid{ grid-template-columns: repeat(2, 1fr) !important; } }
-
-.secondaryBox{ overflow: visible !important; min-height: 86px !important; }
-.secMini{
-  white-space: normal !important;
-  line-height: 1.15;
-  text-align: right;
-}
-
-/* v71: always show 4 bottom boxes side-by-side on iPad */
-.secondaryGrid{
-  width: 100% !important;
-  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-  gap: 10px !important;
-}
-.secondaryBox{ min-width:0 !important; }
-
-/* Only drop to 2 columns on very small phones */
-@media (max-width: 520px){
-  .secondaryGrid{ grid-template-columns: repeat(2, minmax(0,1fr)) !important; }
-}
-
-/* v71: make attribute titles (ALT/DIST/SPD) bigger */
-.k, .kv .k, .statK, .statKey{
-  font-size: 14px !important;
-  font-weight: 950 !important;
-  letter-spacing: .12em !important;
-}
-
-/* v72: commercial toggle styling */
-.ctlCheck{
-  display:flex;
-  align-items:center;
+  grid-template-columns:repeat(4,1fr);
   gap:10px;
-  font-weight: 900;
-  letter-spacing: .10em;
-  opacity:.9;
-  user-select:none;
+  margin-top:14px;
 }
-.ctlCheck input{ width:18px; height:18px; }
-
-/* v72: allow full iPad width so 4 boxes fit */
-.wrap{
-  max-width: 100% !important;
+.stat{
+  padding:10px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:rgba(0,0,0,.12);
 }
-
-/* v72: force 4-across bottom boxes (iPad) */
-.secondaryGrid{
-  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-}
-@media (max-width: 520px){
-  .secondaryGrid{ grid-template-columns: repeat(2, minmax(0,1fr)) !important; }
-}
-
-/* v76: full width so 4 boxes fit on iPad Air */
-.wrap{ max-width: 100% !important; padding-left: 14px !important; padding-right: 14px !important; }
-
-/* v76: bottom grid */
-.secondaryGrid{ display:grid; grid-template-columns: repeat(4, minmax(0,1fr)) !important; gap: 10px !important; margin-top: 10px !important; }
-@media (max-width:520px){ .secondaryGrid{ grid-template-columns: repeat(2, minmax(0,1fr)) !important; } }
-
-/* v76: remove divider lines between sections */
-hr, .divider, .rule{ display:none !important; }
-
-/* v76: checkbox row */
-.controlsRow{ display:flex; gap:18px; align-items:center; justify-content:flex-start; flex-wrap:wrap; }
-.ctlCheck{ display:flex; align-items:center; gap:10px; font-weight: 900; letter-spacing:.10em; opacity:.9; user-select:none; }
-.ctlCheck input{ width:18px; height:18px; }
-
-/* v76: secondary box typography */
-.secTop{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
-.secCS{ font-weight: 950; letter-spacing:.06em; font-size: 18px; }
-.secMini{ font-size: 12px; font-weight: 900; letter-spacing:.08em; opacity:.82; white-space: nowrap; text-align:right; }
-
-/* v78: bottom section reset */
-#secondaryGrid{ margin-top: 10px !important; }
-.secondaryGrid{
-  display:grid !important;
-  grid-template-columns: repeat(4, minmax(0,1fr)) !important;
-  gap: 10px !important;
-  width: 100% !important;
-}
-@media (max-width:520px){
-  .secondaryGrid{ grid-template-columns: repeat(2, minmax(0,1fr)) !important; }
-}
-.secondaryBox{
-  border: 1px solid rgba(255,255,255,.12) !important;
-  border-radius: 14px !important;
-  padding: 10px 10px 8px !important;
-  background: rgba(255,255,255,.04) !important;
-  min-height: 64px !important;
-  overflow: hidden !important;
-}
-.secondaryBox .secCS{
-  font-weight: 950 !important;
-  letter-spacing:.06em !important;
-  font-size: 18px !important;
-  line-height: 1.1 !important;
-}
-.secondaryBox .secMini{
-  margin-top: 6px !important;
-  font-size: 12px !important;
-  font-weight: 900 !important;
-  letter-spacing: .08em !important;
-  opacity: .82 !important;
-  white-space: nowrap !important;
-}
-/* kill stray dividers if any still exist */
-hr,.divider,.rule{ display:none !important; }
-/* ensure wrapper doesn't constrain */
-.wrap{ max-width: 100% !important; }
-
-/* v79: tighten space between main card and bottom grid */
-.card{ margin-bottom: 10px !important; }
-
-/* v80 */
-#range, #rangeSelect, .range-labels, .range-hint, .rangeRow, .rangeWrap{display:none!important;}
-
-/* v84: last update timestamp */
-.lastUpdate{
-  position:absolute;
-  right:14px;
-  top:14px;
+.stat .k{color:var(--muted); font-size:11px}
+.stat .v{font-size:18px; font-weight:750; margin-top:3px}
+.footerLine{
+  display:flex; justify-content:space-between; gap:10px;
+  margin-top:14px;
+  color:var(--muted);
   font-size:12px;
-  font-weight:800;
-  letter-spacing:.08em;
-  opacity:.65;
+}
+.listHeader{display:flex; justify-content:space-between; align-items:baseline}
+.listTitle{font-weight:700}
+.listHint{color:var(--muted); font-size:12px}
+.row{
+  display:flex; justify-content:space-between; gap:10px;
+  padding:10px 0;
+  border-bottom:1px solid var(--line);
+}
+.row:last-child{border-bottom:none}
+.row .left{display:flex; flex-direction:column; gap:2px}
+.row .cs{font-weight:700}
+.row .sub{color:var(--muted); font-size:12px}
+.badge{font-size:12px; color:var(--muted)}
+.version{
+  position:fixed; right:10px; bottom:10px;
+  opacity:.6; font-size:12px;
+}
+.errBox{
+  position:fixed;
+  left:10px; bottom:10px;
+  max-width:min(600px,calc(100vw - 20px));
+  background:rgba(0,0,0,.65);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:10px;
+  padding:10px 12px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+  font-size:12px;
+  white-space:pre-wrap;
+}
+.hidden{display:none}
+
+
+/* Tier toggle + header controls */
+.topbar .right{
+  display:flex;
+  align-items:center;
+  gap:14px;
 }
 
-/* v84: radar warning */
-.radarWarn{
-  color:#ffb000;
-  font-weight:900;
-  letter-spacing:.08em;
+.segment{
+  display:flex;
+  border:1px solid var(--line);
+  border-radius:999px;
+  overflow:hidden;
+  background: rgba(0,0,0,0.10);
 }
 
-/* v85: LIVE indicator */
-.liveWrap{
-  position:absolute;
-  right:14px;
-  top:12px;
+.segment button{
+  appearance:none;
+  border:0;
+  background:transparent;
+  color: var(--muted);
+  padding:8px 12px;
+  font-weight:700;
+  font-size:12px;
+  letter-spacing:.02em;
+  cursor:pointer;
+}
+
+.segment button.active{
+  background: rgba(79, 209, 197, 0.18);
+  color: var(--text);
+}
+
+.check{
   display:flex;
   align-items:center;
   gap:8px;
-}
-.liveDot{
-  width:10px;
-  height:10px;
-  border-radius:50%;
-  background:#2dff6a;
-  box-shadow:0 0 8px rgba(45,255,106,.9);
-  opacity:.9;
-}
-.liveDot.pulse{
-  animation: livePulse 1.5s infinite;
-}
-@keyframes livePulse{
-  0%{ transform:scale(.85); opacity:.6; }
-  50%{ transform:scale(1.2); opacity:1; }
-  100%{ transform:scale(.85); opacity:.6; }
+  color: var(--muted);
+  font-size:12px;
+  user-select:none;
 }
 
-/* v92: route line */
-.route{ margin-top:6px; font-weight:800; letter-spacing:.02em; opacity:.95; }
-
-/* v93: hide route until available */
-/* v97: always-visible status line for debugging */
-.statusLine{margin:10px auto 0;max-width:980px;padding:8px 12px;border-radius:10px;font-weight:700;opacity:.9;text-align:center;}
-
-/* v104: build stamp */
-.buildStamp{font-weight:700;opacity:.85;}
-.sep{opacity:.6;margin:0 6px;}
-
-/* v106: route line always visible */
-.route{margin-top:6px;font-weight:900;letter-spacing:.02em;opacity:.95;text-align:center;}
-
-/* v108: remove scroll control + timestamp */
-.scrollToggle,.scrollCtl,.scrollControl,#scrollToggle,#scrollCtl{display:none !important;}
-.timestamp,#timestamp,#lastUpdate,.lastUpdate,.statusTime{display:none !important;}
-
-/* v113 aircraft model: keep readable */
-#model{font-weight:900;letter-spacing:.02em;}
-
-/* v114 aircraft model2 */
-#model2{margin-top:4px;font-weight:900;opacity:.9;text-align:center;}
-/* v197: Airline emphasis (centered + all caps) + smaller callsign */
-.airline-name{
-  width: 100% !important;
-  display: block !important;
-  text-align: center !important;
-  text-transform: uppercase !important;
-  font-size: 40px !important;
-  font-weight: 950 !important;
-  letter-spacing: .14em !important;
-  opacity: 1 !important;
-  margin-bottom: 10px !important;
+.check input{
+  width:16px;
+  height:16px;
+  accent-color: var(--accent);
 }
 
-.callsign{
-  font-size: 34px !important;
-  font-weight: 900 !important;
-  letter-spacing: .06em !important;
-  text-transform: uppercase !important;
-  opacity: .85 !important;
-}
-
-/* Keep the top row layout, but center text within the left block */
-.leftBox, .left, .primary, .mainLeft, .primaryLeft{
-  text-align: center !important;
-}
-
-@media (max-width: 640px){
-  .airline-name{ font-size: 28px !important; }
-  .callsign{ font-size: 24px !important; }
-}
+/* Groups control + modal (v180) */
+.infoBtn{margin-left:8px;width:28px;height:28px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:rgba(255,255,255,.9);font-weight:900;line-height:1;display:inline-flex;align-items:center;justify-content:center}
+.infoBtn:hover{background:rgba(255,255,255,.09)}
+.modal[hidden]{display:none}
+.modal{position:fixed;inset:0;z-index:999}
+.modal__backdrop{position:absolute;inset:0;background:rgba(0,0,0,.55)}
+.modal__card{position:relative;margin:12vh auto 0;max-width:520px;background:#07101b;border:1px solid rgba(255,255,255,.14);border-radius:16px;padding:16px 16px 12px;color:#e9f2ff;box-shadow:0 18px 60px rgba(0,0,0,.55)}
+.modal__title{font-size:16px;font-weight:800;margin-bottom:8px}
+.modal__body{font-size:14px;line-height:1.4;color:rgba(255,255,255,.88)}
+.modal__actions{display:flex;justify-content:flex-end;margin-top:12px}
+.btn{border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#e9f2ff;border-radius:12px;padding:8px 12px;font-weight:700}
