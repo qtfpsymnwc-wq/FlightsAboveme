@@ -1,218 +1,199 @@
-:root {
-  --bg: #0b1220;
-  --card: #101a2e;
-  --muted: #7f8ba7;
-  --text: #eaf0ff;
-  --accent: #4fd1c5;
-  --line: #1c2a46;
-}
-
-* {
-  box-sizing: border-box;
-}
-
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-  background: var(--bg);
-  color: var(--text);
-}
-
-#app {
-  min-height: 100vh;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: #f0f2f5;
+  color: #222;
 }
 
 .topbar {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--line);
+  align-items: center;
+  background: #fff;
+  padding: 14px 20px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
 }
 
 .brand {
   display: flex;
-  gap: 10px;
   align-items: center;
+  gap: 10px;
 }
 
 .dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: var(--accent);
+  width: 12px;
+  height: 12px;
+  background: #007aff;
+  border-radius: 50%;
 }
 
 .title {
-  font-weight: 700;
-  letter-spacing: 0.2px;
+  font-size: 20px;
+  font-weight: bold;
 }
 
 .subtitle {
-  color: var(--muted);
   font-size: 12px;
-  margin-top: 2px;
+  color: #666;
 }
 
-.status {
-  color: var(--muted);
-  font-size: 13px;
+.right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.segment {
+  display: inline-flex;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.segment button {
+  background: #f5f5f5;
+  border: none;
+  padding: 6px 14px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s ease;
+}
+
+.segment button:not(:last-child) {
+  border-right: 1px solid #ccc;
+}
+
+.segment button.active {
+  background: #007aff;
+  color: white;
 }
 
 .layout {
-  display: grid;
-  grid-template-columns: 1.2fr 0.8fr;
-  gap: 14px;
-  padding: 14px;
-}
-
-@media (max-width: 900px) {
-  .layout {
-    grid-template-columns: 1fr;
-  }
+  padding: 20px;
+  max-width: 680px;
+  margin: auto;
 }
 
 .card {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 14px;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+  padding: 20px;
+  margin-bottom: 20px;
 }
 
-.primaryTopVertical {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.logoAndCallsign {
+.primaryHeader .callsignRow {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .airlineLogo {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.airlineLogo.hidden {
-  display: none;
+  width: 32px;
+  height: auto;
 }
 
 .callsign {
-  font-size: 24px;
-  font-weight: 800;
-  letter-spacing: 0.5px;
+  font-size: 20px;
+  font-weight: bold;
 }
 
 .airlineName {
-  font-size: 24px;
-  font-weight: 800;
+  font-size: 22px;
+  font-weight: bold;
   text-align: center;
+  margin-top: 10px;
 }
 
 .route {
   font-size: 18px;
-  font-weight: 500;
-  color: var(--text);
+  text-align: center;
+  margin-top: 8px;
 }
 
 .model {
-  font-size: 18px;
-  font-weight: 600;
-  color: #ffffff;
+  font-size: 16px;
+  text-align: center;
+  margin-top: 6px;
+  font-weight: 500;
 }
 
 .icao24Label {
-  font-size: 12px;
-  color: var(--muted);
+  text-align: center;
+  font-size: 14px;
+  color: #666;
+  margin-top: 4px;
 }
 
 .stats {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-  margin-top: 14px;
-}
-
-.stat {
-  padding: 10px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: rgba(0, 0, 0, 0.12);
+  display: flex;
+  justify-content: space-around;
+  margin-top: 16px;
 }
 
 .stat .k {
-  color: var(--muted);
   font-size: 11px;
+  color: #888;
+  text-align: center;
 }
 
 .stat .v {
-  font-size: 18px;
-  font-weight: 750;
-  margin-top: 3px;
+  font-size: 16px;
+  font-weight: bold;
+  text-align: center;
 }
 
 .footerLine {
+  margin-top: 16px;
+  font-size: 12px;
+  color: #666;
   display: flex;
   justify-content: space-between;
-  gap: 10px;
-  margin-top: 14px;
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.listGrid {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 12px;
-}
-
-.flightCard {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 12px;
-  font-size: 14px;
-  line-height: 1.5;
 }
 
 .listHeader {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
+  margin-bottom: 8px;
 }
 
 .listTitle {
-  font-weight: 700;
+  font-weight: bold;
+  font-size: 18px;
 }
 
 .listHint {
-  color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
+  color: #888;
 }
 
-.errBox {
-  position: fixed;
-  left: 10px;
-  bottom: 10px;
-  max-width: min(600px, calc(100vw - 20px));
-  background: rgba(0, 0, 0, 0.65);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 12px;
-  white-space: pre-wrap;
+#list .row {
+  background: #fff;
+  padding: 12px 14px;
+  margin: 10px 0;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
-.hidden {
-  display: none;
+#list .cs {
+  font-weight: 600;
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+
+#list .sub {
+  font-size: 13px;
+  color: #666;
+}
+
+.badge {
+  font-size: 13px;
+  color: #999;
+  background: #eee;
+  border-radius: 4px;
+  padding: 2px 6px;
 }
