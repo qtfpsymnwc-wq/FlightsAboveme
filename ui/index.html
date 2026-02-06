@@ -1,11 +1,93 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>FlightWall</title>
+  <link rel="stylesheet" href="./style.css?v=180">
 </head>
 <body>
-  <h1>FlightWall</h1>
-  <p>Main UI placeholder</p>
+  <div id="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="dot"></div>
+        <div>
+          <div class="title">FlightWall</div>
+          <div class="subtitle">Closest flight overhead • Live ADS-B</div>
+        </div>
+      </div>
+
+      <div class="right">
+        <div class="segment" id="tierSegment" aria-label="Airline Tier">
+          <button type="button" data-tier="A" class="active">Airlines</button>
+          <button type="button" data-tier="B">Other</button>
+        </div>
+<div class="status">
+          <span id="statusText">Booting…</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="primary card">
+        <div class="primaryHeader">
+          <div>
+            <div class="primaryTop">
+              <img id="airlineLogo" class="airlineLogo hidden" alt="Airline logo" loading="lazy" />
+              <div>
+                <div class="callsign" id="callsign">—</div>
+                <div class="route" id="route">—</div>
+                <div class="model" id="model">—</div>
+              </div>
+            </div>
+          </div>
+          <div class="meta">
+            <div class="metaRow"><span class="k">ICAO24</span><span class="v" id="icao24">—</span></div>
+            <div class="metaRow"><span class="k">Airline</span><span class="v" id="airline">—</span></div>
+          </div>
+        </div>
+
+        <div class="stats">
+          <div class="stat"><div class="k">ALT</div><div class="v" id="alt">—</div></div>
+          <div class="stat"><div class="k">SPD</div><div class="v" id="spd">—</div></div>
+          <div class="stat"><div class="k">DIST</div><div class="v" id="dist">—</div></div>
+          <div class="stat"><div class="k">DIR</div><div class="v" id="dir">—</div></div>
+        </div>
+
+        <div class="footerLine">
+          <span id="radarLine">Radar: —</span>
+          <span id="debugLine"></span>
+        </div>
+      </section>
+
+      <section class="list card">
+        <div class="listHeader">
+          <div class="listTitle">Nearby flights</div>
+          <div class="listHint">Top 5 closest</div>
+        </div>
+        <div id="list"></div>
+      </section>
+    </main>
+
+    <div class="version">v1.1.0</div>
+    <div id="errBox" class="errBox hidden"></div>
+  </div>
+
+  <script src="./app.js?v=180"></script>
+
+  <div class="modal" id="groupInfo" hidden>
+    <div class="modal__backdrop" id="groupInfoClose"></div>
+    <div class="modal__card" role="dialog" aria-modal="true" aria-labelledby="groupInfoTitle">
+      <div class="modal__title" id="groupInfoTitle">Groups</div>
+      <div class="modal__body">
+        <p><b>Airlines</b> (default) shows commercial passenger flights, including regional airlines.</p>
+        <p><b>Other</b> shows cargo, private/business aircraft, and government/military flights.</p>
+      </div>
+      <div class="modal__actions">
+        <button class="btn" id="groupInfoOk" type="button">OK</button>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>
