@@ -1,9 +1,14 @@
-# Flights Above Me
+Cloudflare Worker API
 
-Cloudflare Worker for tracking flights overhead.
+Set variables/secrets:
+- AERODATA_HOST (vars)  = aerodatabox.p.rapidapi.com
+- AERODATA_KEY  (secret)
+Optional:
+- OPENSKY_USER (secret)
+- OPENSKY_PASS (secret)
 
-## Files
-- worker.js: main worker
-- airlineLogos.json: airline logo map
-- aircraftTypes.json: aircraft type map
-- test.html: local test page
+Endpoints:
+- /health
+- /opensky/states?lamin&lomin&lamax&lomax
+- /flight/<CALLSIGN>
+- /aircraft/icao24/<HEX>
