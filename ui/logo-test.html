@@ -4,189 +4,58 @@
   <meta charset="UTF-8" />
   <title>FlightWall – Airline Logo Test</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-
   <style>
-    :root {
-      --bg: #0b1220;
-      --panel: #111a2e;
-      --card: #16213a;
-      --accent: #3b82f6;
-      --fallback: #f59e0b;
-      --text: #e5e7eb;
-      --muted: #9ca3af;
-    }
-
-    body {
-      margin: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-      background: linear-gradient(180deg, #2563eb 0%, #0b1220 40%);
-      color: var(--text);
-    }
-
-    header {
-      padding: 20px;
-      max-width: 1100px;
-      margin: 0 auto;
-    }
-
-    h1 {
-      margin: 0 0 6px 0;
-      font-size: 22px;
-    }
-
-    .subtitle {
-      color: var(--muted);
-      font-size: 14px;
-    }
-
-    .controls {
-      margin-top: 14px;
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    button {
-      background: var(--panel);
-      color: var(--text);
-      border: 1px solid #24345a;
-      border-radius: 10px;
-      padding: 8px 12px;
-      cursor: pointer;
-      font-size: 13px;
-    }
-
-    button.active {
-      background: var(--accent);
-      border-color: var(--accent);
-    }
-
-    .stats {
-      margin-top: 10px;
-      font-size: 13px;
-      color: var(--muted);
-    }
-
-    main {
-      max-width: 1100px;
-      margin: 20px auto;
-      padding: 0 20px 40px;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-      gap: 14px;
-    }
-
-    .card {
-      background: var(--card);
-      border-radius: 14px;
-      padding: 12px;
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      border: 2px solid transparent;
-    }
-
-    .card.fallback {
-      border-color: var(--fallback);
-    }
-
-    .logo {
-      width: 44px;
-      height: 44px;
-      border-radius: 10px;
-      background: #0b1220;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-      flex-shrink: 0;
-    }
-
-    .logo img {
-      max-width: 80%;
-      max-height: 80%;
-    }
-
-    .meta {
-      display: flex;
-      flex-direction: column;
-    }
-
-    .icao {
-      font-weight: 600;
-      font-size: 14px;
-    }
-
-    .name {
-      font-size: 12px;
-      color: var(--muted);
-    }
-
-    footer {
-      text-align: center;
-      color: var(--muted);
-      font-size: 12px;
-      padding: 20px;
-    }
+    :root{--bg:#0b1220;--panel:#111a2e;--card:#16213a;--accent:#3b82f6;--fallback:#f59e0b;--text:#e5e7eb;--muted:#9ca3af;}
+    body{margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,sans-serif;background:linear-gradient(180deg,#2563eb 0%,#0b1220 40%);color:var(--text);}
+    header{padding:20px;max-width:1100px;margin:0 auto;}
+    h1{margin:0 0 6px 0;font-size:22px;}
+    .subtitle{color:var(--muted);font-size:14px;}
+    .controls{margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;}
+    button{background:var(--panel);color:var(--text);border:1px solid #24345a;border-radius:10px;padding:8px 12px;cursor:pointer;font-size:13px;}
+    button.active{background:var(--accent);border-color:var(--accent);}
+    .stats{margin-top:10px;font-size:13px;color:var(--muted);}
+    main{max-width:1100px;margin:20px auto;padding:0 20px 40px;}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;}
+    .card{background:var(--card);border-radius:14px;padding:12px;display:flex;gap:10px;align-items:center;border:2px solid transparent;}
+    .card.fallback{border-color:var(--fallback);}
+    .logo{width:48px;height:48px;border-radius:12px;background:#0b1220;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;}
+    .logo img{max-width:84%;max-height:84%;}
+    .meta{display:flex;flex-direction:column;gap:2px;min-width:0;}
+    .icao{font-weight:700;font-size:14px;display:flex;gap:8px;align-items:center;}
+    .tag{font-size:11px;padding:2px 6px;border-radius:999px;background:#0b1220;color:var(--muted);border:1px solid #24345a;}
+    .name{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .src{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .src a{color:#93c5fd;text-decoration:none;}
+    footer{text-align:center;color:var(--muted);font-size:12px;padding:20px;}
   </style>
 </head>
 <body>
-
 <header>
   <h1>FlightWall – Airline Logo Test</h1>
   <div class="subtitle">
-    Loads logos from <code>/assets/logos/&lt;ICAO&gt;.svg</code> and falls back to
-    <code>_GENERIC.svg</code>
+    Tries <code>SVG → PNG → WEBP</code> at <code>/assets/logos/&lt;ICAO&gt;.*</code> then falls back to <code>_GENERIC.svg</code>.
   </div>
-
   <div class="controls">
     <button id="btnAll" class="active">Show all</button>
     <button id="btnFallbacks">Show only fallbacks</button>
   </div>
-
   <div class="stats" id="stats">Loading…</div>
 </header>
 
-<main>
-  <div class="grid" id="grid"></div>
-</main>
+<main><div class="grid" id="grid"></div></main>
 
 <footer>
-  Tip: If you see a lot of fallbacks, those ICAO logos are missing in
-  <code>/assets/logos/</code>
+  Tip: Tap the “open” link to view the exact file that loaded.
 </footer>
 
 <script>
   const airlines = [
-    ["AAL", "American Airlines"],
-    ["DAL", "Delta Air Lines"],
-    ["UAL", "United Airlines"],
-    ["SWA", "Southwest Airlines"],
-    ["JBU", "JetBlue"],
-    ["ASA", "Alaska Airlines"],
-    ["FFT", "Frontier"],
-    ["NKS", "Spirit"],
-    ["AAY", "Allegiant"],
-    ["EDV", "Endeavor Air"],
-    ["ENY", "Envoy Air"],
-    ["SKW", "SkyWest"],
-    ["RPA", "Republic"],
-    ["JIA", "PSA Airlines"],
-    ["FDX", "FedEx Express"],
-    ["UPS", "UPS Airlines"],
-    ["BAW", "British Airways"],
-    ["DLH", "Lufthansa"],
-    ["AFR", "Air France"],
-    ["KLM", "KLM"],
-    ["QFA", "Qantas"],
-    ["UAE", "Emirates"],
-    ["QTR", "Qatar Airways"],
-    ["THY", "Turkish Airlines"],
-    ["EIN", "Aer Lingus"],
-    ["ACA", "Air Canada"]
+    ["AAL","American Airlines"],["DAL","Delta Air Lines"],["UAL","United Airlines"],["SWA","Southwest Airlines"],
+    ["JBU","JetBlue"],["ASA","Alaska Airlines"],["FFT","Frontier"],["NKS","Spirit"],["AAY","Allegiant"],
+    ["EDV","Endeavor Air"],["ENY","Envoy Air"],["SKW","SkyWest"],["RPA","Republic"],["JIA","PSA Airlines"],
+    ["FDX","FedEx Express"],["UPS","UPS Airlines"],["BAW","British Airways"],["DLH","Lufthansa"],
+    ["AFR","Air France"],["KLM","KLM"],["QFA","Qantas"],["UAE","Emirates"],["QTR","Qatar Airways"],
+    ["THY","Turkish Airlines"],["EIN","Aer Lingus"],["ACA","Air Canada"]
   ];
 
   const grid = document.getElementById("grid");
@@ -195,50 +64,99 @@
   const btnFallbacks = document.getElementById("btnFallbacks");
 
   let cards = [];
+  let ok = 0, fallback = 0;
 
-  function load() {
-    let ok = 0;
-    let fallback = 0;
-
-    airlines.forEach(([icao, name]) => {
-      const card = document.createElement("div");
-      card.className = "card";
-
-      const logo = document.createElement("div");
-      logo.className = "logo";
-
-      const img = document.createElement("img");
-      img.src = `/assets/logos/${icao}.svg`;
-
-      img.onerror = () => {
-        img.src = `/assets/logos/_GENERIC.svg`;
-        card.classList.add("fallback");
-        fallback++;
-        updateStats(ok, fallback);
-      };
-
-      img.onload = () => {
-        ok++;
-        updateStats(ok, fallback);
-      };
-
-      logo.appendChild(img);
-
-      const meta = document.createElement("div");
-      meta.className = "meta";
-      meta.innerHTML = `<div class="icao">${icao}</div><div class="name">${name}</div>`;
-
-      card.appendChild(logo);
-      card.appendChild(meta);
-
-      grid.appendChild(card);
-      cards.push(card);
-    });
-  }
-
-  function updateStats(ok, fallback) {
+  function updateStats() {
     stats.textContent = `Total: ${airlines.length} · OK: ${ok} · Fallbacks: ${fallback}`;
   }
+
+  function tryLoad(img, urls, onOk, onFail) {
+    let i = 0;
+    const attempt = () => {
+      if (i >= urls.length) return onFail();
+      const url = urls[i++];
+      const test = new Image();
+      test.onload = () => { img.src = url; onOk(url); };
+      test.onerror = attempt;
+      test.src = url;
+    };
+    attempt();
+  }
+
+  function buildCard(icao, name) {
+    const card = document.createElement("div");
+    card.className = "card";
+
+    const logo = document.createElement("div");
+    logo.className = "logo";
+
+    const img = document.createElement("img");
+    img.alt = `${icao} logo`;
+
+    logo.appendChild(img);
+
+    const meta = document.createElement("div");
+    meta.className = "meta";
+
+    const title = document.createElement("div");
+    title.className = "icao";
+    title.innerHTML = `${icao} <span class="tag" id="tag-${icao}">loading…</span>`;
+
+    const nm = document.createElement("div");
+    nm.className = "name";
+    nm.textContent = name;
+
+    const src = document.createElement("div");
+    src.className = "src";
+    src.innerHTML = `src: <a href="#" id="src-${icao}">—</a>`;
+
+    meta.appendChild(title);
+    meta.appendChild(nm);
+    meta.appendChild(src);
+
+    card.appendChild(logo);
+    card.appendChild(meta);
+
+    const candidates = [
+      `/assets/logos/${icao}.svg`,
+      `/assets/logos/${icao}.png`,
+      `/assets/logos/${icao}.webp`
+    ];
+
+    tryLoad(
+      img,
+      candidates,
+      (usedUrl) => {
+        ok++;
+        document.getElementById(`tag-${icao}`).textContent = usedUrl.endsWith(".svg") ? "vendor(svg)" : "vendor(bitmap)";
+        const a = document.getElementById(`src-${icao}`);
+        a.textContent = usedUrl.split("/").pop();
+        a.href = usedUrl;
+        updateStats();
+      },
+      () => {
+        fallback++;
+        card.classList.add("fallback");
+        const usedUrl = `/assets/logos/_GENERIC.svg`;
+        img.src = usedUrl;
+        document.getElementById(`tag-${icao}`).textContent = "fallback";
+        const a = document.getElementById(`src-${icao}`);
+        a.textContent = "_GENERIC.svg";
+        a.href = usedUrl;
+        updateStats();
+      }
+    );
+
+    return card;
+  }
+
+  airlines.forEach(([icao, name]) => {
+    const c = buildCard(icao, name);
+    grid.appendChild(c);
+    cards.push(c);
+  });
+
+  updateStats();
 
   btnAll.onclick = () => {
     btnAll.classList.add("active");
@@ -249,13 +167,8 @@
   btnFallbacks.onclick = () => {
     btnFallbacks.classList.add("active");
     btnAll.classList.remove("active");
-    cards.forEach(c => {
-      c.style.display = c.classList.contains("fallback") ? "" : "none";
-    });
+    cards.forEach(c => c.style.display = c.classList.contains("fallback") ? "" : "none");
   };
-
-  load();
 </script>
-
 </body>
 </html>
