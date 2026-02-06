@@ -2,7 +2,7 @@
 // Option A: Pages hosts this UI, Worker hosts API.
 // Set API_BASE to your Worker domain. (No trailing slash)
 const API_BASE = "https://flightsabove.t2hkmhgbwz.workers.dev";
-const UI_VERSION = "v203";
+const UI_VERSION = "v204";
 const POLL_MS = 3500;
 
 // Persist Aerodatabox + aircraft enrichments across refreshes.
@@ -174,7 +174,7 @@ const TIER_ALL_PREFIXES = [...new Set([...TIER_A_PREFIXES, ...TIER_B_EXTRA_PREFI
 // Grouping for B1:
 // Tier A ("Airlines") = passenger + regionals (excludes cargo/private/military/gov/unknown)
 // Tier B ("Other") = cargo + private/business + military/gov + unknown
-const CARGO_PREFIXES = ["FDX","UPS","GTI","ABX","CKS","KAL","BOX","MXY","ATN"];
+const CARGO_PREFIXES = ["FDX","UPS","GTI","ABX","CKS","KAL","BOX","MXY","ATN","CSB","KYE","CLX","GEC","NCA","CMB"];
 const MIL_GOV_PREFIXES = ["RCH","SAM","GAF","NOW","BAF","DAF","NAV","FNY","SPAR"];
 const PRIVATE_PREFIXES = ["EJA","NJE","XOJ","LXJ","JTL","PJC","DCM","VJT"];
 
