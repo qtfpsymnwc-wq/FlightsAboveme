@@ -2,7 +2,7 @@
 // Option A: Pages hosts this UI, Worker hosts API.
 // Set API_BASE to your Worker domain. (No trailing slash)
 const API_BASE = "https://flightsabove.t2hkmhgbwz.workers.dev";
-const UI_VERSION = "v180";
+const UI_VERSION = "v203";
 const POLL_MS = 3500;
 
 // Persist Aerodatabox + aircraft enrichments across refreshes.
@@ -71,15 +71,7 @@ function logoUrlForCallsign(callsign){
   const key = airlineKeyFromCallsign(callsign);
   const file = key ? `${key}.svg` : `_GENERIC.svg`;
   // cache-bust per UI version
-  return `/assets/logos/${file}?v=${encodeURIComponent(UI_VERSION)}`;
-}
-
-// Resolve a logo key (typically ICAO, e.g. "AAL") into a static asset URL.
-// Pages serves these from /assets/logos/<KEY>.svg (and /assets/logos/_GENERIC.svg).
-function logoUrlForKey(key){
-  const k = (key || "").toString().trim().toUpperCase();
-  const file = k ? `${k}.svg` : `_GENERIC.svg`;
-  return `/assets/logos/${file}?v=${encodeURIComponent(UI_VERSION)}`;
+  return `assets/logos/${file}?v=${encodeURIComponent(UI_VERSION)}`;
 }
 
 function logoUrlForFlight(f) {
@@ -129,13 +121,6 @@ function renderPrimary(f, radarMeta){
   try {
     const img = $("airlineLogo");
     if (img) {
-      img.dataset.fallbackDone = "";
-      img.onerror = () => {
-        if (img.dataset.fallbackDone) return;
-        img.dataset.fallbackDone = "1";
-        img.src = logoUrlForKey("");
-      };
-
       img.src = logoUrlForFlight(f);
       img.classList.remove('hidden');
       const key = (f.airlineIcao || f.operatorIcao || airlineKeyFromCallsign(f.callsign || "")) || "";
@@ -206,12 +191,12 @@ function isAirlinePattern(cs){
 function groupForFlight(cs){
   const p = callsignPrefix(cs);
   if (!p) return "B";
-  // Any N-number or explicitly-known cargo/mil/private prefixes are "Other"
   if (isNNumberCallsign(cs)) return "B";
   if (CARGO_PREFIXES.includes(p) || MIL_GOV_PREFIXES.includes(p) || PRIVATE_PREFIXES.includes(p)) return "B";
-  // "Airlines" are ONLY the prefixes we explicitly allow (majors + regionals).
-  // This prevents private/charter/university operators like "OUA25" from being treated as airlines.
+  // Airlines include majors + regionals list (TIER_ALL_PREFIXES), but exclude common cargo already handled above
   if (TIER_ALL_PREFIXES.includes(p)) return "A";
+  // If it looks like a standard airline callsign and isn't in our OTHER lists, treat as Airlines
+  if (isAirlinePattern(cs)) return "A";
   return "B";
 }
 
