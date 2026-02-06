@@ -1,586 +1,261 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>FlightWall — Airline Logo Test</title>
+  <meta charset="UTF-8" />
+  <title>FlightWall – Airline Logo Test</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
   <style>
     :root {
-      color-scheme: dark;
       --bg: #0b1220;
-      --panel: rgba(255,255,255,0.06);
-      --panel2: rgba(255,255,255,0.08);
-      --text: rgba(255,255,255,0.92);
-      --muted: rgba(255,255,255,0.65);
-      --border: rgba(255,255,255,0.10);
-      --ok: rgba(33, 197, 94, 0.75);
-      --warn: rgba(245, 158, 11, 0.85);
+      --panel: #111a2e;
+      --card: #16213a;
+      --accent: #3b82f6;
+      --fallback: #f59e0b;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
     }
-    html, body {
+
+    body {
       margin: 0;
-      padding: 0;
-      background: radial-gradient(1200px 800px at 20% 10%, rgba(64,120,255,0.15), transparent 60%),
-                  radial-gradient(900px 700px at 80% 20%, rgba(0,255,204,0.10), transparent 55%),
-                  var(--bg);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(180deg, #2563eb 0%, #0b1220 40%);
       color: var(--text);
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
     }
-    .wrap {
+
+    header {
+      padding: 20px;
       max-width: 1100px;
-      margin: 24px auto 40px;
-      padding: 0 16px;
+      margin: 0 auto;
     }
+
     h1 {
-      font-size: 20px;
       margin: 0 0 6px 0;
-      letter-spacing: 0.2px;
+      font-size: 22px;
     }
-    .sub {
+
+    .subtitle {
       color: var(--muted);
-      font-size: 13px;
-      margin-bottom: 14px;
-      line-height: 1.35;
+      font-size: 14px;
     }
-    .legend {
+
+    .controls {
+      margin-top: 14px;
       display: flex;
-      flex-wrap: wrap;
       gap: 10px;
-      align-items: center;
-      margin-bottom: 16px;
-      padding: 10px 12px;
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 12px;
+      flex-wrap: wrap;
     }
-    .pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 10px;
-      border-radius: 999px;
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.08);
-      font-size: 12px;
+
+    button {
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid #24345a;
+      border-radius: 10px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    button.active {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .stats {
+      margin-top: 10px;
+      font-size: 13px;
       color: var(--muted);
     }
-    .dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 999px;
-      background: var(--ok);
-      box-shadow: 0 0 0 3px rgba(33,197,94,0.12);
+
+    main {
+      max-width: 1100px;
+      margin: 20px auto;
+      padding: 0 20px 40px;
     }
-    .dot.warn {
-      background: var(--warn);
-      box-shadow: 0 0 0 3px rgba(245,158,11,0.14);
-    }
+
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-      gap: 12px;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 14px;
     }
+
     .card {
-      background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.04));
-      border: 1px solid var(--border);
-      border-radius: 16px;
+      background: var(--card);
+      border-radius: 14px;
       padding: 12px;
       display: flex;
-      gap: 12px;
+      gap: 10px;
       align-items: center;
-      min-height: 86px;
+      border: 2px solid transparent;
     }
+
     .card.fallback {
-      border-color: rgba(245,158,11,0.55);
-      box-shadow: 0 0 0 1px rgba(245,158,11,0.15) inset;
+      border-color: var(--fallback);
     }
-    .logoWrap {
-      width: 56px;
-      height: 56px;
-      border-radius: 14px;
-      background: rgba(0,0,0,0.18);
-      border: 1px solid rgba(255,255,255,0.08);
-      display: grid;
-      place-items: center;
-      overflow: hidden;
-      flex: 0 0 auto;
-    }
-    img.logo {
+
+    .logo {
       width: 44px;
       height: 44px;
-      object-fit: contain;
-      image-rendering: -webkit-optimize-contrast;
+      border-radius: 10px;
+      background: #0b1220;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      flex-shrink: 0;
     }
+
+    .logo img {
+      max-width: 80%;
+      max-height: 80%;
+    }
+
     .meta {
-      min-width: 0;
+      display: flex;
+      flex-direction: column;
     }
-    .code {
-      font-weight: 700;
-      letter-spacing: 0.6px;
+
+    .icao {
+      font-weight: 600;
       font-size: 14px;
-      margin-bottom: 3px;
     }
+
     .name {
       font-size: 12px;
       color: var(--muted);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      max-width: 220px;
     }
-    .footer {
-      margin-top: 18px;
-      font-size: 12px;
+
+    footer {
+      text-align: center;
       color: var(--muted);
-    }
-    .counts {
-      display: inline-flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-left: auto;
-    }
-    .counts b { color: var(--text); font-weight: 700; }
-    .btn {
-      cursor: pointer;
-      user-select: none;
-      padding: 6px 10px;
-      border-radius: 10px;
-      border: 1px solid rgba(255,255,255,0.10);
-      background: rgba(255,255,255,0.06);
-      color: var(--text);
       font-size: 12px;
+      padding: 20px;
     }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <h1>FlightWall — Airline Logo Test</h1>
-    <div class="sub">
-      This page loads logos from <code>/assets/logos/&lt;ICAO&gt;.svg</code> and falls back to <code>_GENERIC.svg</code> if missing.<br/>
-      Generated: 2026-02-05 23:44 UTC
-    </div>
 
-    <div class="legend">
-      <span class="pill"><span class="dot"></span>Vendor / real logo</span>
-      <span class="pill"><span class="dot warn"></span>Fallback (_GENERIC.svg)</span>
-
-      <div class="counts">
-        <span class="pill">Total: <b id="total">—</b></span>
-        <span class="pill">Fallbacks: <b id="fallbacks">—</b></span>
-        <span class="pill">OK: <b id="oks">—</b></span>
-      </div>
-
-      <button class="btn" id="showFallbacks">Show only fallbacks</button>
-      <button class="btn" id="showAll">Show all</button>
-    </div>
-
-    <div class="grid" id="grid">
-<div class="card" data-icao="AAL">
-  <div class="logoWrap">
-    <img class="logo" src="/assets/logos/AAL.svg" alt="AAL logo"
-         onerror="this.dataset.fallback='1'; this.src='/assets/logos/_GENERIC.svg'; this.closest('.card').classList.add('fallback');" />
-  </div>
-  <div class="meta">
-    <div class="code">AAL</div>
-    <div class="name">American Airlines</div>
-  </div>
-</div>
-<div class="card" data-icao="DAL">
-  <div class="logoWrap">
-    <img class="logo" src="/assets/logos/DAL.svg" alt="DAL logo"
-         onerror="this.dataset.fallback='1'; this.src='/assets/logos/_GENERIC.svg'; this.closest('.card').classList.add('fallback');" />
-  </div>
-  <div class="meta">
-    <div class="code">DAL</div>
-    <div class="name">Delta Air Lines</div>
-  </div>
-</div>
-<div class="card" data-icao="UAL">
-  <div class="logoWrap">
-    <img class="logo" src="/assets/logos/UAL.svg" alt="UAL logo"
-         onerror="this.dataset.fallback='1'; this.src='/assets/logos/_GENERIC.svg'; this.closest('.card').classList.add('fallback');" />
-  </div>
-  <div class="meta">
-    <div class="code">UAL</div>
-    <div class="name">United Airlines</div>
-  </div>
-</div>
-<div class="card" data-icao="SWA">
-  <div class="logoWrap">
-    <img class="logo" src="/assets/logos/SWA.svg" alt="SWA logo"
-         onerror="this.dataset.fallback='1'; this.src='/assets/logos/_GENERIC.svg'; this.closest('.card').classList.add('fallback');" />
-  </div>
-  <div class="meta">
-    <div class="code">SWA</div>
-    <div class="name">Southwest Airlines</div>
-  </div>
-</div>
-<div class="card" data-icao="JBU">
-  <div class="logoWrap">
-    <img class="logo" src="/assets/logos/JBU.svg" alt="JBU logo"
-         onerror="this.dataset.fallback='1'; this.src='/assets/logos/_GENERIC.svg'; this.closest('.card').classList.add('fallback');" />
-  </div>
-  <div class="meta">
-    <div class="code">JBU</div>
-    <div class="name">JetBlue</div>
-  </div>
-</div>
-<div class="card" data-icao="ASA">
-  <div class="logoWrap">
-    <img class="logo" src="/assets/logos/ASA.svg" alt="ASA logo"
-         onerror="this.dataset.fallback='1'; this.src='/assets/logos/_GENERIC.svg'; this.closest('.card').classList.add('fallback');" />
-  </div>
-  <div class="meta">
-    <div class="code">ASA</div>
-    <div class="name">Alaska Airlines</div>
-  </div>
-</div>
-<div class="card" data-icao="FFT">
-  <div class="logoWrap">
-    <img class="logo" src="/assets/logos/FFT.svg" alt="FFT logo"
-         onerror="this.dataset.fallback='1'; this.src='/assets/logos/_GENERIC.svg'; this.closest('.card').classList.add('fallback');" />
-  </div>
-  <div class="meta">
-    <div class="code">FFT</div>
-    <div class="name">Frontier</div>
-  </div>
-</div>
-<div class="card" data-icao="NKS">
-  <div class="logoWrap">
-    <img class="logo" src="/assets/logos/NKS.svg" alt="NKS logo"
-         onerror="this.dataset.fallback='1'; this.src='/assets/logos/_GENERIC.svg'; this.closest('.card').classList.add('fallback');" />
-  </div>
-  <div class="meta">
-    <div class="code">NKS</div>
-    <div class="name">Spirit</div>
-  </div>
-</div>
-<div class="card" data-icao="AAY">
-  <div class="logoWrap">
-    <img class="logo" src="/assets/logos/AAY.svg" alt="AAY logo"
-         onerror="this.dataset.fallback='1'; this.src='/assets/logos/_GENERIC.svg'; this.closest('.card').classList.add('fallback');" />
-  </div>
-  <div class="meta">
-    <div class="code">AAY</div>
-    <div class="name">Allegiant</div>
-  </div>
-</div>
-<div class="card" data-icao="EDV">
-  <div class="logoWrap">
-    <img class="logo" src="/assets/logos/EDV.svg" alt="EDV logo"
-         onerror="this.dataset.fallback='1'; this.src='/assets/logos/_GENERIC.svg'; this.closest('.card').classList.add('fallback');" />
-  </div>
-  <div class="meta">
-    <div class="code">EDV</div>
-    <div class="name">Endeavor Air</div>
-  </div>
-</div>
-<div class="card" data-icao="ENY">
-  <div class="logoWrap">
-    <img class="logo" src="/assets/logos/ENY.svg" alt="ENY logo"
-         onerror="this.dataset.fallback='1'; this.src='/assets/logos/_GENERIC.svg'; this.closest('.card').classList.add('fallback');" />
-  </div>
-  <div class="meta">
-    <div class="code">ENY</div>
-    <div class="name">Envoy Air</div>
-  </div>
-</div>
-<div class="card" data-icao="SKW">
-  <div class="logoWrap">
-    <img class="logo" src="/assets/logos/SKW.svg" alt="SKW logo"
-         onerror="this.dataset.fallback='1'; this.src='/assets/logos/_GENERIC.svg'; this.closest('.card').classList.add('fallback');" />
-  </div>
-  <div class="meta">
-    <div class="code">SKW</div>
-    <div class="name">SkyWest</div>
-  </div>
-</div>
-<div class="card" data-icao="RPA">
-  <div class="logoWrap">
-    <img class="logo" src="/assets/logos/RPA.svg" alt="RPA logo"
-         onerror="this.dataset.fallback='1'; this.src='/assets/logos/_GENERIC.svg'; this.closest('.card').classList.add('fallback');" />
-  </div>
-  <div class="meta">
-    <div class="code">RPA</div>
-    <div class="name">Republic</div>
-  </div>
-</div>
-<div class="card" data-icao="JIA">
-  <div class="logoWrap">
-    <img class="logo" src="/assets/logos/JIA.svg" alt="JIA logo"
-         onerror="this.dataset.fallback='1'; this.src='/assets/logos/_GENERIC.svg'; this.closest('.card').classList.add('fallback');" />
-  </div>
-  <div class="meta">
-    <div class="code">JIA</div>
-    <div class="name">PSA Airlines</div>
-  </div>
-</div>
-<div class="card" data-icao="FDX">
-  <div class="logoWrap">
-    <img class="logo" src="/assets/logos/FDX.svg" alt="FDX logo"
-         onerror="this.dataset.fallback='1'; this.src='/assets/logos/_GENERIC.svg'; this.closest('.card').classList.add('fallback');" />
-  </div>
-  <div class="meta">
-    <div class="code">FDX</div>
-    <div class="name">FedEx Express</div>
-  </div>
-</div>
-<div class="card" data-icao="UPS">
-  <div class="logoWrap">
-    <img class="logo" src="/assets/logos/UPS.svg" alt="UPS logo"
-         onerror="this.dataset.fallback='1'; this.src='/assets/logos/_GENERIC.svg'; this.closest('.card').classList.add('fallback');" />
-  </div>
-  <div class="meta">
-    <div class="code">UPS</div>
-    <div class="name">UPS Airlines</div>
-  </div>
-</div>
-<div class="card" data-icao="UAL">
-  <div class="logoWrap">
-    <img class="logo" src="/assets/logos/UAL.svg" alt="UAL logo"
-         onerror="this.dataset.fallback='1'; this.src='/assets/logos/_GENERIC.svg'; this.closest('.card').classList.add('fallback');" />
-  </div>
-  <div class="meta">
-    <div class="code">UAL</div>
-    <div class="name">United Airlines (dup test)</div>
-  </div>
-</div>
-<div class="card" data-icao="BAW">
-  <div class="logoWrap">
-    <img class="logo" src="/assets/logos/BAW.svg" alt="BAW logo"
-         onerror="this.dataset.fallback='1'; this.src='/assets/logos/_GENERIC.svg'; this.closest('.card').classList.add('fallback');" />
-  </div>
-  <div class="meta">
-    <div class="code">BAW</div>
-    <div class="name">British Airways</div>
-  </div>
-</div>
-<div class="card" data-icao="DLH">
-  <div class="logoWrap">
-    <img class="logo" src="/assets/logos/DLH.svg" alt="DLH logo"
-         onerror="this.dataset.fallback='1'; this.src='/assets/logos/_GENERIC.svg'; this.closest('.card').classList.add('fallback');" />
-  </div>
-  <div class="meta">
-    <div class="code">DLH</div>
-    <div class="name">Lufthansa</div>
-  </div>
-</div>
-<div class="card" data-icao="AFR">
-  <div class="logoWrap">
-    <img class="logo" src="/assets/logos/AFR.svg" alt="AFR logo"
-         onerror="this.dataset.fallback='1'; this.src='/assets/logos/_GENERIC.svg'; this.closest('.card').classList.add('fallback');" />
-  </div>
-  <div class="meta">
-    <div class="code">AFR</div>
-    <div class="name">Air France</div>
-  </div>
-</div>
-<div class="card" data-icao="KLM">
-  <div class="logoWrap">
-    <img class="logo" src="/assets/logos/KLM.svg" alt="KLM logo"
-         onerror="this.dataset.fallback='1'; this.src='/assets/logos/_GENERIC.svg'; this.closest('.card').classList.add('fallback');" />
-  </div>
-  <div class="meta">
-    <div class="code">KLM</div>
-    <div class="name">KLM</div>
-  </div>
-</div>
-<div class="card" data-icao="SAS">
-  <div class="logoWrap">
-    <img class="logo" src="/assets/logos/SAS.svg" alt="SAS logo"
-         onerror="this.dataset.fallback='1'; this.src='/assets/logos/_GENERIC.svg'; this.closest('.card').classList.add('fallback');" />
-  </div>
-  <div class="meta">
-    <div class="code">SAS</div>
-    <div class="name">SAS</div>
-  </div>
-</div>
-<div class="card" data-icao="AUA">
-  <div class="logoWrap">
-    <img class="logo" src="/assets/logos/AUA.svg" alt="AUA logo"
-         onerror="this.dataset.fallback='1'; this.src='/assets/logos/_GENERIC.svg'; this.closest('.card').classList.add('fallback');" />
-  </div>
-  <div class="meta">
-    <div class="code">AUA</div>
-    <div class="name">Austrian</div>
-  </div>
-</div>
-<div class="card" data-icao="SIA">
-  <div class="logoWrap">
-    <img class="logo" src="/assets/logos/SIA.svg" alt="SIA logo"
-         onerror="this.dataset.fallback='1'; this.src='/assets/logos/_GENERIC.svg'; this.closest('.card').classList.add('fallback');" />
-  </div>
-  <div class="meta">
-    <div class="code">SIA</div>
-    <div class="name">Singapore Airlines</div>
-  </div>
-</div>
-<div class="card" data-icao="ANA">
-  <div class="logoWrap">
-    <img class="logo" src="/assets/logos/ANA.svg" alt="ANA logo"
-         onerror="this.dataset.fallback='1'; this.src='/assets/logos/_GENERIC.svg'; this.closest('.card').classList.add('fallback');" />
-  </div>
-  <div class="meta">
-    <div class="code">ANA</div>
-    <div class="name">All Nippon Airways</div>
-  </div>
-</div>
-<div class="card" data-icao="JAL">
-  <div class="logoWrap">
-    <img class="logo" src="/assets/logos/JAL.svg" alt="JAL logo"
-         onerror="this.dataset.fallback='1'; this.src='/assets/logos/_GENERIC.svg'; this.closest('.card').classList.add('fallback');" />
-  </div>
-  <div class="meta">
-    <div class="code">JAL</div>
-    <div class="name">Japan Airlines</div>
-  </div>
-</div>
-<div class="card" data-icao="QFA">
-  <div class="logoWrap">
-    <img class="logo" src="/assets/logos/QFA.svg" alt="QFA logo"
-         onerror="this.dataset.fallback='1'; this.src='/assets/logos/_GENERIC.svg'; this.closest('.card').classList.add('fallback');" />
-  </div>
-  <div class="meta">
-    <div class="code">QFA</div>
-    <div class="name">Qantas</div>
-  </div>
-</div>
-<div class="card" data-icao="UAE">
-  <div class="logoWrap">
-    <img class="logo" src="/assets/logos/UAE.svg" alt="UAE logo"
-         onerror="this.dataset.fallback='1'; this.src='/assets/logos/_GENERIC.svg'; this.closest('.card').classList.add('fallback');" />
-  </div>
-  <div class="meta">
-    <div class="code">UAE</div>
-    <div class="name">Emirates</div>
-  </div>
-</div>
-<div class="card" data-icao="QTR">
-  <div class="logoWrap">
-    <img class="logo" src="/assets/logos/QTR.svg" alt="QTR logo"
-         onerror="this.dataset.fallback='1'; this.src='/assets/logos/_GENERIC.svg'; this.closest('.card').classList.add('fallback');" />
-  </div>
-  <div class="meta">
-    <div class="code">QTR</div>
-    <div class="name">Qatar Airways</div>
-  </div>
-</div>
-<div class="card" data-icao="THY">
-  <div class="logoWrap">
-    <img class="logo" src="/assets/logos/THY.svg" alt="THY logo"
-         onerror="this.dataset.fallback='1'; this.src='/assets/logos/_GENERIC.svg'; this.closest('.card').classList.add('fallback');" />
-  </div>
-  <div class="meta">
-    <div class="code">THY</div>
-    <div class="name">Turkish Airlines</div>
-  </div>
-</div>
-<div class="card" data-icao="IBE">
-  <div class="logoWrap">
-    <img class="logo" src="/assets/logos/IBE.svg" alt="IBE logo"
-         onerror="this.dataset.fallback='1'; this.src='/assets/logos/_GENERIC.svg'; this.closest('.card').classList.add('fallback');" />
-  </div>
-  <div class="meta">
-    <div class="code">IBE</div>
-    <div class="name">Iberia</div>
-  </div>
-</div>
-<div class="card" data-icao="EIN">
-  <div class="logoWrap">
-    <img class="logo" src="/assets/logos/EIN.svg" alt="EIN logo"
-         onerror="this.dataset.fallback='1'; this.src='/assets/logos/_GENERIC.svg'; this.closest('.card').classList.add('fallback');" />
-  </div>
-  <div class="meta">
-    <div class="code">EIN</div>
-    <div class="name">Aer Lingus</div>
-  </div>
-</div>
-<div class="card" data-icao="WJA">
-  <div class="logoWrap">
-    <img class="logo" src="/assets/logos/WJA.svg" alt="WJA logo"
-         onerror="this.dataset.fallback='1'; this.src='/assets/logos/_GENERIC.svg'; this.closest('.card').classList.add('fallback');" />
-  </div>
-  <div class="meta">
-    <div class="code">WJA</div>
-    <div class="name">WestJet</div>
-  </div>
-</div>
-<div class="card" data-icao="ACA">
-  <div class="logoWrap">
-    <img class="logo" src="/assets/logos/ACA.svg" alt="ACA logo"
-         onerror="this.dataset.fallback='1'; this.src='/assets/logos/_GENERIC.svg'; this.closest('.card').classList.add('fallback');" />
-  </div>
-  <div class="meta">
-    <div class="code">ACA</div>
-    <div class="name">Air Canada</div>
-  </div>
-</div>
-<div class="card" data-icao="VOI">
-  <div class="logoWrap">
-    <img class="logo" src="/assets/logos/VOI.svg" alt="VOI logo"
-         onerror="this.dataset.fallback='1'; this.src='/assets/logos/_GENERIC.svg'; this.closest('.card').classList.add('fallback');" />
-  </div>
-  <div class="meta">
-    <div class="code">VOI</div>
-    <div class="name">Volaris</div>
-  </div>
-</div>
-<div class="card" data-icao="AVA">
-  <div class="logoWrap">
-    <img class="logo" src="/assets/logos/AVA.svg" alt="AVA logo"
-         onerror="this.dataset.fallback='1'; this.src='/assets/logos/_GENERIC.svg'; this.closest('.card').classList.add('fallback');" />
-  </div>
-  <div class="meta">
-    <div class="code">AVA</div>
-    <div class="name">Avianca</div>
-  </div>
-</div>
-<div class="card" data-icao="GLO">
-  <div class="logoWrap">
-    <img class="logo" src="/assets/logos/GLO.svg" alt="GLO logo"
-         onerror="this.dataset.fallback='1'; this.src='/assets/logos/_GENERIC.svg'; this.closest('.card').classList.add('fallback');" />
-  </div>
-  <div class="meta">
-    <div class="code">GLO</div>
-    <div class="name">GOL</div>
-  </div>
-</div>
-    </div>
-
-    <div class="footer">
-      Tip: If you see a lot of fallbacks, we’re missing those ICAO logo files in <code>/ui/assets/logos</code>.
-    </div>
+<header>
+  <h1>FlightWall – Airline Logo Test</h1>
+  <div class="subtitle">
+    Loads logos from <code>/assets/logos/&lt;ICAO&gt;.svg</code> and falls back to
+    <code>_GENERIC.svg</code>
   </div>
 
-  <script>
-    const grid = document.getElementById('grid');
-    const totalEl = document.getElementById('total');
-    const fallbacksEl = document.getElementById('fallbacks');
-    const oksEl = document.getElementById('oks');
+  <div class="controls">
+    <button id="btnAll" class="active">Show all</button>
+    <button id="btnFallbacks">Show only fallbacks</button>
+  </div>
 
-    function updateCounts() {
-      const cards = Array.from(grid.querySelectorAll('.card'));
-      const fb = cards.filter(c => c.classList.contains('fallback')).length;
-      totalEl.textContent = cards.length;
-      fallbacksEl.textContent = fb;
-      oksEl.textContent = cards.length - fb;
-    }
+  <div class="stats" id="stats">Loading…</div>
+</header>
 
-    // After images resolve, update counts
-    window.addEventListener('load', () => {
-      // Give onerror handlers a beat to run
-      setTimeout(updateCounts, 50);
+<main>
+  <div class="grid" id="grid"></div>
+</main>
+
+<footer>
+  Tip: If you see a lot of fallbacks, those ICAO logos are missing in
+  <code>/assets/logos/</code>
+</footer>
+
+<script>
+  const airlines = [
+    ["AAL", "American Airlines"],
+    ["DAL", "Delta Air Lines"],
+    ["UAL", "United Airlines"],
+    ["SWA", "Southwest Airlines"],
+    ["JBU", "JetBlue"],
+    ["ASA", "Alaska Airlines"],
+    ["FFT", "Frontier"],
+    ["NKS", "Spirit"],
+    ["AAY", "Allegiant"],
+    ["EDV", "Endeavor Air"],
+    ["ENY", "Envoy Air"],
+    ["SKW", "SkyWest"],
+    ["RPA", "Republic"],
+    ["JIA", "PSA Airlines"],
+    ["FDX", "FedEx Express"],
+    ["UPS", "UPS Airlines"],
+    ["BAW", "British Airways"],
+    ["DLH", "Lufthansa"],
+    ["AFR", "Air France"],
+    ["KLM", "KLM"],
+    ["QFA", "Qantas"],
+    ["UAE", "Emirates"],
+    ["QTR", "Qatar Airways"],
+    ["THY", "Turkish Airlines"],
+    ["EIN", "Aer Lingus"],
+    ["ACA", "Air Canada"]
+  ];
+
+  const grid = document.getElementById("grid");
+  const stats = document.getElementById("stats");
+  const btnAll = document.getElementById("btnAll");
+  const btnFallbacks = document.getElementById("btnFallbacks");
+
+  let cards = [];
+
+  function load() {
+    let ok = 0;
+    let fallback = 0;
+
+    airlines.forEach(([icao, name]) => {
+      const card = document.createElement("div");
+      card.className = "card";
+
+      const logo = document.createElement("div");
+      logo.className = "logo";
+
+      const img = document.createElement("img");
+      img.src = `/assets/logos/${icao}.svg`;
+
+      img.onerror = () => {
+        img.src = `/assets/logos/_GENERIC.svg`;
+        card.classList.add("fallback");
+        fallback++;
+        updateStats(ok, fallback);
+      };
+
+      img.onload = () => {
+        ok++;
+        updateStats(ok, fallback);
+      };
+
+      logo.appendChild(img);
+
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      meta.innerHTML = `<div class="icao">${icao}</div><div class="name">${name}</div>`;
+
+      card.appendChild(logo);
+      card.appendChild(meta);
+
+      grid.appendChild(card);
+      cards.push(card);
     });
+  }
 
-    document.getElementById('showFallbacks').addEventListener('click', () => {
-      grid.querySelectorAll('.card').forEach(c => {
-        c.style.display = c.classList.contains('fallback') ? '' : 'none';
-      });
-      updateCounts();
+  function updateStats(ok, fallback) {
+    stats.textContent = `Total: ${airlines.length} · OK: ${ok} · Fallbacks: ${fallback}`;
+  }
+
+  btnAll.onclick = () => {
+    btnAll.classList.add("active");
+    btnFallbacks.classList.remove("active");
+    cards.forEach(c => c.style.display = "");
+  };
+
+  btnFallbacks.onclick = () => {
+    btnFallbacks.classList.add("active");
+    btnAll.classList.remove("active");
+    cards.forEach(c => {
+      c.style.display = c.classList.contains("fallback") ? "" : "none";
     });
-    document.getElementById('showAll').addEventListener('click', () => {
-      grid.querySelectorAll('.card').forEach(c => c.style.display = '');
-      updateCounts();
-    });
-  </script>
+  };
+
+  load();
+</script>
+
 </body>
 </html>
