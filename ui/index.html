@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>FlightWall</title>
-  <link rel="stylesheet" href="/style.css?v=182">
+  <link rel="stylesheet" href="./style.css?v=180">
 </head>
 <body>
   <div id="app">
@@ -33,13 +33,17 @@
       <section class="primary card">
         <div class="primaryHeader">
           <div class="primaryTopVertical">
-            <div class="logoAndCallsign">
+            <div class="callsignRow">
               <img id="airlineLogo" class="airlineLogo hidden" alt="Airline logo" loading="lazy" />
               <div class="callsign" id="callsign">—</div>
             </div>
+
             <div class="airlineName" id="airline">—</div>
+
             <div class="route" id="route">—</div>
+
             <div class="model" id="model">—</div>
+
             <div class="icao24Label">ICAO24: <span id="icao24">—</span></div>
           </div>
         </div>
@@ -63,7 +67,7 @@
           <div class="listTitle">Nearby flights</div>
           <div class="listHint">Top 5 closest</div>
         </div>
-        <div id="list" class="listGrid"></div>
+        <div id="list"></div>
       </section>
     </main>
 
