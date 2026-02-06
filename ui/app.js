@@ -71,7 +71,15 @@ function logoUrlForCallsign(callsign){
   const key = airlineKeyFromCallsign(callsign);
   const file = key ? `${key}.svg` : `_GENERIC.svg`;
   // cache-bust per UI version
-  return `assets/logos/${file}?v=${encodeURIComponent(UI_VERSION)}`;
+  return `/assets/logos/${file}?v=${encodeURIComponent(UI_VERSION)}`;
+}
+
+// Resolve a logo key (typically ICAO, e.g. "AAL") into a static asset URL.
+// Pages serves these from /assets/logos/<KEY>.svg (and /assets/logos/_GENERIC.svg).
+function logoUrlForKey(key){
+  const k = (key || "").toString().trim().toUpperCase();
+  const file = k ? `${k}.svg` : `_GENERIC.svg`;
+  return `/assets/logos/${file}?v=${encodeURIComponent(UI_VERSION)}`;
 }
 
 function logoUrlForFlight(f) {
@@ -121,6 +129,13 @@ function renderPrimary(f, radarMeta){
   try {
     const img = $("airlineLogo");
     if (img) {
+      img.dataset.fallbackDone = "";
+      img.onerror = () => {
+        if (img.dataset.fallbackDone) return;
+        img.dataset.fallbackDone = "1";
+        img.src = logoUrlForKey("");
+      };
+
       img.src = logoUrlForFlight(f);
       img.classList.remove('hidden');
       const key = (f.airlineIcao || f.operatorIcao || airlineKeyFromCallsign(f.callsign || "")) || "";
