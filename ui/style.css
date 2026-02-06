@@ -159,3 +159,73 @@ body{
 .modal__body{font-size:14px;line-height:1.4;color:rgba(255,255,255,.88)}
 .modal__actions{display:flex;justify-content:flex-end;margin-top:12px}
 .btn{border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#e9f2ff;border-radius:12px;padding:8px 12px;font-weight:700}
+/* v200: UI emphasis adjustments on top of new base style */
+/* Remove airline sub header line */
+.airline-sub{ display:none !important; }
+
+/* Airline emphasized across top */
+.airline-name{
+  display:block !important;
+  width:100% !important;
+  text-align:center !important;
+  text-transform:uppercase !important;
+  font-size:34px !important;
+  font-weight:900 !important;
+  letter-spacing:.12em !important;
+  margin:0 0 16px 0 !important; /* a little more space before callsign */
+}
+
+/* Callsign smaller */
+.callsign{
+  font-size:18px !important;
+  font-weight:800 !important;
+  letter-spacing:.06em !important;
+  opacity:.82 !important;
+  text-align:center !important;
+  margin:0 0 6px 0 !important;
+}
+
+/* Route spans more width before wrapping */
+.primaryHeader{
+  align-items:flex-start !important;
+}
+.primaryTop{
+  min-width:0 !important;
+}
+.primaryText{ min-width:0 !important; width:100% !important; }
+
+.route{
+  white-space:nowrap !important;
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+}
+
+/* Aircraft info more emphasized */
+.model{
+  font-size:18px !important;
+  font-weight:900 !important;
+  color: var(--text) !important;
+}
+.model2{
+  font-size:14px !important;
+  font-weight:700 !important;
+  color: rgba(234,240,255,.78) !important;
+}
+
+/* ICAO24 placed under aircraft info, small */
+#meta{
+  font-size:12px !important;
+  color: var(--muted) !important;
+  text-transform:uppercase !important;
+  letter-spacing:.08em !important;
+  margin-top:4px !important;
+}
+
+/* Mobile tuning */
+@media (max-width: 900px){
+  .airline-name{ font-size:26px !important; }
+  .callsign{ font-size:16px !important; }
+  .route{ white-space:normal !important; }
+}
+
+.airlineLogo{object-fit:contain}
