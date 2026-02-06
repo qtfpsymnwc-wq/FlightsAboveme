@@ -79,7 +79,6 @@ body {
   padding: 14px;
 }
 
-/* 🔽 New layout styles for vertical stacking */
 .primaryTopVertical {
   display: flex;
   flex-direction: column;
@@ -88,15 +87,20 @@ body {
   margin-top: 10px;
 }
 
-/* 🔽 Restyled elements */
+.logoAndCallsign {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .airlineLogo {
   width: 44px;
   height: 44px;
   border-radius: 12px;
-  flex: 0 0 auto;
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.06);
 }
+
 .airlineLogo.hidden {
   display: none;
 }
@@ -108,14 +112,19 @@ body {
 }
 
 .airlineName {
-  font-size: 20px;
-  font-weight: 700;
+  font-size: 24px;
+  font-weight: 800;
   text-align: center;
+}
+
+.route {
+  font-size: 18px;
+  font-weight: 500;
   color: var(--text);
 }
 
 .model {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
   color: #ffffff;
 }
@@ -157,6 +166,22 @@ body {
   margin-top: 14px;
   color: var(--muted);
   font-size: 12px;
+}
+
+.listGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.flightCard {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 .listHeader {
