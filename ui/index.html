@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>FlightWall</title>
-  <link rel="stylesheet" href="./style.css?v=203">
+  <link rel="stylesheet" href="./style.css?v=180">
 </head>
 <body>
   <div id="app">
@@ -35,13 +35,15 @@
             <div class="primaryTop">
               <img id="airlineLogo" class="airlineLogo hidden" alt="Airline logo" loading="lazy" />
               <div>
-                <div class="airlineName" id="airline">—</div>
                 <div class="callsign" id="callsign">—</div>
                 <div class="route" id="route">—</div>
                 <div class="model" id="model">—</div>
-                <div class="icaoRow"><span class="k">ICAO24</span><span class="v" id="icao24">—</span></div>
               </div>
             </div>
+          </div>
+          <div class="meta">
+            <div class="metaRow"><span class="k">ICAO24</span><span class="v" id="icao24">—</span></div>
+            <div class="metaRow"><span class="k">Airline</span><span class="v" id="airline">—</span></div>
           </div>
         </div>
 
@@ -71,7 +73,7 @@
     <div id="errBox" class="errBox hidden"></div>
   </div>
 
-  <script src="./app.js?v=203"></script>
+  <script src="./app.js?v=180"></script>
 
   <div class="modal" id="groupInfo" hidden>
     <div class="modal__backdrop" id="groupInfoClose"></div>

@@ -2,7 +2,7 @@
 // Option A: Pages hosts this UI, Worker hosts API.
 // Set API_BASE to your Worker domain. (No trailing slash)
 const API_BASE = "https://flightsabove.t2hkmhgbwz.workers.dev";
-const UI_VERSION = "v207";
+const UI_VERSION = "v180";
 const POLL_MS = 3500;
 
 // Persist Aerodatabox + aircraft enrichments across refreshes.
@@ -71,7 +71,15 @@ function logoUrlForCallsign(callsign){
   const key = airlineKeyFromCallsign(callsign);
   const file = key ? `${key}.svg` : `_GENERIC.svg`;
   // cache-bust per UI version
-  return `assets/logos/${file}?v=${encodeURIComponent(UI_VERSION)}`;
+  return `/assets/logos/${file}?v=${encodeURIComponent(UI_VERSION)}`;
+}
+
+// Resolve a logo key (typically ICAO, e.g. "AAL") into a static asset URL.
+// Pages serves these from /assets/logos/<KEY>.svg (and /assets/logos/_GENERIC.svg).
+function logoUrlForKey(key){
+  const k = (key || "").toString().trim().toUpperCase();
+  const file = k ? `${k}.svg` : `_GENERIC.svg`;
+  return `/assets/logos/${file}?v=${encodeURIComponent(UI_VERSION)}`;
 }
 
 function logoUrlForFlight(f) {
@@ -121,6 +129,13 @@ function renderPrimary(f, radarMeta){
   try {
     const img = $("airlineLogo");
     if (img) {
+      img.dataset.fallbackDone = "";
+      img.onerror = () => {
+        if (img.dataset.fallbackDone) return;
+        img.dataset.fallbackDone = "1";
+        img.src = logoUrlForKey("");
+      };
+
       img.src = logoUrlForFlight(f);
       img.classList.remove('hidden');
       const key = (f.airlineIcao || f.operatorIcao || airlineKeyFromCallsign(f.callsign || "")) || "";
@@ -167,42 +182,6 @@ function normalizeCallsign(cs){
 // Tier A: major passenger carriers (default)
 // Tier B: expands to include regional partners + common cargo carriers
 const TIER_A_PREFIXES = ["AAL","DAL","UAL","SWA","ASA","FFT","NKS","JBU","AAY"];
-
-// Regionals (include in Airlines tab)
-const REGIONAL_PREFIXES = [
-  "SKW","ENY","EDV","RPA","JIA","PDT","ASH","AWI","GJS","QXE","CPZ","JBU", "ASA"
-];
-
-// Cargo / freight / ACMI (keep in Other tab)
-const CARGO_PREFIXES = [
-  "FDX","UPS","GTI","ABX","CKS","KAL","NCR","BCS","DHL","BOX","POD"
-];
-
-// Military / government-ish (keep in Other tab)
-const MIL_PREFIXES = [
-  "RCH","GAF","BAF","DAF","RAF","NAVY","ARMY","AF","CNV","IAM","ADB","LAGR"
-];
-
-// Known private / charter operators (keep in Other tab)
-const PRIVATE_PREFIXES = [
-  "JNY","EJM","XOJ","GAJ","LXJ","PJC","NJE","VJT","JTL","KFS","JAS","DCM"
-];
-
-const AIRLINE_PREFIXES = Array.from(new Set([
-  ...TIER_A_PREFIXES,
-  ...REGIONAL_PREFIXES
-]));
-
-// Returns the most-likely callsign prefix (usually ICAO airline/operator code)
-function getPrefix(callsign){
-  const cs = normalizeCallsign(callsign).toUpperCase();
-  const m3 = cs.match(/^([A-Z]{3})/);
-  if (m3) return m3[1];
-  const m2 = cs.match(/^([A-Z]{2})/);
-  return m2 ? m2[1] : "";
-}
-
-
 const TIER_B_EXTRA_PREFIXES = ["SKW","ENY","EDV","JIA","RPA","GJS","UPS","FDX"];
 const TIER_ALL_PREFIXES = [...new Set([...TIER_A_PREFIXES, ...TIER_B_EXTRA_PREFIXES])];
 
@@ -210,7 +189,7 @@ const TIER_ALL_PREFIXES = [...new Set([...TIER_A_PREFIXES, ...TIER_B_EXTRA_PREFI
 // Grouping for B1:
 // Tier A ("Airlines") = passenger + regionals (excludes cargo/private/military/gov/unknown)
 // Tier B ("Other") = cargo + private/business + military/gov + unknown
-const CARGO_PREFIXES = ["FDX","UPS","GTI","ABX","CKS","KAL","BOX","MXY","ATN","CSB","KYE","CLX","GEC","NCA","CMB"];
+const CARGO_PREFIXES = ["FDX","UPS","GTI","ABX","CKS","KAL","BOX","MXY","ATN"];
 const MIL_GOV_PREFIXES = ["RCH","SAM","GAF","NOW","BAF","DAF","NAV","FNY","SPAR"];
 const PRIVATE_PREFIXES = ["EJA","NJE","XOJ","LXJ","JTL","PJC","DCM","VJT"];
 
@@ -219,28 +198,29 @@ function isNNumberCallsign(cs){
   return /^N\d/.test(c);
 }
 
-function groupForFlight(callsign){
-  const cs = normalizeCallsign(callsign).toUpperCase();
-  if (!cs) return "B";
+function isAirlinePattern(cs){
+  const c = normalizeCallsign(cs).replace(/\s+/g,"").replace(/[^A-Z0-9]/g,"");
+  return /^[A-Z]{3}\d{1,4}[A-Z]?$/.test(c);
+}
 
-  // Registration-style callsigns (N-number, etc) => Other
-  if (/^(N\d|N[A-Z0-9]{2,}|[A-Z]{0,2}\d{3,})/.test(cs) && !/^[A-Z]{3}\d+/.test(cs)) {
-    // Many GA use tail numbers; keep them out of Airlines.
-    return "B";
-  }
-
-  const p = getPrefix(cs);
+function groupForFlight(cs){
+  const p = callsignPrefix(cs);
   if (!p) return "B";
-
-  if (MIL_PREFIXES.includes(p)) return "B";
-  if (CARGO_PREFIXES.includes(p)) return "B";
-  if (PRIVATE_PREFIXES.includes(p)) return "B";
-
-  // Airlines + regionals
-  if (AIRLINE_PREFIXES.includes(p)) return "A";
-
-  // Unknown operator => Other
+  // Any N-number or explicitly-known cargo/mil/private prefixes are "Other"
+  if (isNNumberCallsign(cs)) return "B";
+  if (CARGO_PREFIXES.includes(p) || MIL_GOV_PREFIXES.includes(p) || PRIVATE_PREFIXES.includes(p)) return "B";
+  // "Airlines" are ONLY the prefixes we explicitly allow (majors + regionals).
+  // This prevents private/charter/university operators like "OUA25" from being treated as airlines.
+  if (TIER_ALL_PREFIXES.includes(p)) return "A";
   return "B";
+}
+
+function callsignPrefix(cs){
+  const s = normalizeCallsign(cs);
+  // Prefer 3-letter airline prefix when present (AAL1234, DAL2181, etc)
+  const m = s.match(/^[A-Z]{3}/);
+  if (m) return m[0];
+  return s.slice(0,3);
 }
 
 function passesTier(cs, tier){
