@@ -2,7 +2,7 @@
 // Option A: Pages hosts this UI, Worker hosts API.
 // Set API_BASE to your Worker domain. (No trailing slash)
 const API_BASE = "https://flightsabove.t2hkmhgbwz.workers.dev";
-const UI_VERSION = "v204";
+const UI_VERSION = "v205";
 const POLL_MS = 3500;
 
 // Persist Aerodatabox + aircraft enrichments across refreshes.
@@ -183,29 +183,17 @@ function isNNumberCallsign(cs){
   return /^N\d/.test(c);
 }
 
-function isAirlinePattern(cs){
-  const c = normalizeCallsign(cs).replace(/\s+/g,"").replace(/[^A-Z0-9]/g,"");
-  return /^[A-Z]{3}\d{1,4}[A-Z]?$/.test(c);
-}
+function groupForFlight(callsign) {
+  const cs = normalizeCallsign(callsign || "");
+  const p = getPrefix(cs);
 
-function groupForFlight(cs){
-  const p = callsignPrefix(cs);
-  if (!p) return "B";
-  if (isNNumberCallsign(cs)) return "B";
-  if (CARGO_PREFIXES.includes(p) || MIL_GOV_PREFIXES.includes(p) || PRIVATE_PREFIXES.includes(p)) return "B";
-  // Airlines include majors + regionals list (TIER_ALL_PREFIXES), but exclude common cargo already handled above
-  if (TIER_ALL_PREFIXES.includes(p)) return "A";
-  // If it looks like a standard airline callsign and isn't in our OTHER lists, treat as Airlines
-  if (isAirlinePattern(cs)) return "A";
+  // "Airlines" is intentionally strict to keep charter/private/cargo out.
+  // If a passenger/regional prefix isn't explicitly listed, it goes to "Other".
+  if (p && TIER_A_PREFIXES.has(p)) return "A";
+
+  // Everything else (cargo, military/gov, private/unknown, and unlisted prefixes)
+  // is treated as "Other".
   return "B";
-}
-
-function callsignPrefix(cs){
-  const s = normalizeCallsign(cs);
-  // Prefer 3-letter airline prefix when present (AAL1234, DAL2181, etc)
-  const m = s.match(/^[A-Z]{3}/);
-  if (m) return m[0];
-  return s.slice(0,3);
 }
 
 function passesTier(cs, tier){
