@@ -191,12 +191,12 @@ function isAirlinePattern(cs){
 function groupForFlight(cs){
   const p = callsignPrefix(cs);
   if (!p) return "B";
+  // Any N-number or explicitly-known cargo/mil/private prefixes are "Other"
   if (isNNumberCallsign(cs)) return "B";
   if (CARGO_PREFIXES.includes(p) || MIL_GOV_PREFIXES.includes(p) || PRIVATE_PREFIXES.includes(p)) return "B";
-  // Airlines include majors + regionals list (TIER_ALL_PREFIXES), but exclude common cargo already handled above
+  // "Airlines" are ONLY the prefixes we explicitly allow (majors + regionals).
+  // This prevents private/charter/university operators like "OUA25" from being treated as airlines.
   if (TIER_ALL_PREFIXES.includes(p)) return "A";
-  // If it looks like a standard airline callsign and isn't in our OTHER lists, treat as Airlines
-  if (isAirlinePattern(cs)) return "A";
   return "B";
 }
 
