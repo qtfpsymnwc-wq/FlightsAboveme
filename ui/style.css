@@ -40,12 +40,33 @@ body{
   padding:14px;
 }
 .primaryHeader{display:flex; justify-content:space-between; gap:10px}
-.primaryTop{display:flex;align-items:center;gap:12px}
+.primaryTop{display:flex;align-items:center;gap:12px;position:relative}
+.primaryTop > div{padding-top:30px}
+
+/* Airline name: large and centered across the card */
+.airlineName{
+  position:absolute;
+  top:0;
+  left:50%;
+  transform:translateX(-50%);
+  width:74%;
+  text-align:center;
+  font-size:22px;
+  font-weight:850;
+  letter-spacing:1.4px;
+  text-transform:uppercase;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
 .airlineLogo{width:44px;height:44px;border-radius:12px;flex:0 0 auto;border:1px solid var(--line);background:rgba(255,255,255,.06)}
 .airlineLogo.hidden{display:none}
-.callsign{font-size:28px;font-weight:800; letter-spacing:.5px}
+.callsign{font-size:22px;font-weight:800;letter-spacing:.8px;margin-top:6px}
 .route{color:var(--muted); margin-top:4px}
-.model{margin-top:10px; font-size:14px}
+.model{margin-top:10px;font-size:18px;font-weight:750}
+
+.icaoRow{margin-top:6px;font-size:12px;display:flex;gap:8px;align-items:baseline;opacity:0.85}
+.icaoRow .k{color:var(--muted)}
 .meta{min-width:160px}
 .metaRow{display:flex; justify-content:space-between; gap:10px; font-size:12px; padding:3px 0}
 .metaRow .k{color:var(--muted)}
@@ -159,80 +180,3 @@ body{
 .modal__body{font-size:14px;line-height:1.4;color:rgba(255,255,255,.88)}
 .modal__actions{display:flex;justify-content:flex-end;margin-top:12px}
 .btn{border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#e9f2ff;border-radius:12px;padding:8px 12px;font-weight:700}
-/* v201: Airline header rework */
-
-/* Keep small section label */
-.airline-sub {
-  display: block !important;
-  font-size: 11px !important;
-  letter-spacing: .12em !important;
-  text-transform: uppercase !important;
-  opacity: .55 !important;
-  text-align: center !important;
-  margin-bottom: 6px !important;
-}
-
-/* Airline name big, centered, top */
-.airline-name {
-  display: block !important;
-  width: 100% !important;
-  text-align: center !important;
-  text-transform: uppercase !important;
-  font-size: 36px !important;
-  font-weight: 900 !important;
-  letter-spacing: .14em !important;
-  margin: 0 0 14px 0 !important;
-}
-
-/* Callsign secondary */
-.callsign {
-  font-size: 18px !important;
-  font-weight: 800 !important;
-  opacity: .82 !important;
-  text-align: center !important;
-  margin-bottom: 8px !important;
-}
-
-/* Aircraft emphasized */
-.model {
-  font-size: 20px !important;
-  font-weight: 900 !important;
-}
-.model2 {
-  font-size: 15px !important;
-  opacity: .8 !important;
-}
-
-/* ICAO24 under aircraft */
-.meta {
-  font-size: 12px !important;
-  letter-spacing: .08em !important;
-  text-transform: uppercase !important;
-  opacity: .65 !important;
-  margin-top: 4px !important;
-}
-
-/* Route uses width */
-.route {
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  margin-top: 10px !important;
-}
-
-/* Layout: header content stacked & centered */
-.primaryTop {
-  flex-direction: column !important;
-  align-items: center !important;
-}
-.primaryText {
-  width: 100% !important;
-  text-align: center !important;
-}
-
-/* Mobile tuning */
-@media (max-width: 700px) {
-  .airline-name { font-size: 26px !important; }
-  .callsign { font-size: 16px !important; }
-  .route { white-space: normal !important; }
-}
