@@ -39,16 +39,38 @@ body{
   border-radius:14px;
   padding:14px;
 }
-.primaryHeader{display:flex; justify-content:space-between; gap:10px}
-.primaryTop{display:flex;align-items:center;gap:12px}
-.airlineLogo{width:44px;height:44px;border-radius:12px;flex:0 0 auto;border:1px solid var(--line);background:rgba(255,255,255,.06)}
-.airlineLogo.hidden{display:none}
-.callsign{font-size:28px;font-weight:800; letter-spacing:.5px}
-.route{color:var(--muted); margin-top:4px}
-.model{margin-top:10px; font-size:14px}
-.meta{min-width:160px}
-.metaRow{display:flex; justify-content:space-between; gap:10px; font-size:12px; padding:3px 0}
-.metaRow .k{color:var(--muted)}
+.primaryTopVertical {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.airlineName {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  text-align: center;
+}
+.model {
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+}
+.icao24Label {
+  font-size: 12px;
+  color: var(--muted);
+}
+.airlineLogo {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,.06);
+}
+.airlineLogo.hidden { display: none; }
+
 .stats{
   display:grid;
   grid-template-columns:repeat(4,1fr);
@@ -100,14 +122,12 @@ body{
 }
 .hidden{display:none}
 
-
-/* Tier toggle + header controls */
+/* Tier toggle */
 .topbar .right{
   display:flex;
   align-items:center;
   gap:14px;
 }
-
 .segment{
   display:flex;
   border:1px solid var(--line);
@@ -115,7 +135,6 @@ body{
   overflow:hidden;
   background: rgba(0,0,0,0.10);
 }
-
 .segment button{
   appearance:none;
   border:0;
@@ -127,35 +146,7 @@ body{
   letter-spacing:.02em;
   cursor:pointer;
 }
-
 .segment button.active{
   background: rgba(79, 209, 197, 0.18);
   color: var(--text);
 }
-
-.check{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  color: var(--muted);
-  font-size:12px;
-  user-select:none;
-}
-
-.check input{
-  width:16px;
-  height:16px;
-  accent-color: var(--accent);
-}
-
-/* Groups control + modal (v180) */
-.infoBtn{margin-left:8px;width:28px;height:28px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:rgba(255,255,255,.9);font-weight:900;line-height:1;display:inline-flex;align-items:center;justify-content:center}
-.infoBtn:hover{background:rgba(255,255,255,.09)}
-.modal[hidden]{display:none}
-.modal{position:fixed;inset:0;z-index:999}
-.modal__backdrop{position:absolute;inset:0;background:rgba(0,0,0,.55)}
-.modal__card{position:relative;margin:12vh auto 0;max-width:520px;background:#07101b;border:1px solid rgba(255,255,255,.14);border-radius:16px;padding:16px 16px 12px;color:#e9f2ff;box-shadow:0 18px 60px rgba(0,0,0,.55)}
-.modal__title{font-size:16px;font-weight:800;margin-bottom:8px}
-.modal__body{font-size:14px;line-height:1.4;color:rgba(255,255,255,.88)}
-.modal__actions{display:flex;justify-content:flex-end;margin-top:12px}
-.btn{border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#e9f2ff;border-radius:12px;padding:8px 12px;font-weight:700}
