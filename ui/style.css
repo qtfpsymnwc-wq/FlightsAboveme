@@ -1,93 +1,193 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>FlightWall</title>
-  <link rel="stylesheet" href="./style.css?v=180">
-</head>
-<body>
-  <div id="app">
-    <header class="topbar">
-      <div class="brand">
-        <div class="dot"></div>
-        <div>
-          <div class="title">FlightWall</div>
-          <div class="subtitle">Closest flight overhead • Live ADS-B</div>
-        </div>
-      </div>
+:root {
+  --bg: #0b1220;
+  --card: #101a2e;
+  --muted: #7f8ba7;
+  --text: #eaf0ff;
+  --accent: #4fd1c5;
+  --line: #1c2a46;
+}
 
-      <div class="right">
-        <div class="segment" id="tierSegment" aria-label="Airline Tier">
-          <button type="button" data-tier="A" class="active">Airlines</button>
-          <button type="button" data-tier="B">Other</button>
-        </div>
-        <div class="status">
-          <span id="statusText">Booting…</span>
-        </div>
-      </div>
-    </header>
+* {
+  box-sizing: border-box;
+}
 
-    <main class="layout">
-      <!-- PRIMARY CARD -->
-      <section class="primary card">
-        <div class="primaryHeader">
-          <div class="primaryTopVertical">
-            <img id="airlineLogo" class="airlineLogo hidden" alt="Airline logo" loading="lazy" />
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
 
-            <div class="callsign" id="callsign">—</div>
+#app {
+  min-height: 100vh;
+}
 
-            <div class="airlineName" id="airline">—</div>
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+}
 
-            <div class="route" id="route">—</div>
+.brand {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
 
-            <div class="model" id="model">—</div>
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--accent);
+}
 
-            <div class="icao24Label">ICAO24: <span id="icao24">—</span></div>
-          </div>
-        </div>
+.title {
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
 
-        <div class="stats">
-          <div class="stat"><div class="k">ALT</div><div class="v" id="alt">—</div></div>
-          <div class="stat"><div class="k">SPD</div><div class="v" id="spd">—</div></div>
-          <div class="stat"><div class="k">DIST</div><div class="v" id="dist">—</div></div>
-          <div class="stat"><div class="k">DIR</div><div class="v" id="dir">—</div></div>
-        </div>
+.subtitle {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 2px;
+}
 
-        <div class="footerLine">
-          <span id="radarLine">Radar: —</span>
-          <span id="debugLine"></span>
-        </div>
-      </section>
+.status {
+  color: var(--muted);
+  font-size: 13px;
+}
 
-      <!-- LIST CARD -->
-      <section class="list card">
-        <div class="listHeader">
-          <div class="listTitle">Nearby flights</div>
-          <div class="listHint">Top 5 closest</div>
-        </div>
-        <div id="list"></div>
-      </section>
-    </main>
+.layout {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 14px;
+  padding: 14px;
+}
 
-    <div class="version">v1.1.0</div>
-    <div id="errBox" class="errBox hidden"></div>
-  </div>
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
 
-  <script src="./app.js?v=180"></script>
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px;
+}
 
-  <div class="modal" id="groupInfo" hidden>
-    <div class="modal__backdrop" id="groupInfoClose"></div>
-    <div class="modal__card" role="dialog" aria-modal="true" aria-labelledby="groupInfoTitle">
-      <div class="modal__title" id="groupInfoTitle">Groups</div>
-      <div class="modal__body">
-        <p><b>Airlines</b> (default) shows commercial passenger flights, including regional airlines.</p>
-        <p><b>Other</b> shows cargo, private/business aircraft, and government/military flights.</p>
-      </div>
-      <div class="modal__actions">
-        <button class="btn" id="groupInfoOk" type="button">OK</button>
-      </div>
-    </div>
-  </div>
-</body>
-</html>
+/* 🔽 New layout styles for vertical stacking */
+.primaryTopVertical {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* 🔽 Restyled elements */
+.airlineLogo {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.06);
+}
+.airlineLogo.hidden {
+  display: none;
+}
+
+.callsign {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.airlineName {
+  font-size: 20px;
+  font-weight: 700;
+  text-align: center;
+  color: var(--text);
+}
+
+.model {
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.icao24Label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.stat {
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.stat .k {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.stat .v {
+  font-size: 18px;
+  font-weight: 750;
+  margin-top: 3px;
+}
+
+.footerLine {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.listHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.listTitle {
+  font-weight: 700;
+}
+
+.listHint {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.errBox {
+  position: fixed;
+  left: 10px;
+  bottom: 10px;
+  max-width: min(600px, calc(100vw - 20px));
+  background: rgba(0, 0, 0, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.hidden {
+  display: none;
+}
