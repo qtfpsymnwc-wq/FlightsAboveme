@@ -5,33 +5,71 @@ const API_BASE = "https://flightsabove.t2hkmhgbwz.workers.dev";
 const UI_VERSION = "v180";
 const POLL_MS = 3500;
 
-// Allow overriding API base at runtime (handy for iOS testing)
-// Example: window.FLIGHTS_API_BASE = "https://your-worker.workers.dev";
-const API_BASE_OVERRIDE = (typeof window !== "undefined" && window.FLIGHTS_API_BASE) ? String(window.FLIGHTS_API_BASE) : "";
-
-// Validate + normalize API base early so iOS Safari doesn't throw opaque "expected pattern" errors later.
-function getApiBase(){
-  const raw = (API_BASE_OVERRIDE || API_BASE || "").trim();
-  if (!raw) throw new Error("API base URL is empty (API_BASE).");
-  let u;
-  try { u = new URL(raw); }
-  catch { throw new Error(`API base URL is invalid: "${raw}"`); }
-  if (!/^https?:$/.test(u.protocol)) throw new Error(`API base URL must be http/https: "${raw}"`);
-  // strip trailing slash for consistent joins
-  return u.origin;
-}
-let API_ORIGIN = "";
-try { API_ORIGIN = getApiBase(); } catch (e) { /* surfaced on first tick */ }
-
 // Persist Aerodatabox + aircraft enrichments across refreshes.
 // Keyed by icao24 + callsign to avoid "route flashes then disappears".
 // Key: `${icao24}|${callsign}`
 const enrichCache = new Map();
 
-// If we have a selected flight, keep it sticky.
-let selectedKey = null;
-
 function $(id){ return document.getElementById(id); }
+
+function showErr(msg){
+  const box = $("errBox");
+  if (!box) return;
+  box.classList.remove("hidden");
+  box.textContent = msg;
+}
+
+function hideErr(){
+  const box = $("errBox");
+  if (!box) return;
+  box.classList.add("hidden");
+  box.textContent = "";
+}
+
+function haversineMi(lat1, lon1, lat2, lon2){
+  const R = 3958.7613;
+  const toRad = (d)=>d*Math.PI/180;
+  const dLat = toRad(lat2-lat1);
+  const dLon = toRad(lon2-lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(a));
+}
+
+function bboxAround(lat, lon){
+  const dLat = 0.6;
+  const dLon = 0.8;
+  return {
+    lamin: (lat - dLat).toFixed(4),
+    lamax: (lat + dLat).toFixed(4),
+    lomin: (lon - dLon).toFixed(4),
+    lomax: (lon + dLon).toFixed(4),
+  };
+}
+
+async function fetchJSON(url, timeoutMs=8000){
+  const ctrl = new AbortController();
+  const t = setTimeout(()=>ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      method:"GET",
+      headers:{ "accept":"application/json" },
+      signal: ctrl.signal
+    });
+    if (!res.ok) {
+      // Try to read JSON error for clarity
+      let detail = "";
+      try {
+        const j = await res.json();
+        detail = j?.error || j?.detail || j?.hint || "";
+      } catch {}
+      const suffix = detail ? ` (${detail})` : "";
+      throw new Error(`HTTP ${res.status}${suffix}`);
+    }
+    return await res.json();
+  } finally {
+    clearTimeout(t);
+  }
+}
 
 function fmtAlt(m){
   if (m == null) return "—";
@@ -45,9 +83,8 @@ function fmtSpd(ms){
   return `${mph.toLocaleString()} mph`;
 }
 
-function fmtDist(meters){
-  if (meters == null) return "—";
-  const mi = meters / 1609.344;
+function fmtMi(mi){
+  if (mi == null) return "—";
   return `${Math.round(mi)} mi`;
 }
 
@@ -87,52 +124,43 @@ function setLogo(code){
   img.src = `./assets/logos/${safe}.svg`;
 }
 
-function pickBestFlight(list){
-  if (!Array.isArray(list) || list.length === 0) return null;
-  // prefer selectedKey if still present
-  if (selectedKey) {
-    const found = list.find(f => `${f.icao24}|${(f.callsign||"").trim()}` === selectedKey);
-    if (found) return found;
-  }
-  // else pick nearest
-  return list[0];
+function normalizeCallsign(cs){
+  return (cs || "").trim().replace(/\s+/g,"").toUpperCase();
 }
 
 function renderPrimary(f, radarMeta){
   if (!f) return;
 
   const cs = (f.callsign || "—").trim() || "—";
-  const route = f.route || f.originDest || "—";
-  const model = f.aircraftType || f.model || f.typeName || "—";
+  const route = f.route || "—";
+  const model = f.model || f.typeName || f.aircraftType || "—";
 
   $("callsign").textContent = cs;
   $("route").textContent = route;
   $("model").textContent = model;
   $("icao24").textContent = (f.icao24 || "—").toLowerCase();
 
-  // Airline display logic:
-  // Don't ever use OpenSky "country" (often just "United States") as the "Airline".
   const inferredAirline = f.airlineName || f.airlineGuess || guessAirline(f.callsign);
   const countryFallback = (f.country && f.country !== "United States") ? f.country : "—";
   $("airline").textContent = inferredAirline || countryFallback;
 
-  // Airline logo (stored as static assets in Pages)
+  // logo prefers explicit codes, else callsign prefix
   try {
     if (f.airlineIcao) setLogo(f.airlineIcao);
     else if (f.airlineIata) setLogo(f.airlineIata);
     else setLogo(guessAirline(f.callsign));
-  } catch (e) {
+  } catch {
     setLogo("");
   }
 
-  $("alt").textContent = fmtAlt(f.altitudeM);
-  $("spd").textContent = fmtSpd(f.velocityMs);
-  $("dist").textContent = fmtDist(f.distanceM);
-  $("dir").textContent = fmtDir(f.trackDeg);
+  $("alt").textContent = fmtAlt(f.altitudeM ?? f.baroAlt);
+  $("spd").textContent = fmtSpd(f.velocityMs ?? f.velocity);
+  $("dist").textContent = fmtMi(f.distanceMi ?? (f.distanceM != null ? (f.distanceM/1609.344) : null));
+  $("dir").textContent = fmtDir(f.trackDeg ?? f.track);
 
   $("radarLine").textContent = `Radar: ${radarMeta.count} flights • Showing: ${radarMeta.showing}`;
 
-  // Requested: remove UI version and call API version 1.1
+  // ✅ ONLY CHANGE REQUESTED: remove UI version and call API version 1.1
   $("debugLine").textContent = `API 1.1`;
 }
 
@@ -143,9 +171,9 @@ function renderList(list){
     const row = document.createElement("div");
     row.className = "row";
     const cs = (f.callsign || "—").trim() || "—";
-    const dist = fmtDist(f.distanceM);
-    const alt = fmtAlt(f.altitudeM);
-    const spd = fmtSpd(f.velocityMs);
+    const dist = fmtMi(f.distanceMi ?? (f.distanceM != null ? (f.distanceM/1609.344) : null));
+    const alt = fmtAlt(f.altitudeM ?? f.baroAlt);
+    const spd = fmtSpd(f.velocityMs ?? f.velocity);
     row.innerHTML = `
       <div class="left">
         <div class="cs">${cs}</div>
@@ -153,96 +181,79 @@ function renderList(list){
       </div>
       <div class="badge">${(f.icao24||"").toLowerCase()}</div>
     `;
-    row.addEventListener("click", ()=>{
-      selectedKey = `${f.icao24}|${(f.callsign||"").trim()}`;
-    });
     el.appendChild(row);
   });
 }
 
-async function fetchJSON(url, timeoutMs){
-  const ac = new AbortController();
-  const t = setTimeout(()=>ac.abort(), timeoutMs || 9000);
-  try{
-    const r = await fetch(url, { signal: ac.signal, cache: "no-store" });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    return await r.json();
-  } finally {
-    clearTimeout(t);
-  }
-}
-
-function setStatus(text){
-  $("statusText").textContent = text;
-}
-
-function setErr(msg){
-  const box = $("errBox");
-  if (!msg) {
-    box.classList.add("hidden");
-    box.textContent = "";
-    return;
-  }
-  box.classList.remove("hidden");
-  box.textContent = msg;
-}
-
-let tier = "A";
-
-function setupTier(){
-  const seg = $("tierSegment");
-  if (!seg) return;
-  seg.addEventListener("click", (e)=>{
-    const btn = e.target.closest("button[data-tier]");
-    if (!btn) return;
-    tier = btn.dataset.tier;
-    seg.querySelectorAll("button").forEach(b=>b.classList.toggle("active", b === btn));
-  });
-}
-
-// NOTE: This UI version hits /opensky/states on the Worker.
-async function tick(){
-  try{
-    setErr("");
-    setStatus("Radar…");
-
-    const base = API_ORIGIN || getApiBase();
-    API_ORIGIN = base;
-
-    const bb = {}; // Worker will use IP-based location or defaults if bb not provided.
-    const url = new URL("/opensky/states", base);
-    Object.entries(bb).forEach(([k,v])=>url.searchParams.set(k,v));
-
-    const data = await fetchJSON(url.toString(), 9000);
-    const states = Array.isArray(data?.states) ? data.states : [];
-    const flights = Array.isArray(data?.flights) ? data.flights : [];
-
-    // Prefer the worker's "flights" array if present, fallback to states mapping if not.
-    const list = flights.length ? flights : states;
-
-    const radarMeta = {
-      count: Number.isFinite(data?.count) ? data.count : list.length,
-      showing: Math.min(list.length, 5),
-      apiVersion: data?.apiVersion
-    };
-
-    const primary = pickBestFlight(list);
-    if (primary) renderPrimary(primary, radarMeta);
-
-    renderList(list.slice(0,5));
-    setStatus("Live");
-  } catch(err){
-    setStatus("Error");
-    // Turn iOS Safari's opaque message into a useful one when possible
-    const msg = (err && err.message) ? err.message : String(err);
-    setErr(msg);
-  }
-}
-
 function boot(){
-  setupTier();
-  tick();
-  setInterval(tick, POLL_MS);
+  hideErr();
+  $("statusText").textContent = "Requesting location…";
+
+  navigator.geolocation.getCurrentPosition(async (pos)=>{
+    hideErr();
+    $("statusText").textContent = "Location OK";
+
+    const lat = pos.coords.latitude;
+    const lon = pos.coords.longitude;
+    const bb = bboxAround(lat, lon);
+
+    $("statusText").textContent = "Radar…";
+
+    let lastPrimaryKey = "";
+
+    async function tick(){
+      try {
+        hideErr();
+
+        const url = new URL(`${API_BASE}/opensky/states`);
+        Object.entries(bb).forEach(([k,v])=>url.searchParams.set(k,v));
+
+        const data = await fetchJSON(url.toString(), 9000);
+        const flights = Array.isArray(data?.flights) ? data.flights : [];
+        const count = data?.count ?? flights.length;
+        const showing = Math.min(flights.length, 5);
+
+        const radarMeta = {
+          count,
+          showing,
+          apiVersion: data?.apiVersion
+        };
+
+        // enrich cache merge (if worker sends enrichments or later UI does)
+        flights.forEach((f)=>{
+          const key = `${(f.icao24||"").toLowerCase()}|${normalizeCallsign(f.callsign)}`;
+          const cached = enrichCache.get(key);
+          if (cached) Object.assign(f, cached);
+        });
+
+        const primary = flights[0] || null;
+        if (primary) {
+          const key = `${(primary.icao24||"").toLowerCase()}|${normalizeCallsign(primary.callsign)}`;
+          if (!lastPrimaryKey || lastPrimaryKey !== key) {
+            lastPrimaryKey = key;
+          }
+          renderPrimary(primary, radarMeta);
+        }
+
+        renderList(flights.slice(0,5));
+        $("statusText").textContent = "Live";
+      } catch (e) {
+        $("statusText").textContent = "Error";
+        showErr(String(e.message || e));
+      }
+    }
+
+    tick();
+    setInterval(tick, POLL_MS);
+
+  }, (err)=>{
+    $("statusText").textContent = "Location failed";
+    showErr(String(err.message || err));
+  }, {
+    enableHighAccuracy: false,
+    timeout: 10000,
+    maximumAge: 60000,
+  });
 }
 
 boot();
