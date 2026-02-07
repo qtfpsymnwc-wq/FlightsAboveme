@@ -1,41 +1,29 @@
-// FlightWall UI (v170)
-// Option A: Pages hosts this UI, Worker hosts API.
-// Set API_BASE to your Worker domain. (No trailing slash)
+// FlightsAboveMe UI (v1.1.3 baseline)
 const API_BASE = "https://flightsabove.t2hkmhgbwz.workers.dev";
-const UI_VERSION = "v180";
 const POLL_MS = 3500;
 
-// Persist Aerodatabox + aircraft enrichments across refreshes.
-// Keyed by icao24 + callsign to avoid "route flashes then disappears".
-// Key: `${icao24}|${callsign}`
 const enrichCache = new Map();
 
 function $(id){ return document.getElementById(id); }
 
-function showErr(msg){
+function setStatus(text){
+  $("statusText").textContent = text || "";
+}
+
+function setErr(msg){
   const box = $("errBox");
   if (!box) return;
+  if (!msg) {
+    box.classList.add("hidden");
+    box.textContent = "";
+    return;
+  }
   box.classList.remove("hidden");
   box.textContent = msg;
 }
 
-function hideErr(){
-  const box = $("errBox");
-  if (!box) return;
-  box.classList.add("hidden");
-  box.textContent = "";
-}
-
-function haversineMi(lat1, lon1, lat2, lon2){
-  const R = 3958.7613;
-  const toRad = (d)=>d*Math.PI/180;
-  const dLat = toRad(lat2-lat1);
-  const dLon = toRad(lon2-lon1);
-  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
-  return 2*R*Math.asin(Math.sqrt(a));
-}
-
 function bboxAround(lat, lon){
+  // Keep your original idea: small-ish bbox to avoid overload.
   const dLat = 0.6;
   const dLon = 0.8;
   return {
@@ -46,25 +34,36 @@ function bboxAround(lat, lon){
   };
 }
 
-async function fetchJSON(url, timeoutMs=8000){
+async function fetchJSON(url, timeoutMs=9000){
   const ctrl = new AbortController();
   const t = setTimeout(()=>ctrl.abort(), timeoutMs);
-  try {
+  try{
     const res = await fetch(url, {
       method:"GET",
       headers:{ "accept":"application/json" },
-      signal: ctrl.signal
+      signal: ctrl.signal,
+      cache: "no-store",
     });
+
     if (!res.ok) {
-      // Try to read JSON error for clarity
-      let detail = "";
+      // Try JSON body first, then text, so you SEE why it failed.
+      let body = "";
       try {
-        const j = await res.json();
-        detail = j?.error || j?.detail || j?.hint || "";
-      } catch {}
-      const suffix = detail ? ` (${detail})` : "";
+        const ct = res.headers.get("content-type") || "";
+        if (ct.includes("application/json")) {
+          const j = await res.json();
+          body = j?.error || j?.detail || JSON.stringify(j);
+        } else {
+          body = await res.text();
+        }
+      } catch {
+        // ignore parsing errors
+      }
+      body = (body || "").toString().trim();
+      const suffix = body ? ` — ${body}` : "";
       throw new Error(`HTTP ${res.status}${suffix}`);
     }
+
     return await res.json();
   } finally {
     clearTimeout(t);
@@ -83,8 +82,9 @@ function fmtSpd(ms){
   return `${mph.toLocaleString()} mph`;
 }
 
-function fmtMi(mi){
-  if (mi == null) return "—";
+function fmtDist(meters){
+  if (meters == null) return "—";
+  const mi = meters / 1609.344;
   return `${Math.round(mi)} mi`;
 }
 
@@ -98,7 +98,6 @@ function fmtDir(deg){
 }
 
 function guessAirline(callsign){
-  // legacy placeholder; server-side logic should handle this.
   if (!callsign) return "";
   return callsign.trim().slice(0,3).toUpperCase();
 }
@@ -124,44 +123,30 @@ function setLogo(code){
   img.src = `./assets/logos/${safe}.svg`;
 }
 
-function normalizeCallsign(cs){
-  return (cs || "").trim().replace(/\s+/g,"").toUpperCase();
-}
-
 function renderPrimary(f, radarMeta){
   if (!f) return;
 
-  const cs = (f.callsign || "—").trim() || "—";
-  const route = f.route || "—";
-  const model = f.model || f.typeName || f.aircraftType || "—";
-
-  $("callsign").textContent = cs;
-  $("route").textContent = route;
-  $("model").textContent = model;
+  $("callsign").textContent = (f.callsign || "—").trim() || "—";
+  $("route").textContent = f.route || f.originDest || "—";
+  $("model").textContent = f.aircraftType || f.model || f.typeName || "—";
   $("icao24").textContent = (f.icao24 || "—").toLowerCase();
 
   const inferredAirline = f.airlineName || f.airlineGuess || guessAirline(f.callsign);
-  const countryFallback = (f.country && f.country !== "United States") ? f.country : "—";
-  $("airline").textContent = inferredAirline || countryFallback;
+  $("airline").textContent = inferredAirline || "Unknown Airline";
 
-  // logo prefers explicit codes, else callsign prefix
-  try {
-    if (f.airlineIcao) setLogo(f.airlineIcao);
-    else if (f.airlineIata) setLogo(f.airlineIata);
-    else setLogo(guessAirline(f.callsign));
-  } catch {
-    setLogo("");
-  }
+  if (f.airlineIcao) setLogo(f.airlineIcao);
+  else if (f.airlineIata) setLogo(f.airlineIata);
+  else setLogo(guessAirline(f.callsign));
 
-  $("alt").textContent = fmtAlt(f.altitudeM ?? f.baroAlt);
-  $("spd").textContent = fmtSpd(f.velocityMs ?? f.velocity);
-  $("dist").textContent = fmtMi(f.distanceMi ?? (f.distanceM != null ? (f.distanceM/1609.344) : null));
-  $("dir").textContent = fmtDir(f.trackDeg ?? f.track);
+  $("alt").textContent = fmtAlt(f.altitudeM);
+  $("spd").textContent = fmtSpd(f.velocityMs);
+  $("dist").textContent = fmtDist(f.distanceM);
+  $("dir").textContent = fmtDir(f.trackDeg);
 
   $("radarLine").textContent = `Radar: ${radarMeta.count} flights • Showing: ${radarMeta.showing}`;
 
-  // ✅ ONLY CHANGE REQUESTED: remove UI version and call API version 1.1
-  $("debugLine").textContent = `API 1.1`;
+  // Per your requirement:
+  $("debugLine").textContent = "API 1.1";
 }
 
 function renderList(list){
@@ -171,9 +156,10 @@ function renderList(list){
     const row = document.createElement("div");
     row.className = "row";
     const cs = (f.callsign || "—").trim() || "—";
-    const dist = fmtMi(f.distanceMi ?? (f.distanceM != null ? (f.distanceM/1609.344) : null));
-    const alt = fmtAlt(f.altitudeM ?? f.baroAlt);
-    const spd = fmtSpd(f.velocityMs ?? f.velocity);
+    const dist = fmtDist(f.distanceM);
+    const alt = fmtAlt(f.altitudeM);
+    const spd = fmtSpd(f.velocityMs);
+
     row.innerHTML = `
       <div class="left">
         <div class="cs">${cs}</div>
@@ -185,75 +171,76 @@ function renderList(list){
   });
 }
 
-function boot(){
-  hideErr();
-  $("statusText").textContent = "Requesting location…";
-
-  navigator.geolocation.getCurrentPosition(async (pos)=>{
-    hideErr();
-    $("statusText").textContent = "Location OK";
-
-    const lat = pos.coords.latitude;
-    const lon = pos.coords.longitude;
-    const bb = bboxAround(lat, lon);
-
-    $("statusText").textContent = "Radar…";
-
-    let lastPrimaryKey = "";
-
-    async function tick(){
-      try {
-        hideErr();
-
-        const url = new URL(`${API_BASE}/opensky/states`);
-        Object.entries(bb).forEach(([k,v])=>url.searchParams.set(k,v));
-
-        const data = await fetchJSON(url.toString(), 9000);
-        const flights = Array.isArray(data?.flights) ? data.flights : [];
-        const count = data?.count ?? flights.length;
-        const showing = Math.min(flights.length, 5);
-
-        const radarMeta = {
-          count,
-          showing,
-          apiVersion: data?.apiVersion
-        };
-
-        // enrich cache merge (if worker sends enrichments or later UI does)
-        flights.forEach((f)=>{
-          const key = `${(f.icao24||"").toLowerCase()}|${normalizeCallsign(f.callsign)}`;
-          const cached = enrichCache.get(key);
-          if (cached) Object.assign(f, cached);
-        });
-
-        const primary = flights[0] || null;
-        if (primary) {
-          const key = `${(primary.icao24||"").toLowerCase()}|${normalizeCallsign(primary.callsign)}`;
-          if (!lastPrimaryKey || lastPrimaryKey !== key) {
-            lastPrimaryKey = key;
-          }
-          renderPrimary(primary, radarMeta);
-        }
-
-        renderList(flights.slice(0,5));
-        $("statusText").textContent = "Live";
-      } catch (e) {
-        $("statusText").textContent = "Error";
-        showErr(String(e.message || e));
-      }
-    }
-
-    tick();
-    setInterval(tick, POLL_MS);
-
-  }, (err)=>{
-    $("statusText").textContent = "Location failed";
-    showErr(String(err.message || err));
-  }, {
-    enableHighAccuracy: false,
-    timeout: 10000,
-    maximumAge: 60000,
+let tier = "A";
+function setupTier(){
+  const seg = $("tierSegment");
+  if (!seg) return;
+  seg.addEventListener("click", (e)=>{
+    const btn = e.target.closest("button[data-tier]");
+    if (!btn) return;
+    tier = btn.dataset.tier;
+    seg.querySelectorAll("button").forEach(b=>b.classList.toggle("active", b === btn));
   });
+}
+
+async function startRadar(lat, lon){
+  const bb = bboxAround(lat, lon);
+
+  async function tick(){
+    try{
+      setErr("");
+      setStatus("Radar…");
+
+      const url = new URL(`${API_BASE}/opensky/states`);
+      Object.entries(bb).forEach(([k,v])=>url.searchParams.set(k,v));
+      url.searchParams.set("tier", tier); // harmless if worker ignores; useful if it supports
+
+      const data = await fetchJSON(url.toString(), 9000);
+      const flights = Array.isArray(data?.flights) ? data.flights : [];
+
+      const radarMeta = {
+        count: data?.count ?? flights.length,
+        showing: Math.min(flights.length, 5),
+      };
+
+      if (flights[0]) renderPrimary(flights[0], radarMeta);
+      renderList(flights.slice(0,5));
+
+      setStatus("Live");
+    } catch (err){
+      setStatus("Error");
+      setErr(err?.message || String(err));
+    }
+  }
+
+  tick();
+  setInterval(tick, POLL_MS);
+}
+
+function boot(){
+  setupTier();
+  setStatus("Requesting location…");
+  setErr("");
+
+  if (!navigator.geolocation) {
+    setStatus("Error");
+    setErr("Geolocation is not available in this browser.");
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    (pos)=>{
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+      setStatus("Location OK");
+      startRadar(lat, lon);
+    },
+    (err)=>{
+      setStatus("Error");
+      setErr(`Location error: ${err?.message || err}`);
+    },
+    { enableHighAccuracy:false, timeout:10000, maximumAge:60000 }
+  );
 }
 
 boot();
