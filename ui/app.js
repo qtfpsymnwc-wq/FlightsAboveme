@@ -133,7 +133,8 @@ function renderPrimary(f, radarMeta){
   if ($("route")) $("route").textContent = f.routeText || "—";
   if ($("model")) $("model").textContent = f.modelText || "—";
 
-  if ($("radarLine")) $("radarLine").textContent = `Radar: ${radarMeta.count} flights • Showing: ${radarMeta.showing}`;
+  // ✅ Removed “Showing” for both main + kiosk
+  if ($("radarLine")) $("radarLine").textContent = `Radar: ${radarMeta.count} flights`;
 }
 
 function renderSecondary(f){
