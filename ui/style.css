@@ -1,10 +1,10 @@
 :root{
   --bg:#0b1220;
-  --card:#131f36; /* lifted surface to reduce "too dark" */
-  --muted:#9aa7c6; /* slightly brighter muted text */
+  --card:#131f36;
+  --muted:#9aa7c6;
   --text:#eaf0ff;
   --accent:#4fd1c5;
-  --line:#22345a; /* slightly brighter separators */
+  --line:#22345a;
 }
 *{box-sizing:border-box}
 body{
@@ -27,6 +27,13 @@ body{
 .title{font-weight:800; letter-spacing:.2px}
 .subtitle{color:var(--muted); font-size:12px; margin-top:2px}
 .right{display:flex; align-items:center; gap:10px}
+
+.appVersion{
+  color:rgba(255,255,255,.35);
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.4px;
+}
 
 .segmented{
   display:flex;
@@ -80,8 +87,6 @@ body{
   gap:12px;
 }
 
-.primaryTop{display:flex;align-items:center;gap:12px}
-
 .airlineLogo{
   width:40px;
   height:40px;
@@ -91,7 +96,6 @@ body{
   padding:6px;
   object-fit:contain;
 }
-
 .hidden{display:none !important}
 
 .airlineHeader{
@@ -147,19 +151,11 @@ body{
   gap:8px;
   align-items:baseline;
 }
-
-.icaoLabel{
-  letter-spacing:.6px;
-  text-transform:uppercase;
-}
-
+.icaoLabel{letter-spacing:.6px; text-transform:uppercase}
 .icaoValue{
   font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   color:rgba(234,240,255,.92);
 }
-
-.meta{min-width:160px}
-.metaRow{display:flex; justify-content:space-between; gap:10px; font-size:12px; padding:3px 0}
 
 .stats{
   display:grid;
@@ -167,24 +163,20 @@ body{
   gap:10px;
   margin-top:14px;
 }
-
 .stat{
   background:linear-gradient(
     180deg,
     rgba(255,255,255,.06),
     rgba(255,255,255,.015)
   );
-
   border:1px solid rgba(255,255,255,.08);
   border-radius:14px;
   padding:12px 10px;
   text-align:center;
-
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,.06),
     0 6px 14px rgba(0,0,0,.35);
 }
-
 .stat .k{font-size:11px; color:rgba(154,167,198,.92); letter-spacing:.6px}
 .stat .v{font-size:16px; font-weight:800; margin-top:6px; color:#eef3ff}
 
@@ -202,6 +194,7 @@ body{
 .listHint{font-size:12px; color:var(--muted)}
 #list{display:flex; flex-direction:column; gap:10px}
 
+/* Matches the existing app.js row markup: .left / .sub / .badge */
 .row{
   border:1px solid rgba(255,255,255,.08);
   border-radius:14px;
@@ -216,19 +209,14 @@ body{
   );
   box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
 }
-.row .l{min-width:0}
+.row .left{min-width:0}
 .row .cs{font-weight:900; color:#eef3ff}
-.row .rt{color:rgba(183,195,230,.92); font-size:12px; margin-top:2px}
-.row .m{color:rgba(154,167,198,.95); font-size:12px; margin-top:6px}
-.row .r{text-align:right; white-space:nowrap}
-.row .d{font-weight:900; color:#eef3ff}
-.row .a{color:rgba(154,167,198,.95); font-size:12px; margin-top:2px}
-
-.version{
-  position:fixed;
-  bottom:10px; right:10px;
-  color:rgba(255,255,255,.25);
-  font-size:11px;
+.row .sub{color:rgba(183,195,230,.92); font-size:12px; margin-top:4px}
+.row .badge{
+  font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  color:rgba(234,240,255,.75);
+  font-weight:700;
+  white-space:nowrap;
 }
 
 .errBox{
@@ -242,10 +230,7 @@ body{
   font-size:13px;
 }
 
-/* ─────────────────────────────────────────────
-   KILL SWITCH: Disable Group Info modal entirely
-   (prevents the weird blue overlay from ever showing)
-   ───────────────────────────────────────────── */
+/* KILL SWITCH: disable Group Info modal entirely */
 #groupInfo{
   display:none !important;
 }
