@@ -133,7 +133,7 @@ function renderPrimary(f, radarMeta){
   if ($("route")) $("route").textContent = f.routeText || "—";
   if ($("model")) $("model").textContent = f.modelText || "—";
 
-  // ✅ Removed “Showing” for both main + kiosk
+  // (You already decided to remove "Showing" everywhere)
   if ($("radarLine")) $("radarLine").textContent = `Radar: ${radarMeta.count} flights`;
 }
 
@@ -175,18 +175,17 @@ function renderList(list){
   const el = $("list");
   if (!el) return;
   el.innerHTML = "";
+
+  // ✅ LIST SIMPLIFIED: callsign + distance only
   list.forEach((f)=>{
     const row = document.createElement("div");
     row.className = "row";
     row.innerHTML = `
       <div class="l">
         <div class="cs">${f.callsign || "—"}</div>
-        <div class="rt">${f.routeText || "—"}</div>
-        <div class="m">${f.modelText || "—"}</div>
       </div>
       <div class="r">
         <div class="d">${fmtMi(f.distanceMi)}</div>
-        <div class="a">${fmtAlt(f.baroAlt)}</div>
       </div>
     `;
     el.appendChild(row);
