@@ -1,16 +1,14 @@
 :root{
   --bg:#0b1220;
-  --card:#131f36; /* lifted surface to reduce "too dark" */
-  --muted:#9aa7c6; /* slightly brighter muted text */
+  --card:#131f36;
+  --muted:#9aa7c6;
   --text:#eaf0ff;
   --accent:#4fd1c5;
-  --line:#22345a; /* slightly brighter separators */
+  --line:#22345a;
 
-  /* Font stacks (iOS-safe) */
   --font-sans: system-ui,-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",Segoe UI,Roboto,Helvetica,Arial,sans-serif;
   --font-mono: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
 
-  /* Type scale (responsive, card-friendly; works portrait/landscape on iPhone/iPad) */
   --fs-airline:  clamp(24px, 3.8vmin, 52px);
   --fs-callsign: clamp(22px, 3.3vmin, 46px);
   --fs-route:    clamp(13px, 1.9vmin, 22px);
@@ -20,6 +18,7 @@
   --fs-row-route:    clamp(12px, 1.45vmin, 15px);
   --fs-row-model:    clamp(12px, 1.45vmin, 15px);
 }
+
 *{box-sizing:border-box}
 body{
   margin:0;
@@ -28,6 +27,8 @@ body{
   color:var(--text);
 }
 #app{min-height:100vh}
+
+/* Normal view top bar */
 .topbar{
   display:flex; align-items:center; justify-content:space-between;
   padding:16px 14px;
@@ -71,19 +72,11 @@ body{
 }
 
 .card{
-  background:linear-gradient(
-    180deg,
-    rgba(255,255,255,.035),
-    rgba(255,255,255,0)
-  ), var(--card);
-
+  background:linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,0)), var(--card);
   border:1px solid var(--line);
   border-radius:18px;
   padding:18px;
-
-  box-shadow:
-    0 12px 30px rgba(0,0,0,.45),
-    inset 0 1px 0 rgba(255,255,255,.04);
+  box-shadow: 0 12px 30px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.04);
 }
 
 .primaryHeader{
@@ -94,28 +87,6 @@ body{
   gap:12px;
 }
 
-.primaryTop{display:flex;align-items:center;gap:12px}
-
-/* ✅ UPDATED: logo tile now white for contrast */
-.airlineLogo{
-  width:40px;
-  height:40px;
-  border-radius:10px;
-
-  background:#ffffff;
-  border:1px solid rgba(0,0,0,.12);
-
-  padding:6px;
-  object-fit:contain;
-
-  /* subtle "badge" feel on dark UI */
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.65),
-    0 8px 18px rgba(0,0,0,.35);
-}
-
-.hidden{display:none !important}
-
 .airlineHeader{
   display:flex;
   align-items:center;
@@ -123,6 +94,20 @@ body{
   gap:10px;
   width:100%;
 }
+
+/* White logo tile for contrast */
+.airlineLogo{
+  width:40px;
+  height:40px;
+  border-radius:10px;
+  background:#ffffff;
+  border:1px solid rgba(0,0,0,.12);
+  padding:6px;
+  object-fit:contain;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.65), 0 8px 18px rgba(0,0,0,.35);
+}
+
+.hidden{display:none !important}
 
 .airlineName{
   font-size:var(--fs-airline);
@@ -176,19 +161,8 @@ body{
   gap:8px;
   align-items:baseline;
 }
-
-.icaoLabel{
-  letter-spacing:.6px;
-  text-transform:uppercase;
-}
-
-.icaoValue{
-  font-family:var(--font-mono);
-  color:rgba(234,240,255,.92);
-}
-
-.meta{min-width:160px}
-.metaRow{display:flex; justify-content:space-between; gap:10px; font-size:12px; padding:3px 0}
+.icaoLabel{ letter-spacing:.6px; text-transform:uppercase; }
+.icaoValue{ font-family:var(--font-mono); color:rgba(234,240,255,.92); }
 
 .stats{
   display:grid;
@@ -198,22 +172,13 @@ body{
 }
 
 .stat{
-  background:linear-gradient(
-    180deg,
-    rgba(255,255,255,.06),
-    rgba(255,255,255,.015)
-  );
-
+  background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.015));
   border:1px solid rgba(255,255,255,.08);
   border-radius:14px;
   padding:12px 10px;
   text-align:center;
-
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.06),
-    0 6px 14px rgba(0,0,0,.35);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 6px 14px rgba(0,0,0,.35);
 }
-
 .stat .k{font-size:11px; color:rgba(154,167,198,.92); letter-spacing:.6px}
 .stat .v{font-size:16px; font-weight:800; margin-top:6px; color:#eef3ff}
 
@@ -238,13 +203,10 @@ body{
   display:flex;
   justify-content:space-between;
   gap:12px;
-  background:linear-gradient(
-    180deg,
-    rgba(255,255,255,.04),
-    rgba(255,255,255,.01)
-  );
+  background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.01));
   box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
 }
+
 .row .l{min-width:0}
 .row .cs{
   font-family:var(--font-mono);
@@ -272,7 +234,6 @@ body{
 .row .d{font-weight:900; color:#eef3ff}
 .row .a{color:rgba(154,167,198,.95); font-size:12px; margin-top:2px}
 
-/* Tablet tuning: slightly larger type without breaking card layout */
 @media (min-width: 768px){
   :root{
     --fs-airline:  clamp(28px, 3.4vmin, 58px);
@@ -284,13 +245,6 @@ body{
     --fs-row-route:    clamp(12px, 1.25vmin, 16px);
     --fs-row-model:    clamp(12px, 1.25vmin, 16px);
   }
-}
-
-.version{
-  position:fixed;
-  bottom:10px; right:10px;
-  color:rgba(255,255,255,.25);
-  font-size:11px;
 }
 
 .errBox{
@@ -305,36 +259,121 @@ body{
 }
 
 /* ─────────────────────────────────────────────
-   KILL SWITCH: Disable Group Info modal entirely
-   (prevents the weird blue overlay from ever showing)
+   KIOSK MODE (iPad/tablet display)
    ───────────────────────────────────────────── */
-#groupInfo{
+
+body.kiosk{
+  overflow:hidden;
+}
+
+.kioskApp{
+  min-height:100vh;
+}
+
+body.kiosk .topbar,
+body.kiosk .list{
   display:none !important;
 }
 
-/* Kept for completeness, but unreachable now */
-.modal{
-  position:fixed;
-  inset:0;
+body.kiosk .layout{
+  max-width:none;
+  margin:0;
+  padding:16px;
+  height:100vh;
+  gap:16px;
+  grid-template-rows: 1fr auto;
+}
+
+.kioskPrimary{
+  height:100%;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+}
+
+.kioskStats{
+  margin-top:18px;
+}
+
+.kioskSecondary{
+  padding:14px 16px;
+}
+
+.kioskSecondaryHead{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:10px;
+}
+
+.kioskSecondaryLabel{
+  font-weight:900;
+  color:rgba(234,240,255,.92);
+  letter-spacing:.2px;
+}
+
+.kioskSecondaryDist{
+  font-family:var(--font-mono);
+  color:rgba(234,240,255,.92);
+  font-weight:900;
+}
+
+.kioskSecondaryBody{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  text-align:center;
+}
+
+.kioskAirline2{
+  font-size: clamp(18px, 2.4vmin, 34px);
+  font-weight:900;
+}
+
+.kioskCallsign2{
+  font-size: clamp(18px, 2.2vmin, 34px);
+  font-weight:850;
+}
+
+.kioskSecondaryMini{
+  margin-top:12px;
   display:grid;
-  place-items:center;
-  z-index:50;
+  grid-template-columns:repeat(3,1fr);
+  gap:10px;
 }
-.modal__backdrop{position:absolute; inset:0; background:rgba(0,0,0,.6)}
-.modal__panel{
-  position:relative;
-  width:min(520px, calc(100vw - 26px));
-  background:linear-gradient(
-    180deg,
-    rgba(255,255,255,.03),
-    rgba(255,255,255,0)
-  ), var(--card);
+
+.kioskMiniItem{
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:12px;
+  padding:10px 10px;
+  text-align:center;
+  background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.01));
+}
+
+.kioskMiniK{
+  display:block;
+  font-size:11px;
+  color:rgba(154,167,198,.92);
+  letter-spacing:.6px;
+}
+
+.kioskMiniV{
+  display:block;
+  margin-top:6px;
+  font-weight:900;
+  color:#eef3ff;
+}
+
+.kioskStatus{
+  position:fixed;
+  right:14px;
+  bottom:12px;
+  padding:8px 10px;
+  border-radius:999px;
+  font-size:12px;
+  color:rgba(234,240,255,.9);
+  background:rgba(11,18,32,.55);
   border:1px solid rgba(255,255,255,.10);
-  border-radius:18px;
-  overflow:hidden;
-  box-shadow:0 20px 60px rgba(0,0,0,.45);
+  backdrop-filter: blur(10px);
 }
-.modal__head{display:flex; justify-content:space-between; align-items:center; padding:12px 14px; border-bottom:1px solid rgba(255,255,255,.08)}
-.modal__title{font-weight:900}
-.modal__x{background:transparent; border:0; color:var(--muted); font-size:18px; padding:6px}
-.modal__body{padding:14px; color:var(--text)}
