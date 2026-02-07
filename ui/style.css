@@ -116,6 +116,47 @@ body{
   outline-offset:2px;
 }
 
+/* ✅ Mode toggle buttons */
+.modeToggle{
+  -webkit-tap-highlight-color: transparent;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  height:34px;
+  padding:0 12px;
+  border-radius:999px;
+  text-decoration:none;
+  font-size:12px;
+  font-weight:900;
+  letter-spacing:.3px;
+  color:var(--text);
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.04);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+}
+.modeToggle:active{
+  transform:translateY(1px);
+}
+.modeToggle:focus-visible{
+  outline:2px solid rgba(79,209,197,.45);
+  outline-offset:2px;
+}
+
+/* Exit button only visible in kiosk */
+.kioskOnly{ display:none !important; }
+body.kiosk .kioskOnly{
+  display:inline-flex !important;
+  position:fixed;
+  top:14px;
+  right:14px;
+  z-index:9999;
+  height:40px;
+  padding:0 14px;
+  background:rgba(0,0,0,.28);
+  border:1px solid rgba(255,255,255,.18);
+  backdrop-filter: blur(10px);
+}
+
 /* ───────────── Main Layout ───────────── */
 
 .layout{
@@ -281,7 +322,6 @@ body{
   background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.01));
   box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
 }
-
 .row .l{min-width:0}
 .row .cs{
   font-family:var(--font-mono);
@@ -290,7 +330,6 @@ body{
   letter-spacing:.6px;
   color:#eef3ff;
 }
-
 .row .r{
   text-align:right;
   white-space:nowrap;
@@ -320,18 +359,14 @@ body{
    KIOSK MODE — DISPLAY MODE
    ───────────────────────────────────────────── */
 
-body.kiosk{
-  overflow:hidden;
-}
+body.kiosk{ overflow:hidden; }
 
-/* Hide non-kiosk UI */
 body.kiosk .topbar,
 body.kiosk .listHeader,
 body.kiosk #list{
   display:none!important;
 }
 
-/* Fullscreen canvas */
 body.kiosk .layout{
   max-width:none;
   margin:0;
@@ -340,7 +375,6 @@ body.kiosk .layout{
   gap:0;
 }
 
-/* Full-height card */
 body.kiosk .card{
   height:100%;
   border:none;
@@ -351,11 +385,9 @@ body.kiosk .card{
   flex-direction:column;
   justify-content:center;
 
-  /* ✅ REQUIRED so ::before positions correctly (this is what went missing) */
   position:relative;
 }
 
-/* ✅ Kiosk header restored */
 body.kiosk .card::before{
   content:"FlightsAboveMe";
   position:absolute;
@@ -371,7 +403,6 @@ body.kiosk .card::before{
   pointer-events:none;
 }
 
-/* Logo */
 body.kiosk .airlineLogo{
   width:clamp(90px,10vmin,140px);
   height:clamp(90px,10vmin,140px);
@@ -379,7 +410,6 @@ body.kiosk .airlineLogo{
   padding:16px;
 }
 
-/* Primary hierarchy */
 body.kiosk .airlineName{
   font-size:clamp(64px,7.5vmin,120px);
   line-height:1.05;
@@ -390,7 +420,6 @@ body.kiosk .callsign{
   margin-top:12px;
 }
 
-/* Secondary text */
 body.kiosk .route{
   font-size:clamp(26px,3.8vmin,48px);
   margin-top:20px;
@@ -401,7 +430,6 @@ body.kiosk .model{
   margin-top:14px;
 }
 
-/* ICAO spacing (more air before stats) */
 body.kiosk .icaoLine{
   margin-top:26px;
   margin-bottom:12px;
@@ -409,7 +437,6 @@ body.kiosk .icaoLine{
   opacity:.85;
 }
 
-/* Stats section */
 body.kiosk .stats{
   margin-top:auto;
   margin-bottom:clamp(36px,6vmin,72px);
@@ -432,7 +459,6 @@ body.kiosk .stat .v{
   margin-top:12px;
 }
 
-/* Footer */
 body.kiosk .footerLine{
   font-size:clamp(14px,1.8vmin,20px);
   opacity:.85;
@@ -443,75 +469,58 @@ body.kiosk .footerLine{
    ───────────────────────────────────────────── */
 
 @media (max-width: 600px){
-
   body.kiosk .card{
     padding:clamp(16px,4.2vmin,28px);
     justify-content:flex-start;
   }
-
   body.kiosk .card::before{
     top:12px;
     font-size:16px;
   }
-
-  body.kiosk .primaryHeader{
-    gap:10px;
-  }
-
   body.kiosk .airlineLogo{
     width:clamp(54px,10vmin,74px);
     height:clamp(54px,10vmin,74px);
     border-radius:16px;
     padding:10px;
   }
-
   body.kiosk .airlineName{
     font-size:clamp(32px,7.4vmin,46px);
   }
-
   body.kiosk .callsign{
     font-size:clamp(26px,6.6vmin,40px);
     margin-top:8px;
   }
-
   body.kiosk .route{
     font-size:clamp(15px,4.3vmin,20px);
     margin-top:12px;
   }
-
   body.kiosk .model{
     font-size:clamp(15px,4.3vmin,20px);
     margin-top:8px;
   }
-
   body.kiosk .icaoLine{
     margin-top:14px;
     margin-bottom:10px;
     font-size:clamp(12px,3.4vmin,14px);
   }
-
   body.kiosk .stats{
     margin-top:16px;
     margin-bottom:18px;
     gap:10px;
     grid-template-columns:repeat(2,1fr);
   }
-
   body.kiosk .stat{
     padding:14px 12px;
     border-radius:16px;
   }
-
   body.kiosk .stat .k{
     font-size:clamp(12px,3.2vmin,14px);
     letter-spacing:.8px;
   }
-
   body.kiosk .stat .v{
     font-size:clamp(20px,5.2vmin,28px);
     margin-top:8px;
   }
-
   body.kiosk .footerLine{
     font-size:12px;
   }
