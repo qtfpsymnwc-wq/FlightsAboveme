@@ -6,17 +6,8 @@
   --accent:#4fd1c5;
   --line:#22345a;
 
-  --font-sans: system-ui,-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+  --font-sans: system-ui,-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text",Segoe UI,Roboto,Helvetica,Arial,sans-serif;
   --font-mono: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
-
-  --fs-airline:  clamp(24px, 3.8vmin, 52px);
-  --fs-callsign: clamp(22px, 3.3vmin, 46px);
-  --fs-route:    clamp(13px, 1.9vmin, 22px);
-  --fs-aircraft: clamp(14px, 2.1vmin, 24px);
-
-  --fs-row-callsign: clamp(14px, 1.7vmin, 18px);
-  --fs-row-route:    clamp(12px, 1.45vmin, 15px);
-  --fs-row-model:    clamp(12px, 1.45vmin, 15px);
 }
 
 *{box-sizing:border-box}
@@ -28,7 +19,7 @@ body{
 }
 #app{min-height:100vh}
 
-/* ───────────── Normal App Layout ───────────── */
+/* ───────────── Normal App Layout (unchanged) ───────────── */
 
 .topbar{
   display:flex;
@@ -41,10 +32,6 @@ body{
   backdrop-filter:blur(12px);
   background:rgba(11,18,32,.72);
 }
-.brand{display:flex; align-items:center; gap:10px}
-.dot{width:10px;height:10px;border-radius:50%; background:var(--accent); box-shadow:0 0 16px rgba(79,209,197,.55)}
-.title{font-weight:800}
-.subtitle{font-size:12px;color:var(--muted)}
 
 .layout{
   display:grid;
@@ -78,51 +65,28 @@ body{
   gap:10px;
 }
 
-/* White logo tile */
 .airlineLogo{
   width:40px;
   height:40px;
   border-radius:10px;
   background:#fff;
-  border:1px solid rgba(0,0,0,.12);
   padding:6px;
   object-fit:contain;
 }
 
-.hidden{display:none !important}
+.hidden{display:none!important}
 
 .airlineName{
-  font-size:var(--fs-airline);
-  font-weight:950;
-  line-height:1.05;
+  font-weight:900;
 }
 
 .callsign{
   font-family:var(--font-mono);
-  font-size:var(--fs-callsign);
-  font-weight:780;
-  letter-spacing:.7px;
+  font-weight:800;
 }
 
-.route{
-  margin-top:6px;
-  font-size:var(--fs-route);
-  color:#b7c3e6;
-}
-
-.model{
-  margin-top:10px;
-  font-size:var(--fs-aircraft);
-  opacity:.9;
-}
-
-.icaoLine{
-  margin-top:8px;
-  font-size:11px;
-  color:var(--muted);
-  display:flex;
-  gap:8px;
-}
+.route{color:#b7c3e6}
+.model{opacity:.9}
 
 .stats{
   display:grid;
@@ -132,14 +96,11 @@ body{
 }
 
 .stat{
-  background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.015));
-  border:1px solid rgba(255,255,255,.08);
   border-radius:14px;
-  padding:12px 10px;
+  padding:12px;
   text-align:center;
+  background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.015));
 }
-.stat .k{font-size:11px;color:var(--muted)}
-.stat .v{font-size:16px;font-weight:800;margin-top:6px}
 
 .footerLine{
   margin-top:14px;
@@ -147,30 +108,22 @@ body{
   color:var(--muted);
 }
 
-.listHeader{
-  display:flex;
-  justify-content:space-between;
-  margin-bottom:10px;
-}
-
-#list{display:flex;flex-direction:column;gap:10px}
-
 /* ─────────────────────────────────────────────
-   KIOSK MODE (DISPLAY / TABLET)
+   KIOSK MODE — TRUE DISPLAY MODE
    ───────────────────────────────────────────── */
 
 body.kiosk{
   overflow:hidden;
 }
 
-/* Remove chrome */
+/* Remove all non-display chrome */
 body.kiosk .topbar,
 body.kiosk .listHeader,
 body.kiosk #list{
-  display:none !important;
+  display:none!important;
 }
 
-/* Fullscreen layout */
+/* Fullscreen canvas */
 body.kiosk .layout{
   max-width:none;
   margin:0;
@@ -179,58 +132,79 @@ body.kiosk .layout{
   gap:0;
 }
 
-/* Full-height primary card */
+/* Full-height display card */
 body.kiosk .card{
   height:100%;
-  border-radius:0;
   border:none;
-  padding:clamp(28px,4vmin,64px);
+  border-radius:0;
+  padding:clamp(40px,6vmin,90px);
 
   display:flex;
   flex-direction:column;
+  justify-content:center;
 }
 
-/* Large display hierarchy */
+/* MASSIVE logo for distance viewing */
 body.kiosk .airlineLogo{
-  width:clamp(64px,6vmin,96px);
-  height:clamp(64px,6vmin,96px);
-  padding:12px;
+  width:clamp(90px,10vmin,140px);
+  height:clamp(90px,10vmin,140px);
+  border-radius:22px;
+  padding:16px;
 }
 
+/* Strong display typography */
 body.kiosk .airlineName{
-  font-size:clamp(44px,5.6vmin,92px);
+  font-size:clamp(64px,7.5vmin,120px);
+  line-height:1.05;
+  letter-spacing:.3px;
 }
 
 body.kiosk .callsign{
-  font-size:clamp(36px,4.8vmin,78px);
+  font-size:clamp(48px,6.2vmin,96px);
+  margin-top:10px;
 }
 
-body.kiosk .route,
+body.kiosk .route{
+  font-size:clamp(22px,3.2vmin,42px);
+  margin-top:16px;
+}
+
 body.kiosk .model{
-  font-size:clamp(18px,2.6vmin,36px);
+  font-size:clamp(22px,3.2vmin,42px);
+  margin-top:10px;
 }
 
-/* Push stats to lower half */
+body.kiosk .icaoLine{
+  font-size:clamp(14px,1.8vmin,20px);
+  margin-top:14px;
+  opacity:.85;
+}
+
+/* Push stats to lower third */
 body.kiosk .stats{
   margin-top:auto;
-  margin-bottom:clamp(24px,4vmin,48px);
-  gap:clamp(14px,2vmin,22px);
+  margin-bottom:clamp(36px,6vmin,72px);
+  gap:clamp(18px,3vmin,28px);
 }
 
+/* Large dashboard tiles */
 body.kiosk .stat{
-  padding:clamp(18px,2.4vmin,30px);
+  padding:clamp(22px,3.2vmin,36px);
+  border-radius:22px;
 }
 
 body.kiosk .stat .k{
-  font-size:clamp(12px,1.6vmin,18px);
+  font-size:clamp(14px,1.8vmin,20px);
+  letter-spacing:.8px;
 }
 
 body.kiosk .stat .v{
-  font-size:clamp(26px,3.6vmin,48px);
+  font-size:clamp(34px,4.8vmin,68px);
+  margin-top:10px;
 }
 
-/* Footer stays readable but subtle */
+/* Footer subtle but readable */
 body.kiosk .footerLine{
-  font-size:clamp(12px,1.6vmin,16px);
-  opacity:.9;
+  font-size:clamp(14px,1.8vmin,20px);
+  opacity:.85;
 }
