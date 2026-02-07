@@ -19,7 +19,7 @@ body{
 }
 #app{min-height:100vh}
 
-/* ───────────── Normal App Layout (unchanged) ───────────── */
+/* ───────────── Normal App Layout ───────────── */
 
 .topbar{
   display:flex;
@@ -76,10 +76,7 @@ body{
 
 .hidden{display:none!important}
 
-.airlineName{
-  font-weight:900;
-}
-
+.airlineName{font-weight:900}
 .callsign{
   font-family:var(--font-mono);
   font-weight:800;
@@ -87,6 +84,12 @@ body{
 
 .route{color:#b7c3e6}
 .model{opacity:.9}
+
+.icaoLine{
+  margin-top:10px;
+  font-size:12px;
+  color:var(--muted);
+}
 
 .stats{
   display:grid;
@@ -120,14 +123,14 @@ body{
 }
 
 /* ─────────────────────────────────────────────
-   KIOSK MODE — DISPLAY OPTIMIZED
+   KIOSK MODE — DISPLAY MODE
    ───────────────────────────────────────────── */
 
 body.kiosk{
   overflow:hidden;
 }
 
-/* Remove non-display chrome */
+/* Hide non-kiosk UI */
 body.kiosk .topbar,
 body.kiosk .listHeader,
 body.kiosk #list{
@@ -143,7 +146,7 @@ body.kiosk .layout{
   gap:0;
 }
 
-/* Full-height display card */
+/* Full-height card */
 body.kiosk .card{
   height:100%;
   border:none;
@@ -155,7 +158,20 @@ body.kiosk .card{
   justify-content:center;
 }
 
-/* Large logo */
+/* ── Kiosk title header ── */
+body.kiosk .card::before{
+  content:"FlightsAboveMe";
+  position:absolute;
+  top:clamp(18px,3vmin,32px);
+  left:50%;
+  transform:translateX(-50%);
+  font-size:clamp(20px,2.6vmin,34px);
+  font-weight:800;
+  letter-spacing:.5px;
+  color:rgba(234,240,255,.85);
+}
+
+/* Logo */
 body.kiosk .airlineLogo{
   width:clamp(90px,10vmin,140px);
   height:clamp(90px,10vmin,140px);
@@ -174,7 +190,7 @@ body.kiosk .callsign{
   margin-top:12px;
 }
 
-/* 🔼 BOOSTED secondary text */
+/* Secondary text */
 body.kiosk .route{
   font-size:clamp(26px,3.8vmin,48px);
   margin-top:20px;
@@ -185,33 +201,32 @@ body.kiosk .model{
   margin-top:14px;
 }
 
+/* 🔼 extra breathing room before stats */
 body.kiosk .icaoLine{
+  margin-top:26px;
+  margin-bottom:12px;
   font-size:clamp(15px,2vmin,22px);
-  margin-top:18px;
   opacity:.85;
 }
 
-/* Stats pushed to lower third */
+/* Stats section */
 body.kiosk .stats{
   margin-top:auto;
   margin-bottom:clamp(36px,6vmin,72px);
   gap:clamp(20px,3.2vmin,32px);
 }
 
-/* Dashboard tiles */
 body.kiosk .stat{
   padding:clamp(24px,3.6vmin,40px);
   border-radius:24px;
 }
 
-/* 🔼 BOOSTED stat headers */
 body.kiosk .stat .k{
   font-size:clamp(18px,2.4vmin,28px);
   letter-spacing:1px;
   font-weight:700;
 }
 
-/* Numbers remain dominant */
 body.kiosk .stat .v{
   font-size:clamp(36px,5.2vmin,72px);
   margin-top:12px;
