@@ -194,7 +194,6 @@ body{
 .listHint{font-size:12px; color:var(--muted)}
 #list{display:flex; flex-direction:column; gap:10px}
 
-/* Matches the existing app.js row markup: .left / .sub / .badge */
 .row{
   border:1px solid rgba(255,255,255,.08);
   border-radius:14px;
@@ -219,15 +218,19 @@ body{
   white-space:nowrap;
 }
 
+/* ✅ iOS-safe error banner: always visible above Safari chrome */
 .errBox{
   position:fixed;
-  left:14px; right:14px; bottom:14px;
+  left:14px;
+  right:14px;
+  bottom:calc(14px + env(safe-area-inset-bottom));
   background:#2b0f16;
   border:1px solid #61202e;
   color:#ffd7de;
   padding:12px;
   border-radius:12px;
   font-size:13px;
+  z-index:9999;
 }
 
 /* KILL SWITCH: disable Group Info modal entirely */
