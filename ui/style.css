@@ -242,6 +242,15 @@ body{
   font-size:13px;
 }
 
+/* ─────────────────────────────────────────────
+   KILL SWITCH: Disable Group Info modal entirely
+   (prevents the weird blue overlay from ever showing)
+   ───────────────────────────────────────────── */
+#groupInfo{
+  display:none !important;
+}
+
+/* Kept for completeness, but unreachable now */
 .modal{
   position:fixed;
   inset:0;
