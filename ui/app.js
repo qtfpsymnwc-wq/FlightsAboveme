@@ -2,12 +2,14 @@
 const API_BASE = "https://flightsabove.t2hkmhgbwz.workers.dev";
 const POLL_MS = 3500;
 
+// Persist enrichments across refreshes (future use)
 const enrichCache = new Map();
 
 function $(id){ return document.getElementById(id); }
 
 function setStatus(text){
-  $("statusText").textContent = text || "";
+  const el = $("statusText");
+  if (el) el.textContent = text || "";
 }
 
 function setErr(msg){
@@ -23,7 +25,7 @@ function setErr(msg){
 }
 
 function bboxAround(lat, lon){
-  // Keep your original idea: small-ish bbox to avoid overload.
+  // Keep this conservative to reduce OpenSky load.
   const dLat = 0.6;
   const dLon = 0.8;
   return {
@@ -34,7 +36,8 @@ function bboxAround(lat, lon){
   };
 }
 
-async function fetchJSON(url, timeoutMs=9000){
+// Robust fetch w/ timeout, but aborts are treated as non-fatal.
+async function fetchJSON(url, timeoutMs=20000){
   const ctrl = new AbortController();
   const t = setTimeout(()=>ctrl.abort(), timeoutMs);
   try{
@@ -46,7 +49,6 @@ async function fetchJSON(url, timeoutMs=9000){
     });
 
     if (!res.ok) {
-      // Try JSON body first, then text, so you SEE why it failed.
       let body = "";
       try {
         const ct = res.headers.get("content-type") || "";
@@ -56,15 +58,24 @@ async function fetchJSON(url, timeoutMs=9000){
         } else {
           body = await res.text();
         }
-      } catch {
-        // ignore parsing errors
-      }
+      } catch {}
       body = (body || "").toString().trim();
       const suffix = body ? ` — ${body}` : "";
       throw new Error(`HTTP ${res.status}${suffix}`);
     }
 
     return await res.json();
+  } catch (err) {
+    // iOS Safari often reports: "Fetch is aborted" / AbortError
+    const name = err?.name || "";
+    const msg = (err?.message || String(err)).toLowerCase();
+
+    if (name === "AbortError" || msg.includes("aborted") || msg.includes("abort")) {
+      const e = new Error("FETCH_ABORTED");
+      e.code = "FETCH_ABORTED";
+      throw e;
+    }
+    throw err;
   } finally {
     clearTimeout(t);
   }
@@ -183,19 +194,25 @@ function setupTier(){
   });
 }
 
+// ✅ KEY FIX: prevent overlapping polls
+let inFlight = false;
+
 async function startRadar(lat, lon){
   const bb = bboxAround(lat, lon);
 
   async function tick(){
+    if (inFlight) return; // skip if previous request still running
+    inFlight = true;
+
     try{
       setErr("");
       setStatus("Radar…");
 
       const url = new URL(`${API_BASE}/opensky/states`);
       Object.entries(bb).forEach(([k,v])=>url.searchParams.set(k,v));
-      url.searchParams.set("tier", tier); // harmless if worker ignores; useful if it supports
+      url.searchParams.set("tier", tier); // harmless if ignored
 
-      const data = await fetchJSON(url.toString(), 9000);
+      const data = await fetchJSON(url.toString(), 20000);
       const flights = Array.isArray(data?.flights) ? data.flights : [];
 
       const radarMeta = {
@@ -208,8 +225,16 @@ async function startRadar(lat, lon){
 
       setStatus("Live");
     } catch (err){
-      setStatus("Error");
-      setErr(err?.message || String(err));
+      // Treat aborts as non-fatal and do not flip UI into "Error"
+      if (err && err.code === "FETCH_ABORTED") {
+        // Keep whatever last good screen was; no red banner spam.
+        setStatus("Live");
+      } else {
+        setStatus("Error");
+        setErr(err?.message || String(err));
+      }
+    } finally {
+      inFlight = false;
     }
   }
 
