@@ -102,6 +102,17 @@ body{
   background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.015));
 }
 
+.stat .k{
+  font-size:11px;
+  color:var(--muted);
+}
+
+.stat .v{
+  font-size:16px;
+  font-weight:800;
+  margin-top:6px;
+}
+
 .footerLine{
   margin-top:14px;
   font-size:12px;
@@ -109,14 +120,14 @@ body{
 }
 
 /* ─────────────────────────────────────────────
-   KIOSK MODE — TRUE DISPLAY MODE
+   KIOSK MODE — DISPLAY OPTIMIZED
    ───────────────────────────────────────────── */
 
 body.kiosk{
   overflow:hidden;
 }
 
-/* Remove all non-display chrome */
+/* Remove non-display chrome */
 body.kiosk .topbar,
 body.kiosk .listHeader,
 body.kiosk #list{
@@ -144,7 +155,7 @@ body.kiosk .card{
   justify-content:center;
 }
 
-/* MASSIVE logo for distance viewing */
+/* Large logo */
 body.kiosk .airlineLogo{
   width:clamp(90px,10vmin,140px);
   height:clamp(90px,10vmin,140px);
@@ -152,58 +163,61 @@ body.kiosk .airlineLogo{
   padding:16px;
 }
 
-/* Strong display typography */
+/* Primary hierarchy */
 body.kiosk .airlineName{
   font-size:clamp(64px,7.5vmin,120px);
   line-height:1.05;
-  letter-spacing:.3px;
 }
 
 body.kiosk .callsign{
   font-size:clamp(48px,6.2vmin,96px);
-  margin-top:10px;
+  margin-top:12px;
 }
 
+/* 🔼 BOOSTED secondary text */
 body.kiosk .route{
-  font-size:clamp(22px,3.2vmin,42px);
-  margin-top:16px;
+  font-size:clamp(26px,3.8vmin,48px);
+  margin-top:20px;
 }
 
 body.kiosk .model{
-  font-size:clamp(22px,3.2vmin,42px);
-  margin-top:10px;
+  font-size:clamp(26px,3.8vmin,48px);
+  margin-top:14px;
 }
 
 body.kiosk .icaoLine{
-  font-size:clamp(14px,1.8vmin,20px);
-  margin-top:14px;
+  font-size:clamp(15px,2vmin,22px);
+  margin-top:18px;
   opacity:.85;
 }
 
-/* Push stats to lower third */
+/* Stats pushed to lower third */
 body.kiosk .stats{
   margin-top:auto;
   margin-bottom:clamp(36px,6vmin,72px);
-  gap:clamp(18px,3vmin,28px);
+  gap:clamp(20px,3.2vmin,32px);
 }
 
-/* Large dashboard tiles */
+/* Dashboard tiles */
 body.kiosk .stat{
-  padding:clamp(22px,3.2vmin,36px);
-  border-radius:22px;
+  padding:clamp(24px,3.6vmin,40px);
+  border-radius:24px;
 }
 
+/* 🔼 BOOSTED stat headers */
 body.kiosk .stat .k{
-  font-size:clamp(14px,1.8vmin,20px);
-  letter-spacing:.8px;
+  font-size:clamp(18px,2.4vmin,28px);
+  letter-spacing:1px;
+  font-weight:700;
 }
 
+/* Numbers remain dominant */
 body.kiosk .stat .v{
-  font-size:clamp(34px,4.8vmin,68px);
-  margin-top:10px;
+  font-size:clamp(36px,5.2vmin,72px);
+  margin-top:12px;
 }
 
-/* Footer subtle but readable */
+/* Footer */
 body.kiosk .footerLine{
   font-size:clamp(14px,1.8vmin,20px);
   opacity:.85;
