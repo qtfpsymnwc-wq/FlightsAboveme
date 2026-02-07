@@ -153,7 +153,6 @@ function renderPrimary(f, radarMeta){
   // Registration is often unavailable in our data sources; we hide this line in the UI.
 
   $("radarLine").textContent = `Radar: ${radarMeta.count} flights • Showing: ${radarMeta.showing}`;
-  $("debugLine").textContent = `UI ${UI_VERSION} • API ${radarMeta.apiVersion || "?"}`;
 }
 
 function renderList(list){
