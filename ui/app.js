@@ -1,476 +1,489 @@
-// FlightWall Baseline (boots on iOS even if radar fails)
-// Change this to your Worker domain (no trailing slash):
+// FlightWall UI (v170)
+// Option A: Pages hosts this UI, Worker hosts API.
+// Set API_BASE to your Worker domain. (No trailing slash)
 const API_BASE = "https://flightsabove.t2hkmhgbwz.workers.dev";
-
-// Polling
+const UI_VERSION = "v180";
 const POLL_MS = 3500;
-const MAX_CARDS = 40;
 
-// Local storage keys
-const LS_KEY = "flightwall_cache_v1";
-const LS_PREF = "flightwall_prefs_v1";
+// Persist Aerodatabox + aircraft enrichments across refreshes.
+// Keyed by icao24 + callsign to avoid "route flashes then disappears".
+// Key: `${icao24}|${normalizedCallsign}`
+const enrichCache = new Map();
 
-const el = (id) => document.getElementById(id);
+const $ = (id) => document.getElementById(id);
+const errBox = $("errBox");
 
-const state = {
-  filterMode: "airlines",      // "airlines" | "other" | "all"
-  tiers: { t1: true, t2: true, t3: true },
-  search: "",
-  cache: {}, // keyed by `${icao24}|${callsign}`
-  lastFetchMs: 0,
-  lastCount: 0
-};
-
-// ---------- SAFETY: ensure guessAirline exists ----------
-function guessAirline(f) {
-  if (!f) return null;
-
-  const name = (f.airlineName || f.airline || f.operator || "").toString().trim();
-  const icao = (f.airlineIcao || f.icaoAirline || f.operatorIcao || "").toString().trim();
-  const iata = (f.airlineIata || f.iataAirline || "").toString().trim();
-
-  if (name) return { type: "airline", label: name, code: icao || iata || null };
-
-  const cs = (f.callsign || f.callSign || "").toString().trim().toUpperCase();
-  const prefix = cs.replace(/[^A-Z].*$/, "");
-
-  if (prefix && prefix.length >= 2) {
-    const map = {
-      SWA: "Southwest",
-      DAL: "Delta",
-      UAL: "United",
-      AAL: "American",
-      ASA: "Alaska",
-      JBU: "JetBlue",
-      FFT: "Frontier",
-      NKS: "Spirit",
-      UPS: "UPS",
-      FDX: "FedEx"
-    };
-    if (map[prefix]) return { type: "airline", label: map[prefix], code: prefix };
-    return { type: "unknown", label: prefix, code: prefix };
-  }
-
-  return null;
-}
-
-// ---------- classification ----------
-function isAirlineLike(f) {
-  // Prefer explicit hints if present
-  if (typeof f.isAirline === "boolean") return f.isAirline;
-
-  const g = guessAirline(f);
-  // If we can map a known airline prefix or have airlineName, treat as airline
-  if (g && (g.type === "airline")) return true;
-
-  // Registrations like N123AB are common for GA/private; callsigns with letters+digits can be either.
-  // If callsign starts with N and then digits, that's usually US GA.
-  const cs = (f.callsign || f.callSign || "").toString().trim().toUpperCase();
-  if (/^N[0-9]/.test(cs)) return false;
-
-  // If you have operator/airline fields, treat as airline-ish
-  if ((f.airlineName || f.operator || f.airline) && !/^N[0-9]/.test(cs)) return true;
-
-  return false;
-}
-
-function computeTier(f) {
-  // Baseline tier logic:
-  // T1 = has good aircraft/type info + altitude & speed
-  // T2 = has partial info
-  // T3 = minimal info
-  const type = (f.typeName || f.aircraftType || f.model || f.icaoType || "").toString().trim();
-  const alt = num(f.altitude || f.geoAlt || f.baroAlt);
-  const spd = num(f.velocity || f.speed || f.groundSpeed);
-
-  const hasType = !!type;
-  const hasKinematics = isFinite(alt) || isFinite(spd);
-
-  if (hasType && hasKinematics) return 1;
-  if (hasType || hasKinematics) return 2;
-  return 3;
-}
-
-function num(x) {
-  const n = Number(x);
-  return Number.isFinite(n) ? n : NaN;
-}
-
-// ---------- UI ----------
-function setStatus(kind, text) {
-  el("statusText").textContent = text;
-  const dot = el("statusDot");
-  dot.classList.remove("good", "warn", "bad");
-  if (kind) dot.classList.add(kind);
-}
-
-function setSegActive(btnIds, activeId) {
-  for (const id of btnIds) el(id).classList.toggle("active", id === activeId);
-}
-
-function loadPrefs() {
+function showErr(msg){
+  const m = String(msg||"");
+  if (/AbortError/i.test(m) || /fetch aborted/i.test(m) || /aborted/i.test(m)) return;
   try {
-    const p = JSON.parse(localStorage.getItem(LS_PREF) || "{}");
-    if (p.filterMode) state.filterMode = p.filterMode;
-    if (p.tiers) state.tiers = { ...state.tiers, ...p.tiers };
-    if (typeof p.search === "string") state.search = p.search;
+    errBox.textContent = msg;
+    errBox.classList.remove("hidden");
   } catch {}
 }
+window.addEventListener("error", (e)=>showErr("JS error: " + (e?.message || e)));
+window.addEventListener("unhandledrejection", (e)=>showErr("Promise rejection: " + (e?.reason?.message || e?.reason || e)));
 
-function savePrefs() {
-  localStorage.setItem(LS_PREF, JSON.stringify({
-    filterMode: state.filterMode,
-    tiers: state.tiers,
-    search: state.search
-  }));
+function nm(s){ return (s ?? "").toString().trim(); }
+
+function haversineMi(lat1, lon1, lat2, lon2){
+  const R = 3958.7613;
+  const toRad = (d)=>d*Math.PI/180;
+  const dLat = toRad(lat2-lat1);
+  const dLon = toRad(lon2-lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(a));
 }
 
-function loadCache() {
-  try {
-    const c = JSON.parse(localStorage.getItem(LS_KEY) || "{}");
-    if (c && typeof c === "object") state.cache = c;
-  } catch {}
+function headingToText(deg){
+  if (!Number.isFinite(deg)) return "—";
+  const dirs = ["N","NE","E","SE","S","SW","W","NW"];
+  const idx = Math.round((((deg%360)+360)%360) / 45) % 8;
+  return dirs[idx] + ` (${Math.round(deg)}°)`;
 }
 
-function saveCache() {
-  localStorage.setItem(LS_KEY, JSON.stringify(state.cache));
+function fmtAlt(m) {
+  if (!Number.isFinite(m)) return "—";
+  const ft = m * 3.28084;
+  return Math.round(ft).toLocaleString() + " ft";
+}
+function fmtSpd(ms) {
+  if (!Number.isFinite(ms)) return "—";
+  const mph = ms * 2.236936292;
+  return Math.round(mph) + " mph";
 }
 
-function clearCache() {
-  state.cache = {};
-  localStorage.removeItem(LS_KEY);
-  render();
+function guessAirline(callsign){
+  const c=(callsign||'').trim().toUpperCase();
+  const p3=c.slice(0,3);
+  const map={AAL:'American',ASA:'Alaska',DAL:'Delta',FFT:'Frontier',JBU:'JetBlue',NKS:'Spirit',SKW:'SkyWest',SWA:'Southwest',UAL:'United',AAY:'Allegiant',ENY:'Envoy',JIA:'PSA',RPA:'Republic',GJS:'GoJet',EDV:'Endeavor'};
+  return map[p3]||null;
 }
 
-function formatFeet(metersOrFeet) {
-  const n = num(metersOrFeet);
-  if (!Number.isFinite(n)) return "—";
-  // If values look like meters (typical baroAlt/geoAlt), convert to feet.
-  // Heuristic: if under 2000, it's likely meters at low altitude. If around 10000+, could already be feet.
-  const feet = (n < 2000) ? (n * 3.28084) : n;
-  return `${Math.round(feet).toLocaleString()} ft`;
+function airlineKeyFromCallsign(callsign){
+  const cs=(callsign||'').trim().toUpperCase();
+  // ICAO airline prefix is typically 3 letters (e.g., DAL1234)
+  const m = cs.match(/^([A-Z]{3})/);
+  return m ? m[1] : null;
 }
 
-function formatKnots(mpsOrKnots) {
-  const n = num(mpsOrKnots);
-  if (!Number.isFinite(n)) return "—";
-  // Heuristic: if under ~250, could be knots already or m/s. If under 200, assume m/s? Not reliable.
-  // We'll treat < 200 as m/s and convert; >= 200 assume knots.
-  const kts = (n < 200) ? (n * 1.94384) : n;
-  return `${Math.round(kts)} kt`;
+function logoUrlForCallsign(callsign){
+  const key = airlineKeyFromCallsign(callsign);
+  const file = key ? `${key}.svg` : `_GENERIC.svg`;
+  // cache-bust per UI version
+  return `/assets/logos/${file}?v=${encodeURIComponent(UI_VERSION)}`;
 }
 
-function normalizeFlight(raw) {
-  const f = raw || {};
-  const callsign = (f.callsign || f.callSign || "").toString().trim().toUpperCase();
-  const icao24 = (f.icao24 || f.hex || f.hexIcao || "").toString().trim().toUpperCase();
-  const reg = (f.registration || f.reg || "").toString().trim().toUpperCase();
+// Resolve a logo key (typically ICAO, e.g. "AAL") into a static asset URL.
+// Pages serves these from /assets/logos/<KEY>.svg (and /assets/logos/_GENERIC.svg).
+function logoUrlForKey(key){
+  const k = (key || "").toString().trim().toUpperCase();
+  const file = k ? `${k}.svg` : `_GENERIC.svg`;
+  return `/assets/logos/${file}?v=${encodeURIComponent(UI_VERSION)}`;
+}
 
-  const typeName = (f.typeName || f.aircraftType || f.model || f.icaoType || "").toString().trim();
-  const airlineGuess = guessAirline(f);
+function logoUrlForFlight(f) {
+  const key =
+    (f?.airlineIcao || f?.operatorIcao || airlineKeyFromCallsign(f?.callsign || ""))?.toUpperCase?.() ||
+    airlineKeyFromCallsign(f?.callsign || "");
+  return logoUrlForKey(key);
+}
+function fmtMi(mi) {
+  if (!Number.isFinite(mi)) return "—";
+  return mi.toFixed(mi < 10 ? 1 : 0) + " mi";
+}
 
-  const tier = computeTier(f);
-
+function bboxAround(lat, lon){
+  const dLat = 0.6;
+  const dLon = 0.8;
   return {
-    _raw: f,
-    callsign,
-    icao24,
-    reg,
-    typeName,
-    airlineName: (f.airlineName || f.airline || f.operator || (airlineGuess && airlineGuess.label) || "").toString().trim(),
-    altitude: f.altitude ?? f.geoAlt ?? f.baroAlt,
-    speed: f.velocity ?? f.speed ?? f.groundSpeed,
-    heading: f.heading ?? f.track,
-    lat: f.lat ?? f.latitude,
-    lon: f.lon ?? f.longitude,
-    isAirline: isAirlineLike(f),
-    tier
+    lamin: (lat - dLat).toFixed(4),
+    lamax: (lat + dLat).toFixed(4),
+    lomin: (lon - dLon).toFixed(4),
+    lomax: (lon + dLon).toFixed(4),
   };
 }
 
-function flightKey(f) {
-  return `${f.icao24 || "??"}|${f.callsign || "??"}`;
-}
-
-function matchesSearch(f) {
-  const q = state.search.trim().toLowerCase();
-  if (!q) return true;
-
-  const hay = [
-    f.callsign, f.icao24, f.reg, f.typeName, f.airlineName
-  ].join(" ").toLowerCase();
-
-  return hay.includes(q);
-}
-
-function passesFilters(f) {
-  // Filter mode
-  if (state.filterMode === "airlines" && !f.isAirline) return false;
-  if (state.filterMode === "other" && f.isAirline) return false;
-
-  // Tier toggles
-  if (f.tier === 1 && !state.tiers.t1) return false;
-  if (f.tier === 2 && !state.tiers.t2) return false;
-  if (f.tier === 3 && !state.tiers.t3) return false;
-
-  // Search
-  if (!matchesSearch(f)) return false;
-
-  return true;
-}
-
-function renderCard(f) {
-  const tierText = `T${f.tier}`;
-  const airlineLine = f.airlineName ? f.airlineName : (f.isAirline ? "Airline" : "Other");
-
-  const badges = [];
-  if (f.typeName) badges.push(`<span class="badge">${escapeHtml(f.typeName)}</span>`);
-  if (f.reg) badges.push(`<span class="badge mono">${escapeHtml(f.reg)}</span>`);
-  if (f.icao24) badges.push(`<span class="badge mono">${escapeHtml(f.icao24)}</span>`);
-
-  const alt = formatFeet(f.altitude);
-  const spd = formatKnots(f.speed);
-  const hdg = Number.isFinite(num(f.heading)) ? `${Math.round(num(f.heading))}°` : "—";
-
-  const lat = Number.isFinite(num(f.lat)) ? num(f.lat).toFixed(3) : "—";
-  const lon = Number.isFinite(num(f.lon)) ? num(f.lon).toFixed(3) : "—";
-
-  return `
-    <div class="card">
-      <div class="tierTag">${tierText}</div>
-
-      <div class="card-top">
-        <div>
-          <div class="callsign">${escapeHtml(f.callsign || "UNKNOWN")}</div>
-          <div class="airline">${escapeHtml(airlineLine)}</div>
-        </div>
-        <div class="badges">
-          ${badges.join("")}
-        </div>
-      </div>
-
-      <div class="row">
-        <div class="kv">
-          <div class="k">Altitude</div>
-          <div class="v">${alt}</div>
-        </div>
-        <div class="kv">
-          <div class="k">Speed</div>
-          <div class="v">${spd}</div>
-        </div>
-        <div class="kv">
-          <div class="k">Heading</div>
-          <div class="v">${hdg}</div>
-        </div>
-        <div class="kv">
-          <div class="k">Position</div>
-          <div class="v"><span class="mono">${lat}, ${lon}</span></div>
-        </div>
-      </div>
-
-      <div class="small">
-        <span>Mode: <b>${f.isAirline ? "Airline" : "Other"}</b></span>
-      </div>
-    </div>
-  `;
-}
-
-function render() {
-  const list = Object.values(state.cache)
-    .map(normalizeFlight)
-    .filter(passesFilters)
-    .slice(0, MAX_CARDS);
-
-  el("cards").innerHTML = list.map(renderCard).join("");
-
-  el("metaText").textContent =
-    `Showing ${list.length} • Cached ${Object.keys(state.cache).length} • Poll ${POLL_MS}ms`;
-}
-
-function escapeHtml(s) {
-  return String(s ?? "")
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
-}
-
-// ---------- data fetch ----------
-async function fetchFlights() {
-  setStatus("warn", "Loading…");
-
+async function fetchJSON(url, timeoutMs=8000){
+  const ctrl = new AbortController();
+  const t = setTimeout(()=>ctrl.abort(), timeoutMs);
   try {
-    const res = await fetch(`${API_BASE}/flights`, { cache: "no-store" });
-    if (!res.ok) {
-      const txt = await res.text().catch(() => "");
-      throw new Error(`Flights HTTP ${res.status} ${res.statusText} :: ${txt.slice(0, 200)}`);
-    }
-
-    const data = await res.json();
-
-    // Accept either { flights: [...] } or [...]
-    const flights = Array.isArray(data) ? data : (Array.isArray(data.flights) ? data.flights : []);
-
-    // Merge into cache
-    let added = 0;
-    for (const raw of flights) {
-      const n = normalizeFlight(raw);
-      const key = flightKey(n);
-      if (!state.cache[key]) added++;
-      state.cache[key] = raw; // store raw, normalize on render
-    }
-
-    state.lastFetchMs = Date.now();
-    state.lastCount = flights.length;
-    saveCache();
-
-    setStatus("good", `OK • ${flights.length} flights`);
-    render();
-  } catch (err) {
-    console.error("[FLIGHTS] fetch failed:", err);
-    setStatus("bad", "Fetch error");
-    // keep whatever was cached; still render
-    render();
+    const res = await fetch(url, { signal: ctrl.signal, cache: "no-store", credentials: "omit" });
+    const text = await res.text();
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0,160)}`);
+    return JSON.parse(text);
+  } finally {
+    clearTimeout(t);
   }
 }
 
-// ---------- radar (optional) ----------
-async function safeLoadRadar() {
-  const img = el("radarImg");
-  const fb = el("radarFallback");
-  const rs = el("radarStatus");
+function renderPrimary(f, radarMeta){
+  $("callsign").textContent = f.callsign || "—";
+  $("icao24").textContent = f.icao24 || "—";
+  // Prefer airline info; avoid showing OpenSky "country" (often just "United States") as the "Airline".
+  const inferredAirline = f.airlineName || f.airlineGuess || guessAirline(f.callsign);
+  const countryFallback = (f.country && f.country !== "United States") ? f.country : "—";
+  $("airline").textContent = inferredAirline || countryFallback;
 
-  fb.classList.remove("show");
-  rs.textContent = "Loading…";
-
+  // Airline logo (stored as static assets in Pages)
   try {
-    // Supports either:
-    // 1) API returns JSON: { imageUrl: "https://..." } (recommended)
-    // 2) API returns an image directly at /radar.png (we’ll try as fallback)
-    const res = await fetch(`${API_BASE}/radar`, { cache: "no-store" });
+    const img = $("airlineLogo");
+    if (img) {
+      img.dataset.fallbackDone = "";
+      img.onerror = () => {
+        if (img.dataset.fallbackDone) return;
+        img.dataset.fallbackDone = "1";
+        img.src = logoUrlForKey("");
+      };
 
-    if (res.ok) {
-      const ct = (res.headers.get("content-type") || "").toLowerCase();
-
-      if (ct.includes("application/json")) {
-        const data = await res.json();
-        const imageUrl = data.imageUrl || data.url || "";
-        if (!imageUrl) throw new Error("Radar JSON missing imageUrl");
-        img.src = imageUrl;
-        rs.textContent = "OK";
-        return;
-      }
-
-      // If endpoint returns an image directly
-      if (ct.includes("image/")) {
-        // Create blob URL
-        const blob = await res.blob();
-        img.src = URL.createObjectURL(blob);
-        rs.textContent = "OK";
-        return;
-      }
-
-      // If HTML/text came back, that’s an upstream error
-      const txt = await res.text().catch(() => "");
-      throw new Error(`Radar unexpected content-type ${ct} :: ${txt.slice(0, 200)}`);
+      img.src = logoUrlForFlight(f);
+      img.classList.remove('hidden');
+      const key = (f.airlineIcao || f.operatorIcao || airlineKeyFromCallsign(f.callsign || "")) || "";
+      img.alt = key ? `${key} logo` : 'Airline logo';
     }
+  } catch (_) {}
 
-    // If /radar doesn't exist, try /radar.png
-    const res2 = await fetch(`${API_BASE}/radar.png`, { cache: "no-store" });
-    if (!res2.ok) throw new Error(`Radar HTTP ${res2.status} ${res2.statusText}`);
+  $("alt").textContent = fmtAlt(f.baroAlt);
+  $("spd").textContent = fmtSpd(f.velocity);
+  $("dist").textContent = fmtMi(f.distanceMi);
+  $("dir").textContent = headingToText(f.trueTrack);
 
-    const blob2 = await res2.blob();
-    img.src = URL.createObjectURL(blob2);
-    rs.textContent = "OK";
-  } catch (err) {
-    console.error("[RADAR] Failed:", err);
-    rs.textContent = "Unavailable";
-    fb.classList.add("show");
-    // do NOT throw — app must keep running
-  }
+  $("route").textContent = f.routeText || "—";
+  $("model").textContent = f.modelText || "—";
+  // Registration is often unavailable in our data sources; we hide this line in the UI.
+
+  $("radarLine").textContent = `Radar: ${radarMeta.count} flights • Showing: ${radarMeta.showing}`;
+  $("debugLine").textContent = `UI ${UI_VERSION} • API ${radarMeta.apiVersion || "?"}`;
 }
 
-// ---------- wiring ----------
-function wireUI() {
-  // Filter mode
-  el("btnAirline").addEventListener("click", () => {
-    state.filterMode = "airlines";
-    setSegActive(["btnAirline","btnOther","btnAll"], "btnAirline");
-    savePrefs();
-    render();
+function renderList(list){
+  const el = $("list");
+  el.innerHTML = "";
+  list.forEach((f)=>{
+    const row = document.createElement("div");
+    row.className = "row";
+    row.innerHTML = `
+      <div class="left">
+        <div class="cs">${f.callsign || "—"}</div>
+        <div class="sub">${fmtMi(f.distanceMi)} • ${fmtAlt(f.baroAlt)} • ${fmtSpd(f.velocity)}</div>
+      </div>
+      <div class="badge">${f.icao24 || ""}</div>
+    `;
+    el.appendChild(row);
   });
-  el("btnOther").addEventListener("click", () => {
-    state.filterMode = "other";
-    setSegActive(["btnAirline","btnOther","btnAll"], "btnOther");
-    savePrefs();
-    render();
-  });
-  el("btnAll").addEventListener("click", () => {
-    state.filterMode = "all";
-    setSegActive(["btnAirline","btnOther","btnAll"], "btnAll");
-    savePrefs();
-    render();
-  });
+}
 
-  // Tier toggles
-  const tierBtn = (id, key) => {
-    el(id).addEventListener("click", () => {
-      state.tiers[key] = !state.tiers[key];
-      el(id).classList.toggle("active", state.tiers[key]);
-      savePrefs();
-      render();
+function normalizeCallsign(cs){
+  return nm(cs).replace(/\s+/g,"").toUpperCase();
+}
+
+
+// ----- Tier filtering -----
+// Tier A: major passenger carriers (default)
+// Tier B: expands to include regional partners + common cargo carriers
+const TIER_A_PREFIXES = ["AAL","DAL","UAL","SWA","ASA","FFT","NKS","JBU","AAY"];
+const TIER_B_EXTRA_PREFIXES = ["SKW","ENY","EDV","JIA","RPA","GJS","UPS","FDX"];
+const TIER_ALL_PREFIXES = [...new Set([...TIER_A_PREFIXES, ...TIER_B_EXTRA_PREFIXES])];
+
+
+// Grouping for B1:
+// Tier A ("Airlines") = passenger + regionals (excludes cargo/private/military/gov/unknown)
+// Tier B ("Other") = cargo + private/business + military/gov + unknown
+const CARGO_PREFIXES = ["FDX","UPS","GTI","ABX","CKS","KAL","BOX","MXY","ATN"];
+const MIL_GOV_PREFIXES = ["RCH","SAM","GAF","NOW","BAF","DAF","NAV","FNY","SPAR"];
+const PRIVATE_PREFIXES = ["EJA","NJE","XOJ","LXJ","JTL","PJC","DCM","VJT"];
+
+function isNNumberCallsign(cs){
+  const c = normalizeCallsign(cs).replace(/\s+/g,"");
+  return /^N\d/.test(c);
+}
+
+function isAirlinePattern(cs){
+  const c = normalizeCallsign(cs).replace(/\s+/g,"").replace(/[^A-Z0-9]/g,"");
+  return /^[A-Z]{3}\d{1,4}[A-Z]?$/.test(c);
+}
+
+function groupForFlight(cs){
+  const p = callsignPrefix(cs);
+  if (!p) return "B";
+  // Any N-number or explicitly-known cargo/mil/private prefixes are "Other"
+  if (isNNumberCallsign(cs)) return "B";
+  if (CARGO_PREFIXES.includes(p) || MIL_GOV_PREFIXES.includes(p) || PRIVATE_PREFIXES.includes(p)) return "B";
+  // "Airlines" are ONLY the prefixes we explicitly allow (majors + regionals).
+  // This prevents private/charter/university operators like "OUA25" from being treated as airlines.
+  if (TIER_ALL_PREFIXES.includes(p)) return "A";
+  return "B";
+}
+
+function callsignPrefix(cs){
+  const s = normalizeCallsign(cs);
+  // Prefer 3-letter airline prefix when present (AAL1234, DAL2181, etc)
+  const m = s.match(/^[A-Z]{3}/);
+  if (m) return m[0];
+  return s.slice(0,3);
+}
+
+function passesTier(cs, tier){
+  const p = callsignPrefix(cs);
+  if (!p) return false;
+  if (tier === "B") return TIER_ALL_PREFIXES.includes(p);
+  return TIER_A_PREFIXES.includes(p);
+}
+
+
+function cacheKeyForFlight(f){
+  const hex = nm(f?.icao24).toLowerCase();
+  const cs = normalizeCallsign(f?.callsign);
+  return `${hex}|${cs}`;
+}
+
+function cacheMerge(k, patch){
+  if (!k) return;
+  const prev = enrichCache.get(k) || {};
+  enrichCache.set(k, { ...prev, ...patch });
+}
+
+function cleanAirportName(s){
+  return nm(s).replace(/\/+\s*$/,"").trim();
+}
+
+async function enrichRoute(primary){
+  const cs = normalizeCallsign(primary.callsign);
+  if (!cs) return;
+  try {
+    const data = await fetchJSON(`${API_BASE}/flight/${encodeURIComponent(cs)}`, 9000);
+    if (data && data.ok) {
+      const o = data.origin?.iata ? `${cleanAirportName(data.origin.municipalityName || data.origin.shortName || data.origin.name)} (${data.origin.iata})` : "";
+      const d = data.destination?.iata ? `${cleanAirportName(data.destination.municipalityName || data.destination.shortName || data.destination.name)} (${data.destination.iata})` : "";
+      primary.routeText = (o && d) ? `${o} → ${d}` : (data.route || "—");
+      primary.airlineName = data.airlineName || data.airline || primary.airlineName;
+      primary.airlineGuess = primary.airlineGuess || guessAirline(primary.callsign);
+      primary.aircraftType = data.aircraftType || data.aircraft?.type || data.aircraft?.typeName || primary.aircraftType;
+      if (!primary.modelText && (data.aircraftModel || data.aircraft?.model || data.aircraft?.modelName)) {
+        primary.modelText = (data.aircraftModel || data.aircraft?.model || data.aircraft?.modelName);
+      }
+
+      // Persist across polls
+      const k = `${nm(primary.icao24).toLowerCase()}|${cs}`;
+      const prev = enrichCache.get(k) || {};
+      enrichCache.set(k, {
+        ...prev,
+        routeText: primary.routeText,
+        airlineName: primary.airlineName,
+        airlineGuess: primary.airlineGuess,
+        aircraftType: primary.aircraftType,
+        modelText: primary.modelText,
+        registration: primary.registration,
+      });
+    }
+  } catch {}
+}
+
+async function enrichAircraft(primary){
+  const hex = nm(primary.icao24).toLowerCase();
+  if (!hex) return;
+  try {
+    const data = await fetchJSON(`${API_BASE}/aircraft/icao24/${encodeURIComponent(hex)}`, 9000);
+    if (data && data.ok && data.found) {
+      const mfg = nm(data.manufacturer);
+      const model = nm(data.model);
+      const code = nm(data.modelCode);
+      primary.modelText = (mfg ? (mfg + " ") : "") + (model || "—") + (code && code !== model ? ` (${code})` : "");
+      primary.registration = nm(data.registration) || primary.registration;
+
+      // Persist across polls
+      const cs = normalizeCallsign(primary.callsign);
+      const k = `${hex}|${cs}`;
+      const prev = enrichCache.get(k) || {};
+      enrichCache.set(k, {
+        ...prev,
+        modelText: primary.modelText,
+        registration: primary.registration,
+      });
+    }
+  } catch {}
+}
+
+async function main(){
+  $("statusText").textContent = "Locating…";
+
+  // UI controls
+  const tierSegment = document.getElementById("tierSegment");
+  const showMilEl = document.getElementById("showMil");
+
+  // Group info modal
+  const groupInfoBtn = document.getElementById("groupInfoBtn");
+  const groupInfo = document.getElementById("groupInfo");
+  const groupInfoOk = document.getElementById("groupInfoOk");
+  const groupInfoClose = document.getElementById("groupInfoClose");
+
+  const openGroupInfo = ()=>{ if (groupInfo) groupInfo.hidden = false; };
+  const closeGroupInfo = ()=>{ if (groupInfo) groupInfo.hidden = true; };
+
+  if (groupInfoBtn) groupInfoBtn.addEventListener("click", openGroupInfo);
+  if (groupInfoOk) groupInfoOk.addEventListener("click", closeGroupInfo);
+  if (groupInfoClose) groupInfoClose.addEventListener("click", closeGroupInfo);
+
+let tier = (localStorage.getItem("fw_tier") || "A").toUpperCase();
+  if (tier !== "A" && tier !== "B") tier = "A";
+
+  let showMil = localStorage.getItem("fw_showMil") === "1";
+
+  function syncTierButtons(){
+    if (!tierSegment) return;
+    [...tierSegment.querySelectorAll("button[data-tier]")].forEach((b)=>{
+      const t = (b.getAttribute("data-tier") || "A").toUpperCase();
+      b.classList.toggle("active", t === tier);
     });
-  };
-  tierBtn("btnTier1", "t1");
-  tierBtn("btnTier2", "t2");
-  tierBtn("btnTier3", "t3");
+  }
 
-  // Search
-  el("search").addEventListener("input", (e) => {
-    state.search = e.target.value || "";
-    savePrefs();
-    render();
+  if (tierSegment) {
+    tierSegment.addEventListener("click", (e)=>{
+      const btn = e.target && e.target.closest ? e.target.closest("button[data-tier]") : null;
+      if (!btn) return;
+      tier = (btn.getAttribute("data-tier") || "A").toUpperCase();
+      if (tier !== "A" && tier !== "B") tier = "A";
+      localStorage.setItem("fw_tier", tier);
+      syncTierButtons();
+      tick(true);
+    });
+    syncTierButtons();
+  }
+
+  if (showMilEl) {
+    showMilEl.checked = showMil;
+    showMilEl.addEventListener("change", ()=>{
+      showMil = !!showMilEl.checked;
+      localStorage.setItem("fw_showMil", showMil ? "1" : "0");
+      tick(true);
+    });
+  }
+
+  let apiVersion = "?";
+  try {
+    const h = await fetchJSON(`${API_BASE}/health`, 6000);
+    apiVersion = h?.version || "?";
+  } catch {}
+
+  const pos = await new Promise((resolve, reject)=>{
+    if (!navigator.geolocation) return reject(new Error("Geolocation not supported"));
+    navigator.geolocation.getCurrentPosition(
+      (p)=>resolve(p),
+      (e)=>reject(new Error(e.message || "Location denied")),
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 5000 }
+    );
+  }).catch((e)=>{
+    $("statusText").textContent = "Location failed";
+    showErr(String(e.message || e));
+    throw e;
   });
 
-  // Buttons
-  el("btnRefresh").addEventListener("click", async () => {
-    await fetchFlights();
-    await safeLoadRadar();
-  });
-  el("btnClearCache").addEventListener("click", () => {
-    clearCache();
-  });
+  const lat = pos.coords.latitude;
+  const lon = pos.coords.longitude;
+  const bb = bboxAround(lat, lon);
+
+  $("statusText").textContent = "Radar…";
+
+  let lastPrimaryKey = "";
+  async function tick(){
+    try {
+      const url = new URL(`${API_BASE}/opensky/states`);
+      Object.entries(bb).forEach(([k,v])=>url.searchParams.set(k,v));
+      const data = await fetchJSON(url.toString(), 9000);
+      const states = Array.isArray(data?.states) ? data.states : [];
+      const radarMeta = {
+        count: states.length,
+        showing: Math.min(states.length, 5),
+        apiVersion
+      };
+
+      if (!states.length) {
+        $("statusText").textContent = "No flights";
+        renderPrimary({callsign:"—", icao24:"—"}, radarMeta);
+        $("list").innerHTML = "";
+        return;
+      }
+
+      const flights = states.map((s)=>{
+        const icao24 = nm(s[0]).toLowerCase();
+        const callsign = nm(s[1]);
+        const country = nm(s[2]);
+        const lon2 = (typeof s[5] === "number") ? s[5] : NaN;
+        const lat2 = (typeof s[6] === "number") ? s[6] : NaN;
+        const baroAlt = (typeof s[7] === "number") ? s[7] : NaN;
+        const velocity = (typeof s[9] === "number") ? s[9] : NaN;
+        const trueTrack = (typeof s[10] === "number") ? s[10] : NaN;
+        const distanceMi = (Number.isFinite(lat2) && Number.isFinite(lon2)) ? haversineMi(lat, lon, lat2, lon2) : Infinity;
+        return {
+          icao24, callsign, country,
+          lat: lat2, lon: lon2,
+          baroAlt, velocity, trueTrack,
+          distanceMi,
+          // Enrichments (route/aircraft/airline) are applied from enrichCache
+          routeText: undefined,
+          modelText: undefined,
+          registration: undefined,
+          airlineName: undefined,
+          airlineGuess: guessAirline(callsign),
+        };
+      }).filter(f => Number.isFinite(f.distanceMi)).sort((a,b)=>a.distanceMi-b.distanceMi);
+
+      const shown = flights.filter(f => groupForFlight(f.callsign) === tier);
+      const primary = shown[0] || flights[0];
+      const top5 = shown.slice(0,5);
+
+      if (!top5.length) {
+        $("statusText").textContent = (tier === "A") ? "No airline flights nearby" : "No other traffic nearby";
+        renderPrimary(primary, radarMeta);
+        $("list").innerHTML = "";
+        return;
+      }
+
+      // Apply cached enrichments so they don't "flash" and disappear on the next poll.
+      for (const f of top5) {
+        const k = `${f.icao24}|${normalizeCallsign(f.callsign)}`;
+        const cached = enrichCache.get(k);
+        if (cached) Object.assign(f, cached);
+        // Always compute a best-effort airline guess
+        if (!f.airlineGuess) f.airlineGuess = guessAirline(f.callsign);
+      }
+
+      $("statusText").textContent = "Live";
+      renderPrimary(primary, radarMeta);
+      renderList(top5);
+
+      const key = `${primary.icao24}|${normalizeCallsign(primary.callsign)}`;
+      const cachedPrimary = enrichCache.get(key);
+      const needsRoute = !cachedPrimary || !cachedPrimary.routeText;
+      const needsAircraft = !cachedPrimary || !cachedPrimary.modelText;
+
+      // Only re-fetch when we don't have cached data (or primary changed).
+      if (key && (key !== lastPrimaryKey || needsRoute || needsAircraft)) {
+        lastPrimaryKey = key;
+        Promise.allSettled([
+          needsRoute ? enrichRoute(primary) : Promise.resolve(),
+          needsAircraft ? enrichAircraft(primary) : Promise.resolve(),
+        ]).then(()=>{
+          // Re-apply cache (enrichRoute/enrichAircraft update it) then render.
+          const updated = enrichCache.get(key);
+          if (updated) Object.assign(primary, updated);
+          renderPrimary(primary, radarMeta);
+          renderList(top5.map(f=>{
+            const k2 = `${f.icao24}|${normalizeCallsign(f.callsign)}`;
+            const c2 = enrichCache.get(k2);
+            return c2 ? Object.assign(f, c2) : f;
+          }));
+        });
+      }
+    } catch(e) {
+      if (e && (e.name === "AbortError" || /aborted/i.test(String(e.message||e)))) { return; }
+      $("statusText").textContent = "Radar error";
+      showErr(String(e.message || e));
+    }
+  }
+
+  await tick();
+  setInterval(tick, POLL_MS);
 }
 
-function applyPrefsToUI() {
-  // filter
-  const m = state.filterMode;
-  setSegActive(["btnAirline","btnOther","btnAll"],
-    m === "airlines" ? "btnAirline" : (m === "other" ? "btnOther" : "btnAll")
-  );
-
-  // tiers
-  el("btnTier1").classList.toggle("active", state.tiers.t1);
-  el("btnTier2").classList.toggle("active", state.tiers.t2);
-  el("btnTier3").classList.toggle("active", state.tiers.t3);
-
-  // search
-  el("search").value = state.search || "";
-}
-
-async function boot() {
-  loadPrefs();
-  loadCache();
-  wireUI();
-  applyPrefsToUI();
-  render();
-
-  await fetchFlights();
-  await safeLoadRadar();
-
-  // poll flights
-  setInterval(fetchFlights, POLL_MS);
-}
-
-boot();
+main();
