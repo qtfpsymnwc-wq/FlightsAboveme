@@ -361,7 +361,7 @@ body.kiosk .kioskOnly{
 }
 
 /* ─────────────────────────────────────────────
-   KIOSK MODE — MAX-PACKED LED BOARD (wrap fixed)
+   KIOSK MODE — COLUMN WIDTH FIX (more room for route/model)
    ───────────────────────────────────────────── */
 
 body.kiosk{ overflow:hidden; }
@@ -422,14 +422,16 @@ body.kiosk .card::before{
   pointer-events:none;
 }
 
-/* Packed content block */
+/* Packed content block — IMPORTANT: remove max-width clamp */
 body.kiosk .primaryHeader{
   width:100%;
-  max-width:1900px;
-  margin:0 auto;
+  margin:0;
 
   display:grid;
-  grid-template-columns: clamp(190px, 19vmin, 300px) minmax(0, 1fr);
+
+  /* ✅ Logo column smaller, text column gets the rest */
+  grid-template-columns: clamp(150px, 14vmin, 240px) 1fr;
+
   column-gap: clamp(12px, 1.6vmin, 18px);
 
   align-items:center;
@@ -443,7 +445,10 @@ body.kiosk .primaryHeader{
 body.kiosk .airlineHeader{
   grid-column:1 / -1;
   display:grid;
-  grid-template-columns: clamp(190px, 19vmin, 300px) minmax(0, 1fr);
+
+  /* ✅ match the same columns */
+  grid-template-columns: clamp(150px, 14vmin, 240px) 1fr;
+
   column-gap: clamp(12px, 1.6vmin, 18px);
   align-items:center;
   justify-content:start;
@@ -452,9 +457,9 @@ body.kiosk .airlineHeader{
 
 /* Logo */
 body.kiosk .airlineLogo{
-  width:clamp(190px, 19vmin, 300px);
-  height:clamp(190px, 19vmin, 300px);
-  border-radius:32px;
+  width:clamp(150px, 14vmin, 240px);
+  height:clamp(150px, 14vmin, 240px);
+  border-radius:30px;
   padding:14px;
   background:#fff;
   border:1px solid rgba(255,255,255,.18);
@@ -470,10 +475,10 @@ body.kiosk .airlineName{
   color:var(--k-white);
   text-shadow:0 2px 24px rgba(0,0,0,.62);
 
-  /* Prevent ugly wrap: keep it one line, truncate if needed */
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
+  min-width:0;
 }
 
 /* Callsign */
@@ -489,9 +494,10 @@ body.kiosk .callsign{
   margin-top:clamp(2px,.6vmin,6px);
 
   white-space:nowrap;
+  min-width:0;
 }
 
-/* Route + aircraft — FIX: stay as single lines */
+/* ✅ Route + aircraft — now the text column is truly wide */
 body.kiosk .route,
 body.kiosk .model{
   grid-column:2;
@@ -505,11 +511,13 @@ body.kiosk .model{
   font-size:clamp(64px, 6.8vmin, 112px);
   margin-top:clamp(6px,.9vmin,10px);
 
-  /* wrap fix */
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
+
+  /* ✅ critical so the element can expand in grid */
   min-width:0;
+  max-width:none;
 }
 
 /* ICAO */
@@ -522,6 +530,7 @@ body.kiosk .icaoLine{
   color:rgba(154,167,198,.86);
 
   white-space:nowrap;
+  min-width:0;
 }
 body.kiosk .icaoValue{
   font-family:var(--font-mono);
@@ -529,11 +538,10 @@ body.kiosk .icaoValue{
   color:rgba(234,240,255,.92);
 }
 
-/* Stats: tight LED rows */
+/* Stats */
 body.kiosk .stats{
   width:100%;
-  max-width:1900px;
-  margin:0 auto;
+  margin:0;
   margin-top:clamp(8px, 1.0vmin, 12px);
 
   display:flex;
@@ -579,18 +587,15 @@ body.kiosk .stat .v{
 
 body.kiosk .footerLine{ display:none; }
 
-/* Tablet portrait: keep huge but prevent overflow */
+/* Tablet portrait: still huge but keep column widths consistent */
 @media (min-width: 768px) and (orientation: portrait){
-  body.kiosk .primaryHeader{
-    grid-template-columns: clamp(175px, 18vmin, 275px) minmax(0, 1fr);
-    padding-top:clamp(44px,4.8vmin,58px);
-  }
+  body.kiosk .primaryHeader,
   body.kiosk .airlineHeader{
-    grid-template-columns: clamp(175px, 18vmin, 275px) minmax(0, 1fr);
+    grid-template-columns: clamp(140px, 13vmin, 210px) 1fr;
   }
   body.kiosk .airlineLogo{
-    width:clamp(175px, 18vmin, 275px);
-    height:clamp(175px, 18vmin, 275px);
+    width:clamp(140px, 13vmin, 210px);
+    height:clamp(140px, 13vmin, 210px);
   }
 
   body.kiosk .airlineName{ font-size:clamp(100px, 11.0vmin, 200px); }
@@ -602,23 +607,20 @@ body.kiosk .footerLine{ display:none; }
   body.kiosk .stat .v{ font-size:clamp(44px, 4.6vmin, 72px); }
 }
 
-/* Phone kiosk: compact but dense */
+/* Phone kiosk */
 @media (max-width: 600px){
   body.kiosk .card{ padding:clamp(10px,3.0vmin,16px); }
   body.kiosk .card::before{ font-size:16px; top:10px; }
 
-  body.kiosk .primaryHeader{
-    padding-top:44px;
-    grid-template-columns: 120px minmax(0, 1fr);
-    column-gap:12px;
-  }
+  body.kiosk .primaryHeader,
   body.kiosk .airlineHeader{
-    grid-template-columns: 120px minmax(0, 1fr);
+    padding-top:44px;
+    grid-template-columns: 112px 1fr;
     column-gap:12px;
   }
   body.kiosk .airlineLogo{
-    width:120px;
-    height:120px;
+    width:112px;
+    height:112px;
     border-radius:18px;
     padding:12px;
   }
