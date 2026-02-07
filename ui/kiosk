@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>FlightsAboveMe — Kiosk</title>
+  <link rel="stylesheet" href="./style.css?v=181">
+</head>
+<body class="kiosk">
+  <div id="app" class="kioskApp">
+    <main class="layout kioskLayout">
+
+      <!-- Closest flight (primary) -->
+      <section class="primary card kioskPrimary">
+        <div class="primaryHeader">
+          <div class="airlineHeader">
+            <img id="airlineLogo" class="airlineLogo hidden" alt="Airline logo" loading="lazy" />
+            <div class="airlineName" id="airline">—</div>
+          </div>
+
+          <div class="aircraftBlock">
+            <div class="callsign" id="callsign">—</div>
+            <div class="route" id="route">—</div>
+            <div class="model" id="model">—</div>
+            <div class="icaoLine"><span class="icaoLabel">ICAO24</span><span class="icaoValue" id="icao24">—</span></div>
+          </div>
+        </div>
+
+        <div class="stats kioskStats">
+          <div class="stat"><div class="k">ALT</div><div class="v" id="alt">—</div></div>
+          <div class="stat"><div class="k">SPD</div><div class="v" id="spd">—</div></div>
+          <div class="stat"><div class="k">DIST</div><div class="v" id="dist">—</div></div>
+          <div class="stat"><div class="k">DIR</div><div class="v" id="dir">—</div></div>
+        </div>
+
+        <div class="footerLine">
+          <span id="radarLine">Radar: —</span>
+        </div>
+      </section>
+
+      <!-- Next closest flight (secondary) -->
+      <section class="card kioskSecondary" id="kioskSecondaryCard">
+        <div class="kioskSecondaryHead">
+          <div class="kioskSecondaryLabel">Next closest</div>
+          <div class="kioskSecondaryDist" id="dist2">—</div>
+        </div>
+
+        <div class="kioskSecondaryBody">
+          <div class="airlineHeader">
+            <img id="airlineLogo2" class="airlineLogo hidden" alt="Airline logo" loading="lazy" />
+            <div class="airlineName kioskAirline2" id="airline2">—</div>
+          </div>
+
+          <div class="aircraftBlock">
+            <div class="callsign kioskCallsign2" id="callsign2">—</div>
+            <div class="route" id="route2">—</div>
+            <div class="model" id="model2">—</div>
+            <div class="icaoLine"><span class="icaoLabel">ICAO24</span><span class="icaoValue" id="icao242">—</span></div>
+          </div>
+        </div>
+
+        <div class="kioskSecondaryMini">
+          <div class="kioskMiniItem"><span class="kioskMiniK">ALT</span><span class="kioskMiniV" id="alt2">—</span></div>
+          <div class="kioskMiniItem"><span class="kioskMiniK">SPD</span><span class="kioskMiniV" id="spd2">—</span></div>
+          <div class="kioskMiniItem"><span class="kioskMiniK">DIR</span><span class="kioskMiniV" id="dir2">—</span></div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Minimal status overlay -->
+    <div class="kioskStatus">
+      <span id="statusText">Booting…</span>
+    </div>
+
+    <div id="errBox" class="errBox hidden"></div>
+  </div>
+
+  <script>
+    // Flag kiosk mode without changing your Worker/polling behavior.
+    window.__KIOSK_MODE__ = true;
+  </script>
+  <script src="./app.js?v=181"></script>
+</body>
+</html>
