@@ -1,10 +1,10 @@
 :root{
   --bg:#0b1220;
-  --card:#101a2e;
-  --muted:#7f8ba7;
+  --card:#131f36; /* lifted surface to reduce "too dark" */
+  --muted:#9aa7c6; /* slightly brighter muted text */
   --text:#eaf0ff;
   --accent:#4fd1c5;
-  --line:#1c2a46;
+  --line:#22345a; /* slightly brighter separators */
 }
 *{box-sizing:border-box}
 body{
@@ -57,11 +57,19 @@ body{
 }
 
 .card{
-  background:var(--card);
+  background:linear-gradient(
+    180deg,
+    rgba(255,255,255,.035),
+    rgba(255,255,255,0)
+  ), var(--card);
+
   border:1px solid var(--line);
-  border-radius:16px;
-  padding:16px;
-  box-shadow:0 10px 24px rgba(0,0,0,.28);
+  border-radius:18px;
+  padding:18px;
+
+  box-shadow:
+    0 12px 30px rgba(0,0,0,.45),
+    inset 0 1px 0 rgba(255,255,255,.04);
 }
 
 .primaryHeader{
@@ -79,7 +87,7 @@ body{
   height:40px;
   border-radius:10px;
   background:#0c162b;
-  border:1px solid var(--line);
+  border:1px solid rgba(255,255,255,.10);
   padding:6px;
   object-fit:contain;
 }
@@ -95,10 +103,12 @@ body{
 }
 
 .airlineName{
-  font-size:clamp(18px, 4.8vw, 24px);
+  font-size:clamp(20px, 5vw, 26px);
   font-weight:900;
-  letter-spacing:.2px;
+  letter-spacing:.3px;
   line-height:1.1;
+  color:#f2f6ff;
+  text-shadow:0 2px 10px rgba(0,0,0,.45);
 }
 
 .aircraftBlock{
@@ -109,14 +119,15 @@ body{
 }
 
 .callsign{
-  font-size:clamp(22px, 6vw, 30px);
+  font-size:clamp(24px, 6.5vw, 32px);
   font-weight:850;
-  letter-spacing:.4px;
+  letter-spacing:.5px;
   line-height:1.05;
+  color:#e8eeff;
 }
 
 .route{
-  color:var(--muted);
+  color:#b7c3e6;
   margin-top:6px;
   font-size:13px;
 }
@@ -124,7 +135,7 @@ body{
 .model{
   margin-top:10px;
   font-size:14px;
-  color:var(--text);
+  color:#d6ddff;
   opacity:.92;
 }
 
@@ -144,8 +155,7 @@ body{
 
 .icaoValue{
   font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  color:var(--text);
-  opacity:.9;
+  color:rgba(234,240,255,.92);
 }
 
 .meta{min-width:160px}
@@ -157,15 +167,26 @@ body{
   gap:10px;
   margin-top:14px;
 }
+
 .stat{
-  border:1px solid var(--line);
-  border-radius:12px;
-  padding:10px 10px;
-  background:rgba(255,255,255,.02);
+  background:linear-gradient(
+    180deg,
+    rgba(255,255,255,.06),
+    rgba(255,255,255,.015)
+  );
+
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:14px;
+  padding:12px 10px;
   text-align:center;
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.06),
+    0 6px 14px rgba(0,0,0,.35);
 }
-.stat .k{font-size:11px; color:var(--muted); letter-spacing:.6px}
-.stat .v{font-size:16px; font-weight:800; margin-top:6px}
+
+.stat .k{font-size:11px; color:rgba(154,167,198,.92); letter-spacing:.6px}
+.stat .v{font-size:16px; font-weight:800; margin-top:6px; color:#eef3ff}
 
 .status{color:var(--muted); font-size:13px}
 
@@ -182,21 +203,26 @@ body{
 #list{display:flex; flex-direction:column; gap:10px}
 
 .row{
-  border:1px solid var(--line);
-  border-radius:12px;
-  padding:10px;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:14px;
+  padding:12px;
   display:flex;
   justify-content:space-between;
   gap:12px;
-  background:rgba(255,255,255,.02);
+  background:linear-gradient(
+    180deg,
+    rgba(255,255,255,.04),
+    rgba(255,255,255,.01)
+  );
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
 }
 .row .l{min-width:0}
-.row .cs{font-weight:900}
-.row .rt{color:var(--muted); font-size:12px; margin-top:2px}
-.row .m{color:var(--muted); font-size:12px; margin-top:6px}
+.row .cs{font-weight:900; color:#eef3ff}
+.row .rt{color:rgba(183,195,230,.92); font-size:12px; margin-top:2px}
+.row .m{color:rgba(154,167,198,.95); font-size:12px; margin-top:6px}
 .row .r{text-align:right; white-space:nowrap}
-.row .d{font-weight:900}
-.row .a{color:var(--muted); font-size:12px; margin-top:2px}
+.row .d{font-weight:900; color:#eef3ff}
+.row .a{color:rgba(154,167,198,.95); font-size:12px; margin-top:2px}
 
 .version{
   position:fixed;
@@ -227,13 +253,17 @@ body{
 .modal__panel{
   position:relative;
   width:min(520px, calc(100vw - 26px));
-  background:var(--card);
-  border:1px solid var(--line);
-  border-radius:16px;
+  background:linear-gradient(
+    180deg,
+    rgba(255,255,255,.03),
+    rgba(255,255,255,0)
+  ), var(--card);
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:18px;
   overflow:hidden;
   box-shadow:0 20px 60px rgba(0,0,0,.45);
 }
-.modal__head{display:flex; justify-content:space-between; align-items:center; padding:12px 14px; border-bottom:1px solid var(--line)}
+.modal__head{display:flex; justify-content:space-between; align-items:center; padding:12px 14px; border-bottom:1px solid rgba(255,255,255,.08)}
 .modal__title{font-weight:900}
 .modal__x{background:transparent; border:0; color:var(--muted); font-size:18px; padding:6px}
 .modal__body{padding:14px; color:var(--text)}
