@@ -116,15 +116,11 @@ function renderPrimary(f, radarMeta){
   const countryFallback = (f.country && f.country !== "United States") ? f.country : "—";
   if ($("airline")) $("airline").textContent = inferredAirline || countryFallback;
 
-  // Logo
   const img = $("airlineLogo");
   if (img) {
     const candidates = logoCandidatesForFlight(f);
     let i = 0;
-    img.onerror = () => {
-      i += 1;
-      if (i < candidates.length) img.src = candidates[i];
-    };
+    img.onerror = () => { i += 1; if (i < candidates.length) img.src = candidates[i]; };
     img.src = candidates[0];
     img.classList.remove("hidden");
   }
@@ -141,14 +137,12 @@ function renderPrimary(f, radarMeta){
 }
 
 function renderSecondary(f){
-  // If kiosk secondary elements aren't present, do nothing (normal mode).
   if (!$("callsign2") && !$("airline2")) return;
 
   if (!f) {
     $("kioskSecondaryCard") && ($("kioskSecondaryCard").style.display = "none");
     return;
   }
-
   $("kioskSecondaryCard") && ($("kioskSecondaryCard").style.display = "");
 
   $("callsign2").textContent = f.callsign || "—";
@@ -162,10 +156,7 @@ function renderSecondary(f){
   if (img2) {
     const candidates = logoCandidatesForFlight(f);
     let i = 0;
-    img2.onerror = () => {
-      i += 1;
-      if (i < candidates.length) img2.src = candidates[i];
-    };
+    img2.onerror = () => { i += 1; if (i < candidates.length) img2.src = candidates[i]; };
     img2.src = candidates[0];
     img2.classList.remove("hidden");
   }
@@ -224,7 +215,7 @@ function isNNumberCallsign(cs){
   const c = normalizeCallsign(cs);
   return /^N\d/.test(c);
 }
-function groupForFlight(cs, tier){
+function groupForFlight(cs){
   const p = callsignPrefix(cs);
   if (!p) return "B";
   if (isNNumberCallsign(cs)) return "B";
@@ -268,20 +259,38 @@ async function enrichAircraft(primary){
   } catch {}
 }
 
+/* ✅ ROBUST kiosk detection:
+   - /kiosk.html
+   - ?kiosk=1
+   - body.kiosk
+   - window.__KIOSK_MODE__ = true
+*/
 function isKiosk(){
   try {
     if (window.__KIOSK_MODE__ === true) return true;
-    return document.body.classList.contains("kiosk");
+    if (document.body.classList.contains("kiosk")) return true;
+    const p = new URLSearchParams(location.search);
+    if (p.get("kiosk") === "1" || p.get("kiosk") === "true") return true;
+    if ((location.pathname || "").toLowerCase().endsWith("/kiosk.html")) return true;
+    return false;
   } catch {
     return false;
   }
 }
 
+function enableKioskIfRequested(){
+  if (!isKiosk()) return;
+  // Ensure kiosk CSS applies even if you’re on index.html
+  try { document.body.classList.add("kiosk"); } catch {}
+  try { window.__KIOSK_MODE__ = true; } catch {}
+}
+
 async function main(){
+  enableKioskIfRequested();
+
   const statusEl = $("statusText");
   if (statusEl) statusEl.textContent = "Locating…";
 
-  // Normal-mode tier buttons only (kiosk can still keep default tier A)
   const tierSegment = document.getElementById("tierSegment");
   let tier = (localStorage.getItem("fw_tier") || "A").toUpperCase();
   if (tier !== "A" && tier !== "B") tier = "A";
@@ -353,14 +362,7 @@ async function main(){
         const trueTrack = (typeof s[10] === "number") ? s[10] : NaN;
         const distanceMi = (Number.isFinite(lat2) && Number.isFinite(lon2)) ? haversineMi(lat, lon, lat2, lon2) : Infinity;
 
-        return {
-          icao24, callsign, country,
-          baroAlt, velocity, trueTrack, distanceMi,
-          routeText: undefined,
-          modelText: undefined,
-          airlineName: undefined,
-          airlineGuess: guessAirline(callsign),
-        };
+        return { icao24, callsign, country, baroAlt, velocity, trueTrack, distanceMi, routeText:undefined, modelText:undefined, airlineName:undefined, airlineGuess:guessAirline(callsign) };
       }).filter(f => Number.isFinite(f.distanceMi)).sort((a,b)=>a.distanceMi-b.distanceMi);
 
       const shown = flights.filter(f => groupForFlight(f.callsign) === tier);
@@ -369,17 +371,15 @@ async function main(){
       const primary = top[0] || flights[0];
       const secondary = top[1] || null;
 
-      // Apply cached enrichments
       for (const f of top){
         const k = `${f.icao24}|${normalizeCallsign(f.callsign)}`;
         const cached = enrichCache.get(k);
         if (cached) Object.assign(f, cached);
       }
 
-      if (statusEl) statusEl.textContent = "Live";
+      if (statusEl) statusEl.textContent = isKiosk() ? "Kiosk" : "Live";
       renderPrimary(primary, radarMeta);
 
-      // Kiosk: render secondary card; Normal: keep list
       if (isKiosk()) {
         renderSecondary(secondary);
       } else {
@@ -404,7 +404,6 @@ async function main(){
           renderPrimary(primary, radarMeta);
 
           if (isKiosk()) {
-            // Update secondary too if it exists
             if (secondary) {
               const k2 = `${secondary.icao24}|${normalizeCallsign(secondary.callsign)}`;
               const u2 = enrichCache.get(k2);
