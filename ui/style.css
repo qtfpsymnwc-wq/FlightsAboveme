@@ -19,7 +19,7 @@ body{
 }
 #app{min-height:100vh}
 
-/* ───────────── Normal App Layout ───────────── */
+/* ───────────── Normal App Layout (unchanged) ───────────── */
 
 .topbar{
   display:flex;
@@ -123,7 +123,7 @@ body{
 }
 
 /* ─────────────────────────────────────────────
-   KIOSK MODE — DISPLAY MODE
+   KIOSK MODE — DISPLAY MODE (tablet defaults)
    ───────────────────────────────────────────── */
 
 body.kiosk{
@@ -158,19 +158,6 @@ body.kiosk .card{
   justify-content:center;
 }
 
-/* ── Kiosk title header ── */
-body.kiosk .card::before{
-  content:"FlightsAboveMe";
-  position:absolute;
-  top:clamp(18px,3vmin,32px);
-  left:50%;
-  transform:translateX(-50%);
-  font-size:clamp(20px,2.6vmin,34px);
-  font-weight:800;
-  letter-spacing:.5px;
-  color:rgba(234,240,255,.85);
-}
-
 /* Logo */
 body.kiosk .airlineLogo{
   width:clamp(90px,10vmin,140px);
@@ -201,7 +188,7 @@ body.kiosk .model{
   margin-top:14px;
 }
 
-/* 🔼 extra breathing room before stats */
+/* ICAO spacing (more air before stats) */
 body.kiosk .icaoLine{
   margin-top:26px;
   margin-bottom:12px;
@@ -236,4 +223,80 @@ body.kiosk .stat .v{
 body.kiosk .footerLine{
   font-size:clamp(14px,1.8vmin,20px);
   opacity:.85;
+}
+
+/* ─────────────────────────────────────────────
+   KIOSK MODE — PHONE SCALE DOWN
+   If kiosk is opened on an iPhone (or small screens),
+   shrink padding/typography so it fits cleanly.
+   ───────────────────────────────────────────── */
+
+@media (max-width: 600px){
+
+  body.kiosk .card{
+    padding:clamp(16px,4.2vmin,28px);
+    justify-content:flex-start;
+  }
+
+  body.kiosk .primaryHeader{
+    gap:10px;
+  }
+
+  body.kiosk .airlineLogo{
+    width:clamp(54px,10vmin,74px);
+    height:clamp(54px,10vmin,74px);
+    border-radius:16px;
+    padding:10px;
+  }
+
+  body.kiosk .airlineName{
+    font-size:clamp(32px,7.4vmin,46px);
+  }
+
+  body.kiosk .callsign{
+    font-size:clamp(26px,6.6vmin,40px);
+    margin-top:8px;
+  }
+
+  body.kiosk .route{
+    font-size:clamp(15px,4.3vmin,20px);
+    margin-top:12px;
+  }
+
+  body.kiosk .model{
+    font-size:clamp(15px,4.3vmin,20px);
+    margin-top:8px;
+  }
+
+  body.kiosk .icaoLine{
+    margin-top:14px;
+    margin-bottom:10px;
+    font-size:clamp(12px,3.4vmin,14px);
+  }
+
+  body.kiosk .stats{
+    margin-top:16px;
+    margin-bottom:18px;
+    gap:10px;
+    grid-template-columns:repeat(2,1fr);
+  }
+
+  body.kiosk .stat{
+    padding:14px 12px;
+    border-radius:16px;
+  }
+
+  body.kiosk .stat .k{
+    font-size:clamp(12px,3.2vmin,14px);
+    letter-spacing:.8px;
+  }
+
+  body.kiosk .stat .v{
+    font-size:clamp(20px,5.2vmin,28px);
+    margin-top:8px;
+  }
+
+  body.kiosk .footerLine{
+    font-size:12px;
+  }
 }
