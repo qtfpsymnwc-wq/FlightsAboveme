@@ -19,7 +19,9 @@ body{
 }
 #app{min-height:100vh}
 
-/* ───────────── Normal App Layout (unchanged) ───────────── */
+.hidden{display:none!important}
+
+/* ───────────── Top Bar ───────────── */
 
 .topbar{
   display:flex;
@@ -29,9 +31,97 @@ body{
   border-bottom:1px solid var(--line);
   position:sticky;
   top:0;
+  z-index:50;
   backdrop-filter:blur(12px);
   background:rgba(11,18,32,.72);
 }
+
+.brand{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  min-width:0;
+}
+.dot{
+  width:10px;
+  height:10px;
+  border-radius:50%;
+  background:var(--accent);
+  box-shadow:0 0 16px rgba(79,209,197,.55);
+  flex:0 0 auto;
+}
+.brandText{
+  min-width:0;
+}
+.title{
+  font-weight:900;
+  letter-spacing:.2px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.subtitle{
+  color:var(--muted);
+  font-size:12px;
+  margin-top:2px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.right{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex:0 0 auto;
+}
+
+.statusText{
+  color:var(--muted);
+  font-size:13px;
+  font-weight:650;
+  letter-spacing:.2px;
+}
+
+/* ✅ Toggle / segmented control (fixed) */
+.segmented{
+  display:flex;
+  align-items:center;
+  padding:3px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.04);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+  gap:3px;
+}
+
+.segmented button{
+  -webkit-tap-highlight-color: transparent;
+  appearance:none;
+  border:0;
+  background:transparent;
+  color:rgba(154,167,198,.95);
+  padding:8px 14px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.3px;
+  line-height:1;
+  cursor:pointer;
+}
+
+.segmented button.active{
+  background:rgba(79,209,197,.18);
+  color:var(--text);
+  box-shadow: 0 8px 18px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.06);
+}
+
+.segmented button:focus-visible{
+  outline:2px solid rgba(79,209,197,.45);
+  outline-offset:2px;
+}
+
+/* ───────────── Main Layout ───────────── */
 
 .layout{
   display:grid;
@@ -49,6 +139,8 @@ body{
   padding:18px;
   box-shadow:0 12px 30px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.04);
 }
+
+/* ───────────── Primary Card ───────────── */
 
 .primaryHeader{
   display:flex;
@@ -70,27 +162,60 @@ body{
   height:40px;
   border-radius:10px;
   background:#fff;
+  border:1px solid rgba(0,0,0,.12);
   padding:6px;
   object-fit:contain;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.55), 0 8px 18px rgba(0,0,0,.35);
 }
 
-.hidden{display:none!important}
+.airlineName{
+  font-weight:950;
+  letter-spacing:.2px;
+  line-height:1.06;
+  color:#f2f6ff;
+  text-shadow:0 2px 10px rgba(0,0,0,.45);
+}
 
-.airlineName{font-weight:900}
 .callsign{
   font-family:var(--font-mono);
-  font-weight:800;
+  font-weight:850;
+  letter-spacing:.7px;
+  color:#e8eeff;
 }
 
-.route{color:#b7c3e6}
-.model{opacity:.9}
+.route{
+  color:#b7c3e6;
+  margin-top:6px;
+  font-weight:650;
+  letter-spacing:.2px;
+}
+
+.model{
+  margin-top:10px;
+  font-weight:600;
+  color:#d6ddff;
+  opacity:.92;
+}
 
 .icaoLine{
   margin-top:10px;
   font-size:12px;
   color:var(--muted);
+  display:flex;
+  gap:8px;
+  align-items:baseline;
+  justify-content:center;
+}
+.icaoLabel{
+  letter-spacing:.6px;
+  text-transform:uppercase;
+}
+.icaoValue{
+  font-family:var(--font-mono);
+  color:rgba(234,240,255,.92);
 }
 
+/* stats */
 .stats{
   display:grid;
   grid-template-columns:repeat(4,1fr);
@@ -99,31 +224,123 @@ body{
 }
 
 .stat{
-  border-radius:14px;
-  padding:12px;
-  text-align:center;
   background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.015));
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:14px;
+  padding:12px 10px;
+  text-align:center;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 6px 14px rgba(0,0,0,.35);
 }
-
 .stat .k{
   font-size:11px;
-  color:var(--muted);
+  color:rgba(154,167,198,.92);
+  letter-spacing:.6px;
+  text-transform:uppercase;
 }
-
 .stat .v{
   font-size:16px;
-  font-weight:800;
+  font-weight:900;
   margin-top:6px;
+  color:#eef3ff;
 }
 
 .footerLine{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
   margin-top:14px;
+  color:var(--muted);
+  font-size:12px;
+}
+
+/* ───────────── Nearby Flights List (restored tile rows) ───────────── */
+
+.listHeader{
+  display:flex;
+  justify-content:space-between;
+  align-items:baseline;
+  margin-bottom:10px;
+}
+.listTitle{
+  font-weight:950;
+  letter-spacing:.2px;
+}
+.listHint{
   font-size:12px;
   color:var(--muted);
 }
 
+#list{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.row{
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:14px;
+  padding:12px;
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.01));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+}
+
+.row .l{min-width:0}
+.row .cs{
+  font-family:var(--font-mono);
+  font-size:15px;
+  font-weight:950;
+  letter-spacing:.6px;
+  color:#eef3ff;
+}
+.row .rt{
+  color:rgba(183,195,230,.92);
+  font-size:13px;
+  font-weight:650;
+  margin-top:2px;
+  letter-spacing:.2px;
+}
+.row .m{
+  color:rgba(154,167,198,.95);
+  font-size:13px;
+  font-weight:600;
+  margin-top:6px;
+}
+
+.row .r{
+  text-align:right;
+  white-space:nowrap;
+  flex:0 0 auto;
+}
+.row .d{
+  font-weight:950;
+  color:#eef3ff;
+}
+.row .a{
+  color:rgba(154,167,198,.95);
+  font-size:12px;
+  margin-top:2px;
+}
+
+/* Error box */
+.errBox{
+  position:fixed;
+  left:14px;
+  right:14px;
+  bottom:14px;
+  background:#2b0f16;
+  border:1px solid #61202e;
+  color:#ffd7de;
+  padding:12px;
+  border-radius:12px;
+  font-size:13px;
+  z-index:999;
+}
+
 /* ─────────────────────────────────────────────
-   KIOSK MODE — DISPLAY MODE (tablet defaults)
+   KIOSK MODE — DISPLAY MODE
    ───────────────────────────────────────────── */
 
 body.kiosk{
@@ -211,7 +428,7 @@ body.kiosk .stat{
 body.kiosk .stat .k{
   font-size:clamp(18px,2.4vmin,28px);
   letter-spacing:1px;
-  font-weight:700;
+  font-weight:800;
 }
 
 body.kiosk .stat .v{
@@ -227,8 +444,6 @@ body.kiosk .footerLine{
 
 /* ─────────────────────────────────────────────
    KIOSK MODE — PHONE SCALE DOWN
-   If kiosk is opened on an iPhone (or small screens),
-   shrink padding/typography so it fits cleanly.
    ───────────────────────────────────────────── */
 
 @media (max-width: 600px){
