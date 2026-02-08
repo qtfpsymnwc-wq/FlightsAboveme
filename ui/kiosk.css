@@ -1,0 +1,421 @@
+/* FlightsAboveMe — Kiosk (signage-grade)
+   Purpose-built kiosk layout for iPad portrait/landscape.
+   UI-only: does not affect polling, fetch, or Worker behavior.
+*/
+
+:root{
+  color-scheme: dark;
+
+  --bg: #070a10;
+  --panel: rgba(255,255,255,.06);
+  --panel-2: rgba(255,255,255,.04);
+  --stroke: rgba(255,255,255,.14);
+
+  --text: rgba(255,255,255,.94);
+  --muted: rgba(255,255,255,.70);
+  --faint: rgba(255,255,255,.55);
+
+  --good: #75f2c6;
+  --warn: #ffd27a;
+  --bad:  #ff8aa0;
+
+  --radius: 22px;
+  --pad: clamp(14px, 2.2vmin, 26px);
+
+  --title: clamp(24px, 3.4vmin, 40px);
+
+  --airline: clamp(38px, 6.0vmin, 72px);
+  --callsign: clamp(28px, 4.6vmin, 56px);
+  --route: clamp(22px, 3.3vmin, 40px);
+  --model: clamp(18px, 2.7vmin, 30px);
+  --icao: clamp(14px, 2.1vmin, 22px);
+
+  --statK: clamp(14px, 2.1vmin, 22px);
+  --statV: clamp(30px, 5.2vmin, 62px);
+
+  --secondaryAirline: clamp(24px, 3.4vmin, 42px);
+  --secondaryLine: clamp(18px, 2.5vmin, 30px);
+  --secondaryIcao: clamp(14px, 2.0vmin, 20px);
+}
+
+*{ box-sizing:border-box; }
+html, body{ height:100%; }
+body{
+  margin:0;
+  background: radial-gradient(1200px 700px at 50% -120px, rgba(120,160,255,.12), transparent 60%),
+              linear-gradient(180deg, rgba(255,255,255,.06), transparent 20%),
+              var(--bg);
+  color:var(--text);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  letter-spacing:.1px;
+}
+
+/* Utility */
+.hidden{ display:none !important; }
+.kioskOnly{ display:inline-flex; }
+
+/* App frame */
+body.kiosk{
+  overflow:hidden;
+}
+
+#app.kioskApp{
+  min-height:100svh;
+  padding:
+    calc(env(safe-area-inset-top) + var(--pad))
+    calc(env(safe-area-inset-right) + var(--pad))
+    calc(env(safe-area-inset-bottom) + var(--pad))
+    calc(env(safe-area-inset-left) + var(--pad));
+  display:flex;
+  flex-direction:column;
+  gap: clamp(10px, 1.8vmin, 18px);
+}
+
+/* Header */
+.kioskTitle{
+  font-size: var(--title);
+  font-weight: 900;
+  letter-spacing: .6px;
+  opacity: .95;
+  line-height: 1.05;
+  padding-right: 94px; /* leave room for Exit button */
+  user-select:none;
+}
+
+/* Main layout: portrait stacks; landscape shows two columns */
+main.kioskLayout{
+  flex: 1;
+  min-height: 0;
+  display:grid;
+  gap: clamp(12px, 2.2vmin, 22px);
+  grid-template-rows: 1fr 0.46fr;
+  grid-template-columns: 1fr;
+}
+
+/* Landscape: side-by-side */
+@media (orientation: landscape){
+  main.kioskLayout{
+    grid-template-rows: 1fr;
+    grid-template-columns: 1.7fr 1fr;
+  }
+  .kioskSecondary{ height:100%; }
+}
+
+/* Cards */
+.card{
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius);
+  box-shadow:
+    0 18px 40px rgba(0,0,0,.35),
+    inset 0 1px 0 rgba(255,255,255,.08);
+  overflow:hidden;
+}
+
+.kioskPrimary{
+  display:flex;
+  flex-direction:column;
+  padding: clamp(16px, 2.4vmin, 28px);
+  gap: clamp(14px, 2.2vmin, 22px);
+}
+
+.primaryHeader{
+  display:grid;
+  grid-template-columns: 1fr;
+  gap: clamp(10px, 1.6vmin, 16px);
+}
+
+.airlineHeader{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap: clamp(12px, 1.8vmin, 20px);
+}
+
+.airlineLogo{
+  width: clamp(54px, 6.0vmin, 86px);
+  height: clamp(54px, 6.0vmin, 86px);
+  object-fit: contain;
+  filter: drop-shadow(0 10px 18px rgba(0,0,0,.35));
+}
+
+.airlineName{
+  font-size: var(--airline);
+  font-weight: 950;
+  line-height: 1.0;
+  text-align:center;
+  text-wrap: balance;
+}
+
+.aircraftBlock{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap: clamp(6px, 1.2vmin, 10px);
+}
+
+.callsign{
+  font-size: var(--callsign);
+  font-weight: 900;
+  letter-spacing: .6px;
+  line-height: 1.05;
+  text-align:center;
+}
+
+.route{
+  font-size: var(--route);
+  font-weight: 800;
+  line-height: 1.1;
+  text-align:center;
+  color: var(--muted);
+
+  /* keep readable if long */
+  max-width: 100%;
+  overflow:hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model{
+  font-size: var(--model);
+  font-weight: 850;
+  line-height: 1.15;
+  text-align:center;
+  color: var(--muted);
+
+  max-width: 100%;
+  overflow:hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.icaoLine{
+  display:flex;
+  align-items:baseline;
+  gap: .55em;
+  font-size: var(--icao);
+  font-weight: 850;
+  letter-spacing: .4px;
+  color: var(--faint);
+}
+
+.icaoLabel{
+  opacity:.8;
+  font-weight: 900;
+  letter-spacing: .8px;
+}
+.icaoValue{
+  color: var(--text);
+  opacity:.92;
+}
+
+/* Stats row */
+.kioskStats{
+  display:grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: clamp(10px, 1.6vmin, 16px);
+}
+
+.kioskStats .stat{
+  background: var(--panel-2);
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: calc(var(--radius) - 8px);
+  padding: clamp(10px, 1.6vmin, 16px);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap: clamp(6px, .9vmin, 10px);
+}
+
+.kioskStats .k{
+  font-size: var(--statK);
+  font-weight: 950;
+  letter-spacing: 1px;
+  color: var(--faint);
+}
+.kioskStats .v{
+  font-size: var(--statV);
+  font-weight: 950;
+  letter-spacing: .6px;
+  line-height: 1.0;
+}
+
+/* Footer line (radar source) */
+.footerLine{
+  margin-top:auto;
+  padding-top: clamp(8px, 1.4vmin, 14px);
+  border-top: 1px solid rgba(255,255,255,.10);
+  font-size: clamp(14px, 2.0vmin, 18px);
+  color: var(--faint);
+  text-align:center;
+  letter-spacing: .3px;
+}
+
+/* Secondary card */
+.kioskSecondary{
+  padding: clamp(14px, 2.0vmin, 22px);
+  display:flex;
+  flex-direction:column;
+  gap: clamp(10px, 1.6vmin, 16px);
+}
+
+.kioskSecondaryHead{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap: 12px;
+  padding-bottom: clamp(8px, 1.2vmin, 12px);
+  border-bottom: 1px solid rgba(255,255,255,.10);
+}
+
+.kioskSecondaryLabel{
+  font-size: clamp(14px, 2.0vmin, 18px);
+  font-weight: 950;
+  letter-spacing: .9px;
+  color: var(--faint);
+  text-transform: uppercase;
+}
+
+.kioskSecondaryDist{
+  font-size: clamp(16px, 2.2vmin, 22px);
+  font-weight: 950;
+  color: var(--text);
+}
+
+.kioskSecondaryBody{
+  display:flex;
+  flex-direction:column;
+  gap: clamp(8px, 1.2vmin, 12px);
+  align-items:center;
+}
+
+.kioskAirline2{
+  font-size: var(--secondaryAirline);
+  font-weight: 950;
+  line-height: 1.05;
+  text-align:center;
+  text-wrap: balance;
+}
+
+.kioskCallsign2{
+  font-size: clamp(20px, 2.8vmin, 34px);
+  font-weight: 950;
+  letter-spacing: .5px;
+  text-align:center;
+}
+
+#route2, #model2{
+  font-size: var(--secondaryLine);
+  font-weight: 850;
+  color: var(--muted);
+  text-align:center;
+
+  max-width: 100%;
+  overflow:hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#icao242{
+  font-variant-numeric: tabular-nums;
+}
+
+.kioskSecondaryMini{
+  margin-top:auto;
+  display:grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: clamp(10px, 1.6vmin, 16px);
+}
+
+.kioskMiniItem{
+  background: var(--panel-2);
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: calc(var(--radius) - 10px);
+  padding: clamp(10px, 1.5vmin, 14px);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap: clamp(6px, .9vmin, 10px);
+}
+
+.kioskMiniK{
+  font-size: clamp(12px, 1.7vmin, 16px);
+  font-weight: 950;
+  letter-spacing: 1px;
+  color: var(--faint);
+}
+.kioskMiniV{
+  font-size: clamp(22px, 3.2vmin, 36px);
+  font-weight: 950;
+  letter-spacing: .4px;
+  line-height: 1.0;
+}
+
+/* Status overlay (subtle, non-intrusive) */
+.kioskStatus{
+  position: fixed;
+  left: calc(env(safe-area-inset-left) + var(--pad));
+  bottom: calc(env(safe-area-inset-bottom) + var(--pad));
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(0,0,0,.35);
+  color: rgba(255,255,255,.78);
+  font-weight: 850;
+  font-size: clamp(12px, 1.8vmin, 16px);
+  letter-spacing: .3px;
+  backdrop-filter: blur(10px);
+}
+
+/* Error box (kept compatible with existing JS) */
+.errBox{
+  position:fixed;
+  left: calc(env(safe-area-inset-left) + var(--pad));
+  right: calc(env(safe-area-inset-right) + var(--pad));
+  bottom: calc(env(safe-area-inset-bottom) + var(--pad) + 44px);
+  background: rgba(60,16,26,.95);
+  border: 1px solid rgba(255,138,160,.35);
+  color: rgba(255,215,222,.98);
+  padding: 14px 16px;
+  border-radius: 16px;
+  font-size: clamp(14px, 2.0vmin, 18px);
+  font-weight: 700;
+  z-index: 999;
+}
+
+/* Exit button (fixed top-right) */
+.modeToggle{
+  -webkit-tap-highlight-color: transparent;
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + var(--pad));
+  right: calc(env(safe-area-inset-right) + var(--pad));
+  z-index: 1000;
+
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+
+  height: clamp(44px, 5.4vmin, 62px);
+  padding: 0 clamp(16px, 2.2vmin, 24px);
+  border-radius: 999px;
+
+  text-decoration:none;
+  font-size: clamp(16px, 2.1vmin, 22px);
+  font-weight: 950;
+  letter-spacing: .6px;
+
+  color: var(--text);
+  border: 1px solid rgba(255,255,255,.18);
+  background: rgba(255,255,255,.08);
+  box-shadow:
+    0 14px 28px rgba(0,0,0,.35),
+    inset 0 1px 0 rgba(255,255,255,.10);
+}
+
+/* Ensure tap target stays obvious on bright reflections */
+.modeToggle:active{
+  transform: translateY(1px);
+  background: rgba(255,255,255,.12);
+}
