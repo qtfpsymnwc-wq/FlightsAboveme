@@ -15,26 +15,23 @@
   --glowA: rgba(120,220,255,.22);
   --glowB: rgba(120,220,255,.12);
 
-  --stroke: rgba(255,255,255,.12);
-
   --safeTop: env(safe-area-inset-top);
   --safeRight: env(safe-area-inset-right);
   --safeBottom: env(safe-area-inset-bottom);
   --safeLeft: env(safe-area-inset-left);
 
-  /* Outer safe padding (keep minimal so the display feels full-screen) */
+  /* Outer safe padding */
   --pad: clamp(8px, 1.2vmin, 14px);
 
-  /* BIG typography targets (distance readability first) */
-  --airline: clamp(52px, 8.2vmin, 124px);
-
-  /* Route + aircraft line (bigger + bolder for ~15ft) */
-  --route:   clamp(46px, 7.0vmin, 108px);
-  --sub:     clamp(32px, 4.9vmin, 74px);
+  /* ✅ BIGGER typography (15ft readability) */
+  --airline: clamp(64px, 9.6vmin, 156px);
+  --route:   clamp(54px, 8.2vmin, 128px);
+  --sub:     clamp(40px, 6.0vmin, 92px);
 
   --tiny:    clamp(16px, 2.2vmin, 28px);
 
-  --statV:   clamp(44px, 7.2vmin, 120px);
+  /* ✅ Stats bigger */
+  --statV:   clamp(58px, 9.0vmin, 148px);
   --statK:   clamp(16px, 2.2vmin, 26px);
 
   --topBar:  clamp(14px, 1.9vmin, 20px);
@@ -112,31 +109,29 @@ body{
   flex: 1;
   min-height: 0;
 
-  /* Full-screen feel: remove "card" framing */
   border-radius: 0;
   border: 0;
   overflow:hidden;
 
+  /* ✅ Softer dot matrix (less contrast so logos + text pop) */
   background:
-    radial-gradient(circle at 1px 1px, rgba(255,255,255,.085) 1px, transparent 1.6px) 0 0 / 8px 8px,
-    linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.42)),
-    linear-gradient(180deg, rgba(20,30,55,.18), rgba(0,0,0,.0) 35%),
+    radial-gradient(circle at 1px 1px, rgba(255,255,255,.048) 1px, transparent 1.6px) 0 0 / 9px 9px,
+    linear-gradient(180deg, rgba(0,0,0,.14), rgba(0,0,0,.38)),
+    linear-gradient(180deg, rgba(20,30,55,.16), rgba(0,0,0,.0) 35%),
     linear-gradient(180deg, #070a12, #04060b);
 
-  box-shadow: none;
-
   display:grid;
-  /* Top takes all remaining height; bottom auto sizes to content */
   grid-template-rows: 1fr auto;
 }
 
-/* ✅ Tighter logo/text spacing; smaller logo column */
+/* Top area */
 .topPane{
   display:grid;
   grid-template-columns: auto 1fr;
-  gap: clamp(8px, 1.2vmin, 12px);
+  gap: clamp(10px, 1.4vmin, 16px);
   padding: clamp(14px, 2.2vmin, 22px);
   align-items:center;
+  min-height: 0;
 }
 
 @media (orientation: portrait){
@@ -156,14 +151,24 @@ body{
   justify-content:flex-start;
 }
 
+/* ✅ Logo visibility fix: give the image a light plate */
 .logo{
-  /* Slightly smaller + less airy so text can breathe */
-  width: clamp(140px, 22vmin, 260px);
-  height: clamp(140px, 22vmin, 260px);
+  width: clamp(150px, 22vmin, 270px);
+  height: clamp(150px, 22vmin, 270px);
   object-fit: contain;
+
+  background: rgba(255,255,255,.10);
+  border: 1px solid rgba(255,255,255,.16);
+  padding: clamp(10px, 1.4vmin, 16px);
+  border-radius: 22px;
+
+  box-shadow:
+    0 18px 34px rgba(0,0,0,.55),
+    inset 0 1px 0 rgba(255,255,255,.10),
+    0 0 18px rgba(120,220,255,.10);
+
   filter:
-    drop-shadow(0 18px 30px rgba(0,0,0,.55))
-    drop-shadow(0 0 18px rgba(120,220,255,.10));
+    drop-shadow(0 10px 18px rgba(0,0,0,.35));
 }
 
 /* Text */
@@ -171,7 +176,7 @@ body{
   display:flex;
   flex-direction:column;
   justify-content:center;
-  gap: clamp(8px, 1.2vmin, 12px);
+  gap: clamp(10px, 1.5vmin, 16px);
   min-width: 0;
   width: 100%;
 }
@@ -186,12 +191,12 @@ body{
   font-size: var(--airline);
   font-weight: 950;
   letter-spacing: .6px;
-  line-height: 1.03;
+  line-height: 1.02;
   text-wrap: balance;
   max-width: 100%;
 }
 
-/* ✅ Two-line route block */
+/* Two-line route block */
 .routeBlock{
   display:flex;
   flex-direction:column;
@@ -202,7 +207,7 @@ body{
   font-size: var(--route);
   font-weight: 950;
   color: rgba(255,255,255,.92);
-  line-height: 1.05;
+  line-height: 1.04;
 
   max-width: 100%;
   overflow:hidden;
@@ -217,16 +222,16 @@ body{
 .sub{
   font-size: var(--sub);
   font-weight: 950;
-  color: rgba(255,255,255,.84);
+  color: rgba(255,255,255,.86);
   display:flex;
   flex-wrap: wrap;
   align-items:baseline;
-  gap: 10px;
+  gap: 14px;
   line-height: 1.10;
 }
 
-.callsign{ color: rgba(255,255,255,.96); }
-.model{ color: rgba(255,255,255,.82); }
+.callsign{ color: rgba(255,255,255,.98); }
+.model{ color: rgba(255,255,255,.86); }
 .sep{ color: rgba(255,255,255,.50); }
 
 .tiny{
@@ -241,20 +246,20 @@ body{
 .tinyLabel{ color: rgba(255,255,255,.52); text-transform: uppercase; }
 .tinyValue{ color: rgba(255,255,255,.78); }
 
-/* Bottom stats (unchanged for now per your note) */
+/* Bottom stats */
 .bottomPane{
-  padding: clamp(12px, 2.0vmin, 20px);
+  padding: clamp(10px, 1.8vmin, 16px); /* ✅ tighter */
   display:flex;
   flex-direction:column;
-  gap: clamp(10px, 1.6vmin, 14px);
+  gap: clamp(10px, 1.4vmin, 12px);
   border-top: 1px solid rgba(255,255,255,.10);
-  background: linear-gradient(180deg, rgba(0,0,0,.10), rgba(0,0,0,.20));
+  background: linear-gradient(180deg, rgba(0,0,0,.10), rgba(0,0,0,.18));
 }
 
 .statsRow{
   display:grid;
   grid-template-columns: 1fr 1fr;
-  gap: clamp(12px, 2.0vmin, 18px);
+  gap: clamp(10px, 1.6vmin, 14px); /* ✅ tighter */
   min-height: 0;
 }
 
@@ -262,11 +267,11 @@ body{
   border: 1px solid rgba(255,255,255,.10);
   border-radius: 16px;
   background: rgba(255,255,255,.04);
-  padding: clamp(12px, 2.0vmin, 18px);
+  padding: clamp(10px, 1.6vmin, 14px); /* ✅ tighter */
   display:flex;
   flex-direction:column;
   justify-content:center;
-  gap: clamp(6px, 1.0vmin, 10px);
+  gap: clamp(6px, 1.0vmin, 8px);
 }
 
 .stat .k{
@@ -280,7 +285,7 @@ body{
 .stat .v{
   font-size: var(--statV);
   font-weight: 950;
-  color: rgba(180,240,255,.95);
+  color: rgba(180,240,255,.96);
   line-height: 1.0;
   letter-spacing: .6px;
   text-shadow:
@@ -299,9 +304,9 @@ body{
   font-size: clamp(14px, 2.0vmin, 20px);
   font-weight: 900;
   letter-spacing: .7px;
-  color: rgba(255,255,255,.70);
+  color: rgba(255,255,255,.72);
 
-  padding-top: clamp(8px, 1.4vmin, 12px);
+  padding-top: clamp(8px, 1.2vmin, 10px);
   border-top: 1px solid rgba(255,255,255,.08);
 }
 
