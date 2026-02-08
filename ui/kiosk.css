@@ -1,4 +1,4 @@
-/* FlightsAboveMe — Kiosk (LED-board / signage-grade)
+/* FlightsAboveMe — Kiosk (signage-grade, iPad portrait + landscape)
    UI-only. Keeps existing IDs so app.js can populate fields unchanged.
 */
 
@@ -20,17 +20,15 @@
   --safeBottom: env(safe-area-inset-bottom);
   --safeLeft: env(safe-area-inset-left);
 
-  /* Outer safe padding */
   --pad: clamp(8px, 1.2vmin, 14px);
 
-  /* ✅ BIGGER typography (15ft readability) */
+  /* Big type */
   --airline: clamp(64px, 9.6vmin, 156px);
   --route:   clamp(54px, 8.2vmin, 128px);
   --sub:     clamp(40px, 6.0vmin, 92px);
-
   --tiny:    clamp(16px, 2.2vmin, 28px);
 
-  /* ✅ Stats bigger */
+  /* Stats */
   --statV:   clamp(58px, 9.0vmin, 148px);
   --statK:   clamp(16px, 2.2vmin, 26px);
 
@@ -108,23 +106,23 @@ body{
 .board{
   flex: 1;
   min-height: 0;
-
   border-radius: 0;
   border: 0;
   overflow:hidden;
 
-  /* ✅ Softer dot matrix (less contrast so logos + text pop) */
+  /* ✅ Dot matrix even softer so logos/text win */
   background:
-    radial-gradient(circle at 1px 1px, rgba(255,255,255,.048) 1px, transparent 1.6px) 0 0 / 9px 9px,
-    linear-gradient(180deg, rgba(0,0,0,.14), rgba(0,0,0,.38)),
-    linear-gradient(180deg, rgba(20,30,55,.16), rgba(0,0,0,.0) 35%),
+    radial-gradient(circle at 1px 1px, rgba(255,255,255,.038) 1px, transparent 1.6px) 0 0 / 10px 10px,
+    linear-gradient(180deg, rgba(0,0,0,.12), rgba(0,0,0,.36)),
+    linear-gradient(180deg, rgba(20,30,55,.14), rgba(0,0,0,.0) 35%),
     linear-gradient(180deg, #070a12, #04060b);
 
   display:grid;
   grid-template-rows: 1fr auto;
 }
 
-/* Top area */
+/* -------------------- TOP PANE LAYOUT -------------------- */
+/* Default (landscape): logo left, text right */
 .topPane{
   display:grid;
   grid-template-columns: auto 1fr;
@@ -134,41 +132,54 @@ body{
   min-height: 0;
 }
 
+/* ✅ Portrait: force stable 2-col grid so logo never overlaps/drifts */
 @media (orientation: portrait){
   .topPane{
-    grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
-    justify-items:center;
-    gap: clamp(10px, 1.6vmin, 16px);
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto;
+    align-items:start;
+    padding: clamp(14px, 2.0vmin, 20px);
+    gap: clamp(12px, 1.8vmin, 18px);
   }
 }
 
+/* Logo block */
 .logoPane{
-  height: 100%;
-  min-height: 0;
   display:flex;
   align-items:center;
   justify-content:flex-start;
 }
 
-/* ✅ Logo visibility fix: give the image a light plate */
+/* ✅ LIGHTER logo plate + inner highlight + glow ring */
 .logo{
   width: clamp(150px, 22vmin, 270px);
   height: clamp(150px, 22vmin, 270px);
   object-fit: contain;
 
-  background: rgba(255,255,255,.10);
-  border: 1px solid rgba(255,255,255,.16);
+  /* plate */
+  background:
+    radial-gradient(120% 120% at 30% 25%, rgba(255,255,255,.30), rgba(255,255,255,.14) 55%, rgba(255,255,255,.10)),
+    rgba(255,255,255,.16);
+  border: 1px solid rgba(255,255,255,.30);
   padding: clamp(10px, 1.4vmin, 16px);
   border-radius: 22px;
 
   box-shadow:
     0 18px 34px rgba(0,0,0,.55),
-    inset 0 1px 0 rgba(255,255,255,.10),
-    0 0 18px rgba(120,220,255,.10);
+    inset 0 1px 0 rgba(255,255,255,.22),
+    inset 0 -1px 0 rgba(0,0,0,.20),
+    0 0 0 2px rgba(255,255,255,.08),
+    0 0 26px rgba(120,220,255,.12);
 
-  filter:
-    drop-shadow(0 10px 18px rgba(0,0,0,.35));
+  filter: drop-shadow(0 10px 18px rgba(0,0,0,.30));
+}
+
+/* In portrait, keep logo a bit smaller so text gets room */
+@media (orientation: portrait){
+  .logo{
+    width: clamp(120px, 18vmin, 210px);
+    height: clamp(120px, 18vmin, 210px);
+  }
 }
 
 /* Text */
@@ -196,7 +207,7 @@ body{
   max-width: 100%;
 }
 
-/* Two-line route block */
+/* Route (2 lines) */
 .routeBlock{
   display:flex;
   flex-direction:column;
@@ -215,10 +226,9 @@ body{
   white-space: nowrap;
 }
 
-.route2{
-  color: rgba(255,255,255,.88);
-}
+.route2{ color: rgba(255,255,255,.88); }
 
+/* Callsign + model */
 .sub{
   font-size: var(--sub);
   font-weight: 950;
@@ -229,7 +239,6 @@ body{
   gap: 14px;
   line-height: 1.10;
 }
-
 .callsign{ color: rgba(255,255,255,.98); }
 .model{ color: rgba(255,255,255,.86); }
 .sep{ color: rgba(255,255,255,.50); }
@@ -246,9 +255,9 @@ body{
 .tinyLabel{ color: rgba(255,255,255,.52); text-transform: uppercase; }
 .tinyValue{ color: rgba(255,255,255,.78); }
 
-/* Bottom stats */
+/* -------------------- STATS -------------------- */
 .bottomPane{
-  padding: clamp(10px, 1.8vmin, 16px); /* ✅ tighter */
+  padding: clamp(10px, 1.8vmin, 16px);
   display:flex;
   flex-direction:column;
   gap: clamp(10px, 1.4vmin, 12px);
@@ -259,15 +268,14 @@ body{
 .statsRow{
   display:grid;
   grid-template-columns: 1fr 1fr;
-  gap: clamp(10px, 1.6vmin, 14px); /* ✅ tighter */
-  min-height: 0;
+  gap: clamp(10px, 1.6vmin, 14px);
 }
 
 .stat{
   border: 1px solid rgba(255,255,255,.10);
   border-radius: 16px;
   background: rgba(255,255,255,.04);
-  padding: clamp(10px, 1.6vmin, 14px); /* ✅ tighter */
+  padding: clamp(10px, 1.6vmin, 14px);
   display:flex;
   flex-direction:column;
   justify-content:center;
