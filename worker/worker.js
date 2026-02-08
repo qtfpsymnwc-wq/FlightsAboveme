@@ -43,6 +43,227 @@ const OPENSKY_STATES_TIMEOUT_MS = 18000;
 const ADSBLOL_DEFAULT_BASE = "https://api.adsb.lol";
 const ADSBLOL_TIMEOUT_MS = 12000;
 
+// ---- AeroDataBox Credit Efficiency (Warm Cache Enrichment) ----
+// Goal: reduce duplicate AeroDataBox calls by warming cache for likely-relevant flights
+// without changing the UI contract. This runs asynchronously via ctx.waitUntil().
+
+// TTLs
+const AERODATA_AIRCRAFT_TTL_S = 60 * 60 * 24 * 7; // 7 days
+const AERODATA_FLIGHT_TTL_S = 60 * 60 * 6; // 6 hours
+
+// Enrichment gating (miles / degrees)
+const ENRICH_MAX_REQUESTS_PER_CYCLE = 2;
+const ENRICH_DIST_APPROACH_MI = 35;
+const ENRICH_DIST_NEAR_MI = 15;
+const ENRICH_DIST_OVERHEAD_MI = 8;
+
+const ENRICH_DELTA_APPROACH_DEG = 75;
+const ENRICH_DELTA_DEPART_DEG = 105;
+
+// Common cargo operators (avoid burning credits for flights you won't show under airlines)
+const CARGO_PREFIX_BLOCKLIST = new Set([
+  "FDX",
+  "UPS",
+  "GTI",
+  "ABX",
+  "CKS",
+  "PAC",
+  "POE",
+  "MXY",
+  "AJT",
+  "NCR",
+  "KFS",
+  "SRQ",
+  "RZO",
+  "OAE",
+]);
+
+function toRad(d) {
+  return (d * Math.PI) / 180;
+}
+function toDeg(r) {
+  return (r * 180) / Math.PI;
+}
+
+function haversineMiles(lat1, lon1, lat2, lon2) {
+  const Rm = 3958.7613; // Earth radius miles
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Rm * c;
+}
+
+// Bearing from point1 -> point2, degrees [0,360)
+function bearingDeg(lat1, lon1, lat2, lon2) {
+  const φ1 = toRad(lat1),
+    φ2 = toRad(lat2);
+  const Δλ = toRad(lon2 - lon1);
+  const y = Math.sin(Δλ) * Math.cos(φ2);
+  const x =
+    Math.cos(φ1) * Math.sin(φ2) -
+    Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+}
+
+function deltaAngleDeg(a, b) {
+  let d = Math.abs(a - b) % 360;
+  return d > 180 ? 360 - d : d;
+}
+
+// Conservative "likely passenger airline" heuristic (prevents wasting credits on GA/private/military)
+function isLikelyPassengerCallsign(raw) {
+  const cs = String(raw || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "");
+  // Typical airline callsign: 3 letters + digits (e.g., AAL1234). We keep this conservative.
+  const m = cs.match(/^([A-Z]{3})(\d{1,5})([A-Z]?)$/);
+  if (!m) return false;
+  const prefix = m[1];
+  if (CARGO_PREFIX_BLOCKLIST.has(prefix)) return false;
+  return true;
+}
+
+function shouldWarmEnrich({ distanceMi, deltaDeg }) {
+  if (distanceMi <= ENRICH_DIST_OVERHEAD_MI) return true;
+  if (distanceMi <= ENRICH_DIST_NEAR_MI && deltaDeg < ENRICH_DELTA_DEPART_DEG)
+    return true;
+  if (
+    distanceMi <= ENRICH_DIST_APPROACH_MI &&
+    deltaDeg <= ENRICH_DELTA_APPROACH_DEG
+  )
+    return true;
+  return false;
+}
+
+function aerodataConfigured(env) {
+  return Boolean(env && env.AERODATA_KEY && env.AERODATA_HOST);
+}
+
+function cacheKeyFlight(origin, callsign) {
+  return new Request(
+    `${origin}/__cache/aerodata/flight/${encodeURIComponent(callsign)}`,
+    { method: "GET" }
+  );
+}
+function cacheKeyAircraft(origin, hex) {
+  return new Request(
+    `${origin}/__cache/aerodata/aircraft/${encodeURIComponent(hex)}`,
+    { method: "GET" }
+  );
+}
+
+async function cacheJson(cache, req, obj, ttlS) {
+  await cache.put(
+    req,
+    new Response(JSON.stringify(obj), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": `public, max-age=${ttlS}`,
+      },
+    })
+  );
+}
+
+async function fetchAeroDataBoxJson(env, upstreamUrl) {
+  const res = await fetch(upstreamUrl, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "X-RapidAPI-Key": String(env.AERODATA_KEY),
+      "X-RapidAPI-Host": String(env.AERODATA_HOST),
+    },
+  });
+  const text = await res.text();
+  if (res.status === 429) return { ok: false, _status: 429, _text: text };
+  if (!res.ok) return { ok: false, _status: res.status, _text: text };
+  try {
+    return { ok: true, data: JSON.parse(text) };
+  } catch {
+    return { ok: false, _status: 502, _text: "non_json" };
+  }
+}
+
+// Warm-cache enrichment kicked off from /opensky/states response.
+// Uses bbox center as a proxy for observer location (UI remains unchanged).
+async function warmEnrichFromStates({ origin, env, cache, states, bboxCenter }) {
+  if (!aerodataConfigured(env)) return;
+
+  const [cLat, cLon] = bboxCenter;
+
+  // Build candidate list with distance + heading delta
+  const candidates = [];
+  for (const s of states) {
+    // OpenSky state vector indices:
+    // 0 icao24, 1 callsign, 5 lon, 6 lat, 10 true_track
+    const icao24 = s && s[0] ? String(s[0]).trim().toLowerCase() : "";
+    const callsignRaw = s && s[1] ? String(s[1]) : "";
+    const lon = s && typeof s[5] === "number" ? s[5] : null;
+    const lat = s && typeof s[6] === "number" ? s[6] : null;
+    const track = s && typeof s[10] === "number" ? s[10] : null;
+
+    if (!icao24 || !callsignRaw) continue;
+    if (!isLikelyPassengerCallsign(callsignRaw)) continue;
+    if (lat === null || lon === null || track === null) continue;
+
+    const distanceMi = haversineMiles(lat, lon, cLat, cLon);
+    if (distanceMi > ENRICH_DIST_APPROACH_MI) continue;
+
+    const brg = bearingDeg(lat, lon, cLat, cLon);
+    const deltaDeg = deltaAngleDeg(track, brg);
+
+    if (!shouldWarmEnrich({ distanceMi, deltaDeg })) continue;
+
+    const callsign = String(callsignRaw)
+      .trim()
+      .toUpperCase()
+      .replace(/\s+/g, "");
+    candidates.push({ icao24, callsign, distanceMi, deltaDeg });
+  }
+
+  candidates.sort((a, b) => a.distanceMi - b.distanceMi);
+
+  let budget = ENRICH_MAX_REQUESTS_PER_CYCLE;
+
+  for (const c of candidates) {
+    if (budget <= 0) break;
+
+    // Aircraft warm cache (long TTL)
+    const aKey = cacheKeyAircraft(origin, c.icao24);
+    const aHit = await cache.match(aKey);
+    if (!aHit && budget > 0) {
+      const upstreamUrl = `https://${env.AERODATA_HOST}/aircrafts/icao24/${encodeURIComponent(
+        c.icao24
+      )}`;
+      const out = await fetchAeroDataBoxJson(env, upstreamUrl);
+      if (out.ok) {
+        await cacheJson(cache, aKey, out.data, AERODATA_AIRCRAFT_TTL_S);
+        budget--;
+      }
+    }
+
+    // Flight warm cache (shorter TTL)
+    const fKey = cacheKeyFlight(origin, c.callsign);
+    const fHit = await cache.match(fKey);
+    if (!fHit && budget > 0) {
+      const upstreamUrl = `https://${env.AERODATA_HOST}/flights/callsign/${encodeURIComponent(
+        c.callsign
+      )}`;
+      const out = await fetchAeroDataBoxJson(env, upstreamUrl);
+      if (out.ok) {
+        await cacheJson(cache, fKey, out.data, AERODATA_FLIGHT_TTL_S);
+        budget--;
+      }
+    }
+  }
+}
+
 // In-memory token cache (per Worker isolate)
 let _tokenCache = {
   accessToken: "",
@@ -97,7 +318,11 @@ export default {
 
       if (!lamin || !lomin || !lamax || !lomax) {
         return json(
-          { ok: false, error: "missing bbox params", hint: "lamin,lomin,lamax,lomax required" },
+          {
+            ok: false,
+            error: "missing bbox params",
+            hint: "lamin,lomin,lamax,lomax required",
+          },
           400,
           cors
         );
@@ -107,9 +332,13 @@ export default {
 
       // Cache by bbox + auth mode (avoid mixing anon/auth results)
       const cacheKey = new Request(
-        `${url.origin}/__cache/opensky/states?lamin=${encodeURIComponent(lamin)}&lomin=${encodeURIComponent(
+        `${url.origin}/__cache/opensky/states?lamin=${encodeURIComponent(
+          lamin
+        )}&lomin=${encodeURIComponent(
           lomin
-        )}&lamax=${encodeURIComponent(lamax)}&lomax=${encodeURIComponent(lomax)}&mode=${encodeURIComponent(mode)}`,
+        )}&lamax=${encodeURIComponent(
+          lamax
+        )}&lomax=${encodeURIComponent(lomax)}&mode=${encodeURIComponent(mode)}`,
         { method: "GET" }
       );
 
@@ -134,6 +363,27 @@ export default {
           },
         });
         ctx.waitUntil(cache.put(cacheKey, out.clone()));
+        // Warm AeroDataBox cache asynchronously (UI contract unchanged)
+        const bboxCenter = [
+          (Number(lamin) + Number(lamax)) / 2,
+          (Number(lomin) + Number(lomax)) / 2,
+        ];
+        ctx.waitUntil(
+          (async () => {
+            try {
+              const j = JSON.parse(text);
+              const states = Array.isArray(j?.states) ? j.states : [];
+              if (states.length)
+                await warmEnrichFromStates({
+                  origin: url.origin,
+                  env,
+                  cache,
+                  states,
+                  bboxCenter,
+                });
+            } catch {}
+          })()
+        );
         return out;
       };
 
@@ -193,15 +443,15 @@ export default {
           bbox: { lamin, lomin, lamax, lomax },
         });
       } catch (err) {
-        // Timeout / network failure: try cache → fallback → error
+        // OpenSky fetch threw (timeout/network): try cache → fallback → error
         return await handleOpenSkyFailure({
           env,
           cors,
           cache,
           cacheKey,
           ctx,
-          status: null,
-          detail: err && err.message ? err.message : "unknown",
+          status: 522,
+          detail: err && err.message ? err.message : "fetch_failed",
           bbox: { lamin, lomin, lamax, lomax },
           thrown: true,
         });
@@ -215,13 +465,26 @@ export default {
 
       if (!env.AERODATA_KEY || !env.AERODATA_HOST) {
         return json(
-          { ok: false, error: "aerodata_not_configured", hint: "Set AERODATA_KEY (Secret) and AERODATA_HOST (Text)" },
+          {
+            ok: false,
+            error: "aerodata_not_configured",
+            hint: "Set AERODATA_KEY (Secret) and AERODATA_HOST (Text)",
+          },
           500,
           cors
         );
       }
 
-      const upstreamUrl = `https://${env.AERODATA_HOST}/flights/callsign/${encodeURIComponent(callsign)}`;
+      const cache = caches.default;
+      const ck = cacheKeyFlight(url.origin, callsign);
+
+      // Cache-first: serve last-known-good (prevents credit burn + improves kiosk stability)
+      const hit = await cache.match(ck);
+      if (hit) return withCors(hit, cors, "HIT");
+
+      const upstreamUrl = `https://${env.AERODATA_HOST}/flights/callsign/${encodeURIComponent(
+        callsign
+      )}`;
 
       try {
         const res = await fetch(upstreamUrl, {
@@ -234,10 +497,21 @@ export default {
         });
 
         const text = await res.text();
-        if (res.status === 429) return json({ ok: false, callsign, error: "rate_limited", status: 429 }, 429, cors);
+        if (res.status === 429)
+          return json(
+            { ok: false, callsign, error: "rate_limited", status: 429 },
+            429,
+            cors
+          );
         if (!res.ok)
           return json(
-            { ok: false, callsign, error: "aerodata_upstream_error", status: res.status, detail: text.slice(0, 220) },
+            {
+              ok: false,
+              callsign,
+              error: "aerodata_upstream_error",
+              status: res.status,
+              detail: text.slice(0, 220),
+            },
             502,
             cors
           );
@@ -253,34 +527,57 @@ export default {
         const origin = f?.departure?.airport || null;
         const destination = f?.arrival?.airport || null;
 
-        return new Response(
-          JSON.stringify({
-            ok: true,
-            callsign,
-            origin,
-            destination,
-            airlineName: f?.airline?.name || f?.airline?.shortName || null,
-            airlineIcao: f?.airline?.icao || f?.airline?.icaoCode || f?.airline?.icaoCodeShort || null,
-            airlineIata: f?.airline?.iata || f?.airline?.iataCode || f?.airline?.iataCodeShort || null,
-            operatorIcao: f?.operator?.icao || f?.operator?.icaoCode || null,
-            operatorIata: f?.operator?.iata || f?.operator?.iataCode || null,
-            aircraftModel: f?.aircraft?.model || f?.aircraft?.modelCode || null,
-            aircraftType: f?.aircraft?.typeName || f?.aircraft?.iataCodeShort || f?.aircraft?.icaoCode || null,
-            route: origin && destination ? `${fmtEnd(origin)} → ${fmtEnd(destination)}` : "unavailable",
-            source: "aerodatabox",
-          }),
-          {
-            status: 200,
-            headers: {
-              ...cors,
-              "Content-Type": "application/json; charset=utf-8",
-              "Cache-Control": "public, max-age=30, s-maxage=300",
-            },
-          }
-        );
+        const payload = {
+          ok: true,
+          callsign,
+          origin,
+          destination,
+          airlineName: f?.airline?.name || f?.airline?.shortName || null,
+          airlineIcao:
+            f?.airline?.icao ||
+            f?.airline?.icaoCode ||
+            f?.airline?.icaoCodeShort ||
+            null,
+          airlineIata:
+            f?.airline?.iata ||
+            f?.airline?.iataCode ||
+            f?.airline?.iataCodeShort ||
+            null,
+          operatorIcao: f?.operator?.icao || f?.operator?.icaoCode || null,
+          operatorIata: f?.operator?.iata || f?.operator?.iataCode || null,
+          aircraftModel: f?.aircraft?.model || f?.aircraft?.modelCode || null,
+          aircraftType:
+            f?.aircraft?.typeName ||
+            f?.aircraft?.iataCodeShort ||
+            f?.aircraft?.icaoCode ||
+            null,
+          route:
+            origin && destination
+              ? `${fmtEnd(origin)} → ${fmtEnd(destination)}`
+              : "unavailable",
+          source: "aerodatabox",
+        };
+
+        const out = new Response(JSON.stringify(payload), {
+          status: 200,
+          headers: {
+            ...cors,
+            "Content-Type": "application/json; charset=utf-8",
+            // Cache longer (credit efficiency). UI stays unchanged.
+            "Cache-Control": `public, max-age=${AERODATA_FLIGHT_TTL_S}, s-maxage=${AERODATA_FLIGHT_TTL_S}`,
+          },
+        });
+
+        ctx.waitUntil(cache.put(ck, out.clone()));
+        return out;
       } catch (err) {
         return json(
-          { ok: false, callsign, error: "aerodata_fetch_failed", detail: err && err.message ? err.message : "unknown" },
+          {
+            ok: false,
+            callsign,
+            error: "aerodata_fetch_failed",
+            detail: err && err.message ? err.message : "unknown",
+          },
           502,
           cors
         );
@@ -294,13 +591,26 @@ export default {
 
       if (!env.AERODATA_KEY || !env.AERODATA_HOST) {
         return json(
-          { ok: false, error: "aerodata_not_configured", hint: "Set AERODATA_KEY (Secret) and AERODATA_HOST (Text)" },
+          {
+            ok: false,
+            error: "aerodata_not_configured",
+            hint: "Set AERODATA_KEY (Secret) and AERODATA_HOST (Text)",
+          },
           500,
           cors
         );
       }
 
-      const upstreamUrl = `https://${env.AERODATA_HOST}/aircrafts/icao24/${encodeURIComponent(hex)}`;
+      const cache = caches.default;
+      const ck = cacheKeyAircraft(url.origin, hex);
+
+      // Cache-first: serve last-known-good
+      const hit = await cache.match(ck);
+      if (hit) return withCors(hit, cors, "HIT");
+
+      const upstreamUrl = `https://${env.AERODATA_HOST}/aircrafts/icao24/${encodeURIComponent(
+        hex
+      )}`;
 
       try {
         const res = await fetch(upstreamUrl, {
@@ -313,36 +623,62 @@ export default {
         });
 
         if (res.status === 204) {
-          return new Response(JSON.stringify({ ok: true, found: false, icao24: hex }), {
-            status: 200,
-            headers: {
-              ...cors,
-              "Content-Type": "application/json; charset=utf-8",
-              "Cache-Control": "public, max-age=30, s-maxage=600",
-            },
-          });
+          const out = new Response(
+            JSON.stringify({ ok: true, found: false, icao24: hex }),
+            {
+              status: 200,
+              headers: {
+                ...cors,
+                "Content-Type": "application/json; charset=utf-8",
+                // Cache 'not found' briefly to avoid hammering
+                "Cache-Control": "public, max-age=21600, s-maxage=21600",
+              },
+            }
+          );
+          ctx.waitUntil(cache.put(ck, out.clone()));
+          return out;
         }
 
         const text = await res.text();
-        if (res.status === 429) return json({ ok: false, icao24: hex, error: "rate_limited", status: 429 }, 429, cors);
+        if (res.status === 429)
+          return json(
+            { ok: false, icao24: hex, error: "rate_limited", status: 429 },
+            429,
+            cors
+          );
         if (!res.ok)
           return json(
-            { ok: false, icao24: hex, error: "aerodata_upstream_error", status: res.status, detail: text.slice(0, 220) },
+            {
+              ok: false,
+              icao24: hex,
+              error: "aerodata_upstream_error",
+              status: res.status,
+              detail: text.slice(0, 220),
+            },
             502,
             cors
           );
 
-        return new Response(text, {
+        // Cache the raw JSON response (airframe data is stable)
+        const out = new Response(text, {
           status: 200,
           headers: {
             ...cors,
             "Content-Type": "application/json; charset=utf-8",
-            "Cache-Control": "public, max-age=3600, s-maxage=21600",
+            "Cache-Control": `public, max-age=${AERODATA_AIRCRAFT_TTL_S}, s-maxage=${AERODATA_AIRCRAFT_TTL_S}`,
           },
         });
+
+        ctx.waitUntil(cache.put(ck, out.clone()));
+        return out;
       } catch (err) {
         return json(
-          { ok: false, icao24: hex, error: "aerodata_fetch_failed", detail: err && err.message ? err.message : "unknown" },
+          {
+            ok: false,
+            icao24: hex,
+            error: "aerodata_fetch_failed",
+            detail: err && err.message ? err.message : "unknown",
+          },
           502,
           cors
         );
@@ -355,7 +691,17 @@ export default {
 
 // -------------------- OpenSky Failure Handler (cache → ADSB.lol → error) --------------------
 
-async function handleOpenSkyFailure({ env, cors, cache, cacheKey, ctx, status, detail, bbox, thrown }) {
+async function handleOpenSkyFailure({
+  env,
+  cors,
+  cache,
+  cacheKey,
+  ctx,
+  status,
+  detail,
+  bbox,
+  thrown,
+}) {
   // 1) Serve cached if available
   const cached = await cache.match(cacheKey);
   if (cached) return withCors(cached, cors, "HIT-STALE");
@@ -379,269 +725,51 @@ async function handleOpenSkyFailure({ env, cors, cache, cacheKey, ctx, status, d
           headers: {
             ...cors,
             "Content-Type": "application/json; charset=utf-8",
-            // slightly longer cache for fallback to reduce churn during OpenSky incidents
-            "Cache-Control": "public, max-age=12, s-maxage=20, stale-while-revalidate=60",
-            "X-Provider": "adsb_lol",
-            "X-Cache": "MISS-FALLBACK",
+            "Cache-Control": "public, max-age=8, s-maxage=15, stale-while-revalidate=45",
+            "X-Provider": "adsb.lol",
           },
         });
         ctx.waitUntil(cache.put(cacheKey, out.clone()));
+
+        // Warm AeroDataBox cache asynchronously (UI contract unchanged)
+        try {
+          const bboxCenter = [
+            (Number(bbox.lamin) + Number(bbox.lamax)) / 2,
+            (Number(bbox.lomin) + Number(bbox.lomax)) / 2,
+          ];
+          const origin = new URL(cacheKey.url).origin;
+          ctx.waitUntil(
+            (async () => {
+              try {
+                const states = Array.isArray(adapted?.states) ? adapted.states : [];
+                if (states.length)
+                  await warmEnrichFromStates({
+                    origin,
+                    env,
+                    cache,
+                    states,
+                    bboxCenter,
+                  });
+              } catch {}
+            })()
+          );
+        } catch {}
+
         return out;
       }
     } catch (e) {
-      // ignore and return original error below
+      // fall through to error below
     }
-  }
-
-  // 3) No cache and fallback failed → error
-  if (status) {
-    return json(
-      { ok: false, error: "opensky_upstream_error", status, detail: String(detail || "").slice(0, 220) },
-      502,
-      cors
-    );
-  }
-  return json(
-    { ok: false, error: "opensky_fetch_failed", detail: String(detail || "unknown").slice(0, 220) },
-    502,
-    cors
-  );
-}
-
-// -------------------- ADSB.lol Fallback --------------------
-
-async function fetchADSBLOLAsOpenSky(env, bbox) {
-  const lamin = Number(bbox.lamin);
-  const lomin = Number(bbox.lomin);
-  const lamax = Number(bbox.lamax);
-  const lomax = Number(bbox.lomax);
-  if (![lamin, lomin, lamax, lomax].every((n) => Number.isFinite(n))) return null;
-
-  // Convert bbox → center point + radius (nautical miles)
-  const centerLat = (lamin + lamax) / 2;
-  const centerLon = (lomin + lomax) / 2;
-
-  const latSpanDeg = Math.abs(lamax - lamin);
-  const lonSpanDeg = Math.abs(lomax - lomin);
-
-  // 1° lat ≈ 60nm
-  const latSpanNm = latSpanDeg * 60;
-
-  // 1° lon ≈ 60nm * cos(lat)
-  const cosLat = Math.cos((centerLat * Math.PI) / 180);
-  const lonSpanNm = lonSpanDeg * 60 * Math.max(0.15, cosLat);
-
-  // radius is half the span, plus padding
-  const radiusNm = Math.max(latSpanNm, lonSpanNm) / 2;
-  const paddedRadius = Math.min(120, Math.max(10, Math.round(radiusNm * 1.25)));
-
-  const base = String(env.ADSBLOL_BASE || ADSBLOL_DEFAULT_BASE).replace(/\/+$/, "");
-  const endpoint = `${base}/v2/point/${centerLat.toFixed(5)}/${centerLon.toFixed(5)}/${paddedRadius}`;
-
-  const res = await fetchWithTimeout(endpoint, { method: "GET", headers: { Accept: "application/json" } }, ADSBLOL_TIMEOUT_MS);
-  const text = await res.text();
-  if (!res.ok) throw new Error(`adsb_lol_http_${res.status}: ${text.slice(0, 120)}`);
-
-  let data;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    throw new Error("adsb_lol_non_json");
-  }
-
-  // Typical ADSBExchange-style: { now, ac: [ ... ] }
-  const ac = Array.isArray(data?.ac) ? data.ac : Array.isArray(data?.aircraft) ? data.aircraft : null;
-  if (!Array.isArray(ac)) return null;
-
-  const nowSec = Math.floor(Date.now() / 1000);
-
-  // Convert ADSB objects to OpenSky "states" rows (only fields your UI uses matter)
-  // OpenSky indices used by your UI:
-  //  [0] icao24
-  //  [1] callsign
-  //  [2] country
-  //  [5] lon
-  //  [6] lat
-  //  [7] baro_alt (meters)
-  //  [9] velocity (m/s)
-  // [10] true_track (deg)
-  const states = [];
-  for (const a of ac) {
-    const hex = nm(a?.hex || a?.icao || a?.icao24).toLowerCase();
-    if (!hex) continue;
-
-    const lat = toNum(a?.lat);
-    const lon = toNum(a?.lon);
-    if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
-
-    // callsign/flight can include spaces; OpenSky sometimes pads; keep as-is but trimmed right
-    const flight = nm(a?.flight || a?.call || a?.callsign);
-
-    // altitude: ADSBExchange-style often returns feet in "alt_baro" or "alt_geom"
-    const altFt = firstFinite(toNum(a?.alt_baro), toNum(a?.alt_geom), toNum(a?.altitude));
-    const altM = Number.isFinite(altFt) ? altFt * 0.3048 : null;
-
-    // speed: often knots in "gs" (ground speed)
-    const gsKt = firstFinite(toNum(a?.gs), toNum(a?.spd), toNum(a?.speed));
-    const velMs = Number.isFinite(gsKt) ? gsKt * 0.514444 : null;
-
-    const trk = firstFinite(toNum(a?.track), toNum(a?.trk), toNum(a?.heading));
-
-    // build OpenSky-like row (fill unused with nulls)
-    const row = [
-      hex,                // 0 icao24
-      flight || "",       // 1 callsign
-      "—",                // 2 origin_country (unknown here)
-      nowSec,             // 3 time_position (best-effort)
-      nowSec,             // 4 last_contact (best-effort)
-      lon,                // 5 longitude
-      lat,                // 6 latitude
-      Number.isFinite(altM) ? altM : null, // 7 baro_alt (m)
-      false,              // 8 on_ground
-      Number.isFinite(velMs) ? velMs : null, // 9 velocity (m/s)
-      Number.isFinite(trk) ? trk : null,   // 10 true_track
-      null,               // 11 vertical_rate
-      null,               // 12 sensors
-      null,               // 13 geo_altitude
-      null,               // 14 squawk
-      false,              // 15 spi
-      0,                  // 16 position_source
-    ];
-
-    states.push(row);
-  }
-
-  return { time: nowSec, states };
-}
-
-// -------------------- OpenSky Health --------------------
-
-async function openskyTokenHealth(env, cors) {
-  const mode = detectOpenSkyAuthMode(env);
-  if (mode !== "oauth") {
-    return json({ ok: false, authMode: mode, hint: "Set OPENSKY_CLIENT_ID and OPENSKY_CLIENT_SECRET" }, 200, cors);
-  }
-
-  try {
-    const token = await getOAuthToken(env, true);
-    return json(
-      {
-        ok: !!token,
-        authMode: mode,
-        tokenCached: _tokenCache.expiresAtMs > Date.now(),
-      },
-      200,
-      cors
-    );
-  } catch (err) {
-    return json(
-      { ok: false, authMode: mode, error: "token_fetch_failed", detail: err && err.message ? err.message : "unknown" },
-      200,
-      cors
-    );
-  }
-}
-
-async function openskyStatesHealth(env, cors) {
-  const mode = detectOpenSkyAuthMode(env);
-
-  // tiny bbox (reduces load and improves responsiveness)
-  const upstream = new URL(OPENSKY_STATES_URL);
-  upstream.searchParams.set("lamin", "36.05");
-  upstream.searchParams.set("lomin", "-94.20");
-  upstream.searchParams.set("lamax", "36.25");
-  upstream.searchParams.set("lomax", "-93.95");
-
-  try {
-    const headers = await buildOpenSkyHeaders(env);
-    const res = await fetchWithTimeout(upstream.toString(), { method: "GET", headers }, OPENSKY_STATES_TIMEOUT_MS);
-
-    const rateRemaining =
-      res.headers.get("x-rate-limit-remaining") ||
-      res.headers.get("X-Rate-Limit-Remaining") ||
-      null;
-
-    if (!res.ok) {
-      const text = await res.text();
-      return json(
-        {
-          ok: false,
-          authMode: mode,
-          openskyStatus: res.status,
-          rateRemaining,
-          detail: text.slice(0, 220),
-        },
-        200,
-        cors
-      );
-    }
-
-    let statesCount = null;
-    try {
-      const data = await res.json();
-      statesCount = Array.isArray(data?.states) ? data.states.length : null;
-    } catch {}
-
-    return json(
-      {
-        ok: true,
-        authMode: mode,
-        openskyStatus: res.status,
-        rateRemaining,
-        statesCount,
-      },
-      200,
-      cors
-    );
-  } catch (err) {
-    return json(
-      { ok: false, authMode: mode, error: "opensky_fetch_failed", detail: err && err.message ? err.message : "unknown" },
-      200,
-      cors
-    );
-  }
-}
-
-async function openskyCombinedHealth(env, cors) {
-  const mode = detectOpenSkyAuthMode(env);
-
-  const tokenPart = { ok: null };
-  const statesPart = { ok: null };
-
-  if (mode === "oauth") {
-    try {
-      const token = await getOAuthToken(env, false);
-      tokenPart.ok = !!token;
-      tokenPart.tokenCached = _tokenCache.expiresAtMs > Date.now();
-    } catch (e) {
-      tokenPart.ok = false;
-      tokenPart.detail = e && e.message ? e.message : "unknown";
-    }
-  } else {
-    tokenPart.ok = mode === "basic" ? null : false;
-  }
-
-  try {
-    const r = await openskyStatesHealth(env, cors);
-    const body = await r.json();
-    statesPart.ok = !!body.ok;
-    statesPart.openskyStatus = body.openskyStatus || null;
-    statesPart.statesCount = body.statesCount ?? null;
-    statesPart.rateRemaining = body.rateRemaining ?? null;
-    if (!statesPart.ok) statesPart.detail = body.detail || body.error || null;
-  } catch (e) {
-    statesPart.ok = false;
-    statesPart.detail = e && e.message ? e.message : "unknown";
   }
 
   return json(
     {
-      ok: !!statesPart.ok,
-      authMode: mode,
-      token: tokenPart,
-      states: statesPart,
+      ok: false,
+      error: thrown ? "opensky_fetch_failed" : "opensky_upstream_error",
+      status,
+      detail: typeof detail === "string" ? detail.slice(0, 220) : "unknown",
     },
-    200,
+    status === 429 ? 429 : 502,
     cors
   );
 }
@@ -660,43 +788,35 @@ function clearTokenCache() {
 }
 
 async function buildOpenSkyHeaders(env) {
-  const headers = {
-    Accept: "application/json",
-    "User-Agent": "FlightsAboveMe-Worker",
-  };
+  const headers = { Accept: "application/json" };
+  const mode = detectOpenSkyAuthMode(env);
 
-  if (env.OPENSKY_CLIENT_ID && env.OPENSKY_CLIENT_SECRET) {
-    const token = await getOAuthToken(env, false);
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-      return headers;
-    }
-  }
-
-  if (env.OPENSKY_USER && env.OPENSKY_PASS) {
-    const token = btoa(`${env.OPENSKY_USER}:${env.OPENSKY_PASS}`);
-    headers.Authorization = `Basic ${token}`;
+  if (mode === "oauth") {
+    const token = await getOpenSkyAccessToken(env);
+    if (token) headers.Authorization = `Bearer ${token}`;
+  } else if (mode === "basic") {
+    const user = String(env.OPENSKY_USER || "");
+    const pass = String(env.OPENSKY_PASS || "");
+    if (user && pass) headers.Authorization = "Basic " + btoa(`${user}:${pass}`);
   }
 
   return headers;
 }
 
-async function getOAuthToken(env, forceRefresh) {
+async function getOpenSkyAccessToken(env) {
   const now = Date.now();
 
-  if (!forceRefresh) {
-    if (_tokenCache.mode === "oauth" && _tokenCache.accessToken && _tokenCache.expiresAtMs > now + 10_000) {
-      return _tokenCache.accessToken;
-    }
+  if (_tokenCache.mode === "oauth" && _tokenCache.accessToken && now < _tokenCache.expiresAtMs - 15_000) {
+    return _tokenCache.accessToken;
   }
 
   if (_tokenPromise) return _tokenPromise;
 
   _tokenPromise = (async () => {
     try {
-      const clientId = String(env.OPENSKY_CLIENT_ID || "").trim();
-      const clientSecret = String(env.OPENSKY_CLIENT_SECRET || "").trim();
-      if (!clientId || !clientSecret) throw new Error("missing_client_credentials");
+      const clientId = String(env.OPENSKY_CLIENT_ID || "");
+      const clientSecret = String(env.OPENSKY_CLIENT_SECRET || "");
+      if (!clientId || !clientSecret) return "";
 
       const body = new URLSearchParams();
       body.set("grant_type", "client_credentials");
@@ -707,46 +827,34 @@ async function getOAuthToken(env, forceRefresh) {
         OPENSKY_TOKEN_URL,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-            "User-Agent": "FlightsAboveMe-Worker",
-          },
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: body.toString(),
         },
         OPENSKY_TOKEN_TIMEOUT_MS
       );
 
       const text = await res.text();
-      if (!res.ok) {
-        clearTokenCache();
-        throw new Error(`token_http_${res.status}: ${text.slice(0, 120)}`);
-      }
+      if (!res.ok) return "";
 
-      let data;
+      let data = null;
       try {
         data = JSON.parse(text);
       } catch {
-        clearTokenCache();
-        throw new Error("token_non_json");
+        return "";
       }
 
-      const accessToken = String(data?.access_token || "").trim();
-      const expiresInSec = Number(data?.expires_in || 1800);
+      const token = String(data?.access_token || "");
+      const expiresIn = Number(data?.expires_in || 0);
 
-      if (!accessToken) {
-        clearTokenCache();
-        throw new Error("token_missing_access_token");
+      if (token && expiresIn > 0) {
+        _tokenCache = {
+          accessToken: token,
+          expiresAtMs: Date.now() + expiresIn * 1000,
+          mode: "oauth",
+        };
       }
 
-      const safeExpiresIn = Math.max(60, expiresInSec - 60);
-
-      _tokenCache = {
-        accessToken,
-        expiresAtMs: Date.now() + safeExpiresIn * 1000,
-        mode: "oauth",
-      };
-
-      return accessToken;
+      return token;
     } finally {
       _tokenPromise = null;
     }
@@ -755,46 +863,216 @@ async function getOAuthToken(env, forceRefresh) {
   return _tokenPromise;
 }
 
-async function fetchWithTimeout(url, init, timeoutMs) {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(new Error("timeout")), timeoutMs);
-  try {
-    return await fetch(url, { ...init, signal: ctrl.signal });
-  } finally {
-    clearTimeout(t);
-  }
+// -------------------- ADSB.lol Fallback (adapt to OpenSky "states") --------------------
+
+async function fetchADSBLOLAsOpenSky(env, bbox) {
+  const base = (env.ADSBLOL_BASE && String(env.ADSBLOL_BASE)) || ADSBLOL_DEFAULT_BASE;
+
+  // ADSB.lol endpoints are ADSBExchange-like. We'll use /v2/lat/lon/radius style where available.
+  // Since we have bbox, approximate by center + radius (max distance to corner).
+  const lamin = Number(bbox.lamin);
+  const lomin = Number(bbox.lomin);
+  const lamax = Number(bbox.lamax);
+  const lomax = Number(bbox.lomax);
+  if (![lamin, lomin, lamax, lomax].every(Number.isFinite)) return null;
+
+  const clat = (lamin + lamax) / 2;
+  const clon = (lomin + lomax) / 2;
+
+  const r1 = haversineKm(clat, clon, lamin, lomin);
+  const r2 = haversineKm(clat, clon, lamin, lomax);
+  const r3 = haversineKm(clat, clon, lamax, lomin);
+  const r4 = haversineKm(clat, clon, lamax, lomax);
+  const radiusKm = Math.max(r1, r2, r3, r4);
+
+  const url = new URL(`${base}/v2/lat/${clat}/lon/${clon}/dist/${Math.ceil(radiusKm)}`);
+
+  const res = await fetchWithTimeout(url.toString(), { method: "GET" }, ADSBLOL_TIMEOUT_MS);
+  if (!res.ok) return null;
+
+  const data = await res.json().catch(() => null);
+  if (!data) return null;
+
+  // Attempt to adapt a few common payload shapes:
+  const aircraft = data.ac || data.aircraft || data.planes || [];
+  if (!Array.isArray(aircraft)) return null;
+
+  const nowSec = Math.floor(Date.now() / 1000);
+
+  const states = aircraft
+    .map((p) => {
+      const icao24 = (p.hex || p.icao || p.icao24 || "").toString().toLowerCase();
+      const callsign = (p.flight || p.callsign || "").toString();
+      const origin_country = ""; // unknown from ADSB.lol
+      const time_position = toInt(p.seen_pos != null ? nowSec - Number(p.seen_pos) : nowSec);
+      const last_contact = toInt(p.seen != null ? nowSec - Number(p.seen) : nowSec);
+      const lon = num(p.lon);
+      const lat = num(p.lat);
+      const baro_alt = num(p.alt_baro != null ? p.alt_baro : p.altitude);
+      const on_ground = !!p.gnd;
+      const velocity = num(p.gs != null ? p.gs * 0.514444 : p.speed); // knots→m/s if gs is knots
+      const true_track = num(p.track != null ? p.track : p.trak);
+      const vertical_rate = num(p.vrate != null ? p.vrate : p.vr);
+      const sensors = null;
+      const geo_alt = num(p.alt_geom != null ? p.alt_geom : p.altitude_geom);
+      const squawk = (p.squawk || "").toString() || null;
+      const spi = false;
+      const position_source = 0;
+
+      if (!icao24 || !Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+
+      return [
+        icao24,
+        callsign,
+        origin_country,
+        time_position || null,
+        last_contact || null,
+        lon,
+        lat,
+        Number.isFinite(baro_alt) ? baro_alt : null,
+        velocity || null,
+        true_track || null,
+        Number.isFinite(vertical_rate) ? vertical_rate : null,
+        sensors,
+        Number.isFinite(geo_alt) ? geo_alt : null,
+        squawk,
+        spi,
+        position_source,
+      ];
+    })
+    .filter(Boolean);
+
+  return { time: nowSec, states };
 }
 
-function withCors(response, corsHeaders, cacheHint) {
-  const h = new Headers(response.headers);
-  Object.entries(corsHeaders).forEach(([k, v]) => h.set(k, v));
-  if (cacheHint) h.set("X-Cache", cacheHint);
+// -------------------- Utilities --------------------
 
-  return new Response(response.body, { status: response.status, headers: h });
-}
-
-// -------------------- Common Helpers --------------------
-
-function json(obj, status, corsHeaders) {
+function json(obj, status = 200, extra = {}) {
   return new Response(JSON.stringify(obj), {
     status,
     headers: {
-      ...corsHeaders,
       "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store",
+      ...extra,
     },
   });
 }
 
-function fmtEnd(airport) {
-  if (!airport || typeof airport !== "object") return "";
-  const city = (airport.municipalityName || airport.city || "")
-    .toString()
-    .trim()
-    .replace(/\/+\s*$/, "");
-  const code = (airport.iata || airport.icao || "").toString().trim();
-  const name = (airport.name || "").toString().trim();
-  const bestCity = city || (name ? name.split(" ")[0] : "");
+function withCors(res, cors, cacheHint) {
+  const h = new Headers(res.headers);
+  for (const [k, v] of Object.entries(cors)) h.set(k, v);
+  if (cacheHint) h.set("X-Cache", cacheHint);
+  return new Response(res.body, { status: res.status, headers: h });
+}
+
+async function fetchWithTimeout(url, init, timeoutMs) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(id);
+  }
+}
+
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+function num(x) {
+  const n = Number(x);
+  return Number.isFinite(n) ? n : NaN;
+}
+
+function toInt(x) {
+  const n = Number(x);
+  return Number.isFinite(n) ? Math.trunc(n) : null;
+}
+
+// -------------------- Health Endpoints --------------------
+
+async function openskyTokenHealth(env, cors) {
+  const mode = detectOpenSkyAuthMode(env);
+  if (mode !== "oauth") {
+    return json({ ok: true, mode, hint: "OAuth not configured; using basic/none" }, 200, cors);
+  }
+  try {
+    const token = await getOpenSkyAccessToken(env);
+    return json({ ok: !!token, mode: "oauth", tokenCached: !!_tokenCache.accessToken }, 200, cors);
+  } catch (e) {
+    return json({ ok: false, mode: "oauth", error: "token_fetch_failed" }, 502, cors);
+  }
+}
+
+async function openskyStatesHealth(env, cors) {
+  const mode = detectOpenSkyAuthMode(env);
+  try {
+    const headers = await buildOpenSkyHeaders(env);
+
+    // Tiny bbox (required by states endpoint handler)
+    const upstream = new URL(OPENSKY_STATES_URL);
+    upstream.searchParams.set("lamin", "39.7");
+    upstream.searchParams.set("lomin", "-104.99");
+    upstream.searchParams.set("lamax", "39.9");
+    upstream.searchParams.set("lomax", "-104.7");
+
+    const res = await fetchWithTimeout(
+      upstream.toString(),
+      { method: "GET", headers },
+      OPENSKY_STATES_TIMEOUT_MS
+    );
+
+    const text = await res.text();
+    return json(
+      {
+        ok: res.ok,
+        authMode: mode,
+        status: res.status,
+        sample: text ? text.slice(0, 160) : "",
+      },
+      200,
+      cors
+    );
+  } catch (e) {
+    return json({ ok: false, authMode: mode, error: "states_fetch_failed" }, 502, cors);
+  }
+}
+
+async function openskyCombinedHealth(env, cors) {
+  const mode = detectOpenSkyAuthMode(env);
+  const tokenPart = await openskyTokenHealth(env, {});
+  const tokenJson = await tokenPart.json().catch(() => ({}));
+
+  const statesPart = await openskyStatesHealth(env, {});
+  const statesJson = await statesPart.json().catch(() => ({}));
+
+  return json(
+    {
+      ok: !!tokenJson.ok && !!statesJson.ok,
+      authMode: mode,
+      token: tokenJson,
+      states: statesJson,
+    },
+    200,
+    cors
+  );
+}
+
+// -------------------- Formatting helpers --------------------
+
+function fmtEnd(a) {
+  // AeroDataBox airports can be objects; we try for city/name/code
+  if (!a) return "";
+  const code = nm(a.iata || a.iataCode || a.icao || a.icaoCode || "");
+  const city = nm(a.municipality || a.city || a.location || "");
+  const name = nm(a.name || "");
+  const bestCity = city || name;
   if (bestCity && code) return `${bestCity} (${code})`;
   return bestCity || code || "";
 }
