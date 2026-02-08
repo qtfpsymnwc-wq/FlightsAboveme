@@ -1,25 +1,23 @@
-// FlightWall UI (v170)
+// FlightsAboveMe UI
 const API_BASE = "https://flightsabove.t2hkmhgbwz.workers.dev";
-const UI_VERSION = "v181";
+const UI_VERSION = "v182";
 
-/**
- * ✅ Rate-limit protection:
- * - main mode polls slower
- * - kiosk polls even slower
- * - if OpenSky 429 happens, back off for 60s
- * - ✅ inFlight guard prevents overlapping polls (important on iOS/cellular)
- * - ✅ pause polling when tab is hidden (reduces background hits)
- */
-const POLL_MAIN_MS = 8000;   // was 3500
-const POLL_KIOSK_MS = 12000; // kiosk is display-only; keep it lighter
+// Poll cadence
+const POLL_MAIN_MS = 8000;
+const POLL_KIOSK_MS = 12000;
 const BACKOFF_429_MS = 60000;
 
-const enrichCache = new Map();
-const enrichInFlight = new Set();
+// Enrichment timeouts (keep short so UI never “hangs” waiting on metadata)
+const ENRICH_TIMEOUT_MS = 4500;
 
-// Enrich up to this many *list* entries per poll cycle (primary still enriched separately).
-// Keeps credit usage predictable while still filling in the 5-card list quickly across polls.
-const ENRICH_LIST_MAX_FLIGHTS_PER_TICK = 2;
+// Enrichment budgets (per “cycle”)
+const LIST_AIRCRAFT_BUDGET = 5; // fill aircraft for all 5 fast
+const LIST_ROUTE_BUDGET = 1;    // keep routes conservative to protect credits
+
+const enrichCache = new Map();       // key: `${hex}|${callsign}` -> {routeText, modelText, airlineName}
+const enrichInFlight = new Set();    // keys currently being enriched
+const enrichQueue = [];             // queue of { type, flight, key }
+let enrichPumpRunning = false;
 
 const $ = (id) => document.getElementById(id);
 const errBox = $("errBox");
@@ -35,7 +33,11 @@ function showErr(msg){
 window.addEventListener("error", (e)=>showErr("JS error: " + (e?.message || e)));
 window.addEventListener("unhandledrejection", (e)=>showErr("Promise rejection: " + (e?.reason?.message || e?.reason || e)));
 
-function nm(s){ return (s ?? "").toString().trim(); }
+const nm = (v) => (v ?? "").toString().trim();
+
+function normalizeCallsign(cs){
+  return nm(cs).replace(/\s+/g,"").toUpperCase();
+}
 
 function haversineMi(lat1, lon1, lat2, lon2){
   const R = 3958.7613;
@@ -118,15 +120,14 @@ async function fetchJSON(url, timeoutMs=9000){
   try {
     const res = await fetch(url, { signal: ctrl.signal, cache:"no-store", credentials:"omit" });
     const text = await res.text();
-    if (!res.ok) {
-      // include status in message so tick() can backoff on 429
-      throw new Error(`HTTP ${res.status}: ${text.slice(0,220)}`);
-    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0,220)}`);
     return JSON.parse(text);
   } finally {
     clearTimeout(t);
   }
 }
+
+// -------------------- Rendering --------------------
 
 function renderPrimary(f, radarMeta){
   if ($("callsign")) $("callsign").textContent = f.callsign || "—";
@@ -153,7 +154,6 @@ function renderPrimary(f, radarMeta){
   if ($("route")) $("route").textContent = f.routeText || "—";
   if ($("model")) $("model").textContent = f.modelText || "—";
 
-  // If you removed “Showing” in HTML, this line can be simplified later — leaving as-is for compatibility.
   if ($("radarLine")) $("radarLine").textContent = `Radar: ${radarMeta.count} flights • Showing: ${radarMeta.showing}`;
 }
 
@@ -213,11 +213,8 @@ function renderList(list){
   });
 }
 
-function normalizeCallsign(cs){
-  return nm(cs).replace(/\s+/g,"").toUpperCase();
-}
+// -------------------- Grouping (Airlines vs Other) --------------------
 
-// Grouping: A=Airlines, B=Other (baseline behavior)
 const TIER_A_PREFIXES = ["AAL","DAL","UAL","SWA","ASA","FFT","NKS","JBU","AAY"];
 const TIER_B_EXTRA_PREFIXES = ["SKW","ENY","EDV","JIA","RPA","GJS","UPS","FDX"];
 const TIER_ALL_PREFIXES = [...new Set([...TIER_A_PREFIXES, ...TIER_B_EXTRA_PREFIXES])];
@@ -245,66 +242,122 @@ function groupForFlight(cs){
   return "B";
 }
 
-async function enrichRoute(primary){
-  const cs = normalizeCallsign(primary.callsign);
+// -------------------- Enrichment (fast + safe) --------------------
+
+function cacheKeyForFlight(f){
+  const cs = normalizeCallsign(f.callsign);
+  const hex = nm(f.icao24).toLowerCase();
+  return `${hex}|${cs}`;
+}
+
+function applyCachedEnrichment(f){
+  const k = cacheKeyForFlight(f);
+  const cached = enrichCache.get(k);
+  if (cached) Object.assign(f, cached);
+}
+
+async function enrichRoute(f){
+  const cs = normalizeCallsign(f.callsign);
   if (!cs) return;
+
+  const k = cacheKeyForFlight(f);
   try {
-    const data = await fetchJSON(`${API_BASE}/flight/${encodeURIComponent(cs)}`, 9000);
+    const data = await fetchJSON(`${API_BASE}/flight/${encodeURIComponent(cs)}`, ENRICH_TIMEOUT_MS);
     if (data && data.ok) {
-      primary.routeText = data.route || primary.routeText;
-      primary.airlineName = data.airlineName || data.airline || primary.airlineName;
-      primary.airlineGuess = primary.airlineGuess || guessAirline(primary.callsign);
-      if (!primary.modelText && (data.aircraftModel || data.aircraft?.model || data.aircraft?.modelName)) {
-        primary.modelText = (data.aircraftModel || data.aircraft?.model || data.aircraft?.modelName);
-      }
-      const k = `${nm(primary.icao24).toLowerCase()}|${cs}`;
-      enrichCache.set(k, { ...(enrichCache.get(k) || {}), routeText: primary.routeText, airlineName: primary.airlineName, airlineGuess: primary.airlineGuess, modelText: primary.modelText });
+      const patch = {
+        routeText: data.route || f.routeText,
+        airlineName: data.airlineName || f.airlineName,
+        airlineGuess: f.airlineGuess || guessAirline(f.callsign),
+      };
+
+      // Sometimes flight endpoint also knows aircraft model; use it as a fallback if we don't have airframe yet
+      if (!f.modelText && data.aircraftModel) patch.modelText = data.aircraftModel;
+
+      enrichCache.set(k, { ...(enrichCache.get(k) || {}), ...patch });
+      Object.assign(f, patch);
     }
   } catch {}
 }
 
-async function enrichAircraft(primary){
-  const hex = nm(primary.icao24).toLowerCase();
+async function enrichAircraft(f){
+  const hex = nm(f.icao24).toLowerCase();
   if (!hex) return;
+
+  const k = cacheKeyForFlight(f);
   try {
-    const data = await fetchJSON(`${API_BASE}/aircraft/icao24/${encodeURIComponent(hex)}`, 9000);
-    // Worker may return either:
-    //  - { ok:true, found:false, icao24 } (no data)
-    //  - { ok:true, ...airframeFields }
-    //  - raw AeroDataBox JSON (older cache); we still try to read it safely
-    if (data && (data.ok === true || data.ok == null)) {
-      if (data.found === false) return;
+    const data = await fetchJSON(`${API_BASE}/aircraft/icao24/${encodeURIComponent(hex)}`, ENRICH_TIMEOUT_MS);
 
-      // Prefer human-friendly labels when available
-      const typeName = nm(data.typeName);
-      const line = nm(data.productionLine);
-      const model = nm(data.model) || nm(data.modelName);
-      const code = nm(data.modelCode) || nm(data.icaoCode) || nm(data.iataCodeShort);
-      const mfg = nm(data.manufacturer);
+    // Accept wrapped or raw JSON
+    if (!data) return;
+    if (data.ok === false) return;
+    if (data.found === false) return;
 
-      // Build a readable string without being too long
-      let out = "";
-      if (typeName) out = typeName;
-      else if (mfg || model) out = (mfg ? (mfg + " ") : "") + (model || "—");
-      else if (line) out = line;
-      else out = "—";
+    const typeName = nm(data.typeName);
+    const model = nm(data.model) || nm(data.modelName);
+    const code = nm(data.modelCode) || nm(data.icaoCode) || nm(data.iataCodeShort);
 
-      if (code && out && !out.includes(code) && out !== "—") out += ` (${code})`;
+    let out = typeName || model || "—";
+    if (code && out !== "—" && !out.includes(code)) out += ` (${code})`;
 
-      primary.modelText = out;
-      const cs = normalizeCallsign(primary.callsign);
-      const k = `${hex}|${cs}`;
-      enrichCache.set(k, { ...(enrichCache.get(k) || {}), modelText: primary.modelText });
-    }
+    const patch = { modelText: out };
+    enrichCache.set(k, { ...(enrichCache.get(k) || {}), ...patch });
+    Object.assign(f, patch);
   } catch {}
 }
 
-/* ✅ ROBUST kiosk detection:
-   - /kiosk.html
-   - ?kiosk=1
-   - body.kiosk
-   - window.__KIOSK_MODE__ = true
-*/
+// Queue helpers
+function queueEnrich(type, f){
+  const k = cacheKeyForFlight(f);
+  const inflightKey = `${type}:${k}`;
+  if (enrichInFlight.has(inflightKey)) return;
+
+  // Avoid queue duplicates
+  for (let i = 0; i < enrichQueue.length; i++) {
+    if (enrichQueue[i].type === type && enrichQueue[i].key === k) return;
+  }
+
+  enrichQueue.push({ type, flight: f, key: k });
+}
+
+function pumpEnrichment(renderFn){
+  if (enrichPumpRunning) return;
+  enrichPumpRunning = true;
+
+  const run = async () => {
+    try {
+      // run small batches so iOS stays smooth
+      let batch = 0;
+      while (enrichQueue.length && batch < 3) {
+        const job = enrichQueue.shift();
+        if (!job) break;
+
+        const inflightKey = `${job.type}:${job.key}`;
+        if (enrichInFlight.has(inflightKey)) continue;
+
+        enrichInFlight.add(inflightKey);
+        try {
+          if (job.type === "aircraft") await enrichAircraft(job.flight);
+          else await enrichRoute(job.flight);
+        } finally {
+          enrichInFlight.delete(inflightKey);
+        }
+
+        batch += 1;
+
+        // Re-render after each successful job so user sees progress immediately
+        renderFn();
+      }
+    } finally {
+      enrichPumpRunning = false;
+      // If queue still has work, schedule next slice
+      if (enrichQueue.length) setTimeout(() => pumpEnrichment(renderFn), 250);
+    }
+  };
+
+  run();
+}
+
+/* Kiosk detection */
 function isKiosk(){
   try {
     if (window.__KIOSK_MODE__ === true) return true;
@@ -323,6 +376,8 @@ function enableKioskIfRequested(){
   try { document.body.classList.add("kiosk"); } catch {}
   try { window.__KIOSK_MODE__ = true; } catch {}
 }
+
+// -------------------- Main loop --------------------
 
 async function main(){
   enableKioskIfRequested();
@@ -372,80 +427,64 @@ async function main(){
 
   if (statusEl) statusEl.textContent = "Radar…";
 
-  let lastPrimaryKey = "";
-
-  // Enrich the 5 nearby entries (route + aircraft) gradually across polls.
-  // This uses the Worker cache-first behavior, and we cap how many list flights we attempt per tick.
-  function kickListEnrichment(top, primary, secondary, radarMeta){
-    if (!Array.isArray(top) || !top.length) return;
-
-    // Don’t spam: limit how many *flights* we try to enrich per poll.
-    let budget = ENRICH_LIST_MAX_FLIGHTS_PER_TICK;
-
-    const tasks = [];
-    for (const f of top) {
-      if (budget <= 0) break;
-
-      const cs = normalizeCallsign(f.callsign);
-      const hex = nm(f.icao24).toLowerCase();
-      const k = `${hex}|${cs}`;
-
-      // If we already have both, skip.
-      const cached = enrichCache.get(k) || {};
-      const needsRoute = !(f.routeText || cached.routeText);
-      const needsModel = !(f.modelText || cached.modelText);
-      if (!needsRoute && !needsModel) continue;
-
-      // Avoid duplicate in-flight enrichment for the same flight in the same session.
-      if (enrichInFlight.has(k)) continue;
-      enrichInFlight.add(k);
-      budget -= 1;
-
-      tasks.push(
-        Promise.allSettled([
-          needsRoute ? enrichRoute(f) : Promise.resolve(),
-          needsModel ? enrichAircraft(f) : Promise.resolve(),
-        ]).finally(()=>{
-          enrichInFlight.delete(k);
-        })
-      );
-    }
-
-    if (!tasks.length) return;
-
-    Promise.allSettled(tasks).then(()=>{
-      // Re-apply cache → objects, then re-render what’s visible.
-      for (const f of top) {
-        const k = `${nm(f.icao24).toLowerCase()}|${normalizeCallsign(f.callsign)}`;
-        const cached = enrichCache.get(k);
-        if (cached) Object.assign(f, cached);
-      }
-
-      // Primary/secondary may be references from `top`; render again to reflect new fields.
-      renderPrimary(primary, radarMeta);
-      if (isKiosk()) {
-        renderSecondary(secondary);
-      } else {
-        renderList(top);
-      }
-    });
-  }
-
-  // ✅ Backoff gate
   let nextAllowedAt = 0;
-
-  // ✅ Prevent overlapping polls (setInterval can stack on slow networks)
   let inFlight = false;
 
-  async function tick(){
-    // Pause when tab is hidden (prevents background spam)
-    try { if (document.hidden) return; } catch {}
+  // state for rendering
+  let lastTop = [];
+  let lastPrimary = null;
+  let lastSecondary = null;
+  let lastRadarMeta = { count: 0, showing: 0 };
 
+  function renderAll(){
+    if (!lastPrimary) return;
+    renderPrimary(lastPrimary, lastRadarMeta);
+    if (isKiosk()) {
+      renderSecondary(lastSecondary);
+    } else {
+      renderSecondary(null);
+      renderList(lastTop);
+    }
+  }
+
+  function queueTopEnrichment(top){
+    // Apply cached first
+    for (const f of top) applyCachedEnrichment(f);
+
+    // Queue aircraft for all 5 fast
+    let aircraftBudget = LIST_AIRCRAFT_BUDGET;
+    for (const f of top) {
+      if (aircraftBudget <= 0) break;
+      const k = cacheKeyForFlight(f);
+      const cached = enrichCache.get(k) || {};
+      if (!f.modelText && !cached.modelText) {
+        queueEnrich("aircraft", f);
+        aircraftBudget--;
+      }
+    }
+
+    // Queue routes conservatively (primary is handled separately; list gets 1 per cycle)
+    let routeBudget = LIST_ROUTE_BUDGET;
+    for (const f of top) {
+      if (routeBudget <= 0) break;
+      const k = cacheKeyForFlight(f);
+      const cached = enrichCache.get(k) || {};
+      if (!f.routeText && !cached.routeText) {
+        queueEnrich("route", f);
+        routeBudget--;
+      }
+    }
+
+    pumpEnrichment(renderAll);
+  }
+
+  async function tick(){
+    try { if (document.hidden) return; } catch {}
     if (inFlight) return;
 
     const now = Date.now();
     if (now < nextAllowedAt) {
-      if (statusEl) statusEl.textContent = `Backoff…`;
+      if (statusEl) statusEl.textContent = "Backoff…";
       return;
     }
 
@@ -453,16 +492,18 @@ async function main(){
     try{
       const url = new URL(`${API_BASE}/opensky/states`);
       Object.entries(bb).forEach(([k,v])=>url.searchParams.set(k,v));
+
       const data = await fetchJSON(url.toString(), 9000);
       const states = Array.isArray(data?.states) ? data.states : [];
 
-      const radarMeta = { count: states.length, showing: Math.min(states.length, 5) };
+      lastRadarMeta = { count: states.length, showing: Math.min(states.length, 5) };
 
       if (!states.length){
         if (statusEl) statusEl.textContent = "No flights";
-        renderPrimary({callsign:"—", icao24:"—"}, radarMeta);
-        renderSecondary(null);
-        if ($("list")) $("list").innerHTML = "";
+        lastTop = [];
+        lastPrimary = {callsign:"—", icao24:"—"};
+        lastSecondary = null;
+        renderAll();
         return;
       }
 
@@ -477,70 +518,42 @@ async function main(){
         const trueTrack = (typeof s[10] === "number") ? s[10] : NaN;
         const distanceMi = (Number.isFinite(lat2) && Number.isFinite(lon2)) ? haversineMi(lat, lon, lat2, lon2) : Infinity;
 
-        return { icao24, callsign, country, baroAlt, velocity, trueTrack, distanceMi, routeText:undefined, modelText:undefined, airlineName:undefined, airlineGuess:guessAirline(callsign) };
+        return {
+          icao24, callsign, country, baroAlt, velocity, trueTrack, distanceMi,
+          routeText: undefined,
+          modelText: undefined,
+          airlineName: undefined,
+          airlineGuess: guessAirline(callsign),
+        };
       }).filter(f => Number.isFinite(f.distanceMi)).sort((a,b)=>a.distanceMi-b.distanceMi);
 
       const shown = flights.filter(f => groupForFlight(f.callsign) === tier);
-      const top = shown.slice(0,5);
+      lastTop = shown.slice(0,5);
 
-      const primary = top[0] || flights[0];
-      const secondary = top[1] || null;
+      lastPrimary = lastTop[0] || flights[0];
+      lastSecondary = lastTop[1] || null;
 
-      for (const f of top){
-        const k = `${f.icao24}|${normalizeCallsign(f.callsign)}`;
-        const cached = enrichCache.get(k);
-        if (cached) Object.assign(f, cached);
-      }
+      // Apply cached enrichment immediately before first render
+      for (const f of lastTop) applyCachedEnrichment(f);
+      applyCachedEnrichment(lastPrimary);
+      if (lastSecondary) applyCachedEnrichment(lastSecondary);
 
       if (statusEl) statusEl.textContent = isKiosk() ? "Kiosk" : "Live";
-      renderPrimary(primary, radarMeta);
+      renderAll();
 
-      if (isKiosk()) {
-        renderSecondary(secondary);
-      } else {
-        renderSecondary(null);
-        renderList(top);
-      }
+      // ✅ Always enrich primary route + aircraft first (fast timeout)
+      // This keeps the big card feeling responsive.
+      queueEnrich("aircraft", lastPrimary);
+      queueEnrich("route", lastPrimary);
 
-      // ✅ Also enrich the top 5 list (gradually) so routes + aircraft populate below.
-      kickListEnrichment(top, primary, secondary, radarMeta);
+      // ✅ Then enrich list (aircraft fast, route conservative)
+      queueTopEnrichment(lastTop);
 
-      const key = `${primary.icao24}|${normalizeCallsign(primary.callsign)}`;
-      const cachedPrimary = enrichCache.get(key);
-      const needsRoute = !cachedPrimary || !cachedPrimary.routeText;
-      const needsAircraft = !cachedPrimary || !cachedPrimary.modelText;
+      pumpEnrichment(renderAll);
 
-      if (key && (key !== lastPrimaryKey || needsRoute || needsAircraft)){
-        lastPrimaryKey = key;
-
-        Promise.allSettled([
-          needsRoute ? enrichRoute(primary) : Promise.resolve(),
-          needsAircraft ? enrichAircraft(primary) : Promise.resolve(),
-        ]).then(()=>{
-          const updated = enrichCache.get(key);
-          if (updated) Object.assign(primary, updated);
-          renderPrimary(primary, radarMeta);
-
-          if (isKiosk()) {
-            if (secondary) {
-              const k2 = `${secondary.icao24}|${normalizeCallsign(secondary.callsign)}`;
-              const u2 = enrichCache.get(k2);
-              if (u2) Object.assign(secondary, u2);
-            }
-            renderSecondary(secondary);
-          } else {
-            renderList(top.map(f=>{
-              const k2 = `${f.icao24}|${normalizeCallsign(f.callsign)}`;
-              const u2 = enrichCache.get(k2);
-              return u2 ? Object.assign(f, u2) : f;
-            }));
-          }
-        });
-      }
     } catch(e){
       const msg = String(e?.message || e);
 
-      // ✅ If OpenSky rate limits us, back off hard
       if (/^HTTP 429:/i.test(msg) || /Too many requests/i.test(msg)) {
         nextAllowedAt = Date.now() + BACKOFF_429_MS;
         if (statusEl) statusEl.textContent = "Rate limited";
@@ -556,8 +569,6 @@ async function main(){
   }
 
   await tick();
-
-  // ✅ Use different poll interval based on mode (main vs kiosk)
   const pollMs = isKiosk() ? POLL_KIOSK_MS : POLL_MAIN_MS;
   setInterval(tick, pollMs);
 }
