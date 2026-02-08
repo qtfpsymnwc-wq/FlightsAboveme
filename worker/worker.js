@@ -148,7 +148,7 @@ export default {
             headers: {
               ...cors,
               "Content-Type": "application/json; charset=utf-8",
-              "Cache-Control": "public, max-age=8, s-maxage=15, stale-while-revalidate=45",
+              "Cache-Control": "public, max-age=10, s-maxage=30, stale-while-revalidate=120",
             },
           });
 
@@ -171,7 +171,7 @@ export default {
           headers: {
             ...cors,
             "Content-Type": "application/json; charset=utf-8",
-            "Cache-Control": "public, max-age=8, s-maxage=15, stale-while-revalidate=45",
+            "Cache-Control": "public, max-age=10, s-maxage=30, stale-while-revalidate=120",
           },
         });
 
