@@ -868,6 +868,20 @@ async function getOpenSkyAccessToken(env) {
 }
 
 // -------------------- ADSB.lol Fallback (adapt to OpenSky "states") --------------------
+// FIXED: correct OpenSky indices + unit conversions so ALT/DIR work when fallback is used.
+
+function feetToMeters(ft) {
+  const n = Number(ft);
+  return Number.isFinite(n) ? n * 0.3048 : NaN;
+}
+function knotsToMps(knots) {
+  const n = Number(knots);
+  return Number.isFinite(n) ? n * 0.514444 : NaN;
+}
+function fpmToMps(fpm) {
+  const n = Number(fpm);
+  return Number.isFinite(n) ? (n * 0.3048) / 60 : NaN;
+}
 
 async function fetchADSBLOLAsOpenSky(env, bbox) {
   const base =
@@ -909,55 +923,82 @@ async function fetchADSBLOLAsOpenSky(env, bbox) {
 
   const nowSec = Math.floor(Date.now() / 1000);
 
+  // OpenSky format (array indices):
+  // 0 icao24
+  // 1 callsign
+  // 2 origin_country
+  // 3 time_position
+  // 4 last_contact
+  // 5 longitude
+  // 6 latitude
+  // 7 baro_altitude (meters)
+  // 8 on_ground
+  // 9 velocity (m/s)
+  // 10 true_track (deg)
+  // 11 vertical_rate (m/s)
+  // 12 sensors
+  // 13 geo_altitude (meters)
+  // 14 squawk
+  // 15 spi
+  // 16 position_source
   const states = aircraft
     .map((p) => {
       const icao24 = (p.hex || p.icao || p.icao24 || "")
         .toString()
         .toLowerCase();
       const callsign = (p.flight || p.callsign || "").toString();
-      const origin_country = "";
+      const lon = num(p.lon);
+      const lat = num(p.lat);
+
+      if (!icao24 || !Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+
+      // Altitude: ADSB.lol commonly returns feet. Convert to meters.
+      const altFt = num(p.alt_baro != null ? p.alt_baro : p.altitude);
+      const baro_alt_m = Number.isFinite(altFt) ? feetToMeters(altFt) : NaN;
+
+      const on_ground = !!p.gnd;
+
+      // Ground speed: typically knots. Convert to m/s.
+      const gsKnots = num(p.gs != null ? p.gs : p.speed);
+      const velocity_mps = Number.isFinite(gsKnots) ? knotsToMps(gsKnots) : NaN;
+
+      const true_track = num(p.track != null ? p.track : p.trak);
+
+      // Vertical rate: often ft/min. Convert to m/s when present.
+      const vrFpm = num(p.vrate != null ? p.vrate : p.vr);
+      const vertical_rate_mps = Number.isFinite(vrFpm) ? fpmToMps(vrFpm) : NaN;
+
+      // Geo altitude if present (feet -> meters)
+      const geoFt = num(p.alt_geom != null ? p.alt_geom : p.altitude_geom);
+      const geo_alt_m = Number.isFinite(geoFt) ? feetToMeters(geoFt) : NaN;
+
       const time_position = toInt(
         p.seen_pos != null ? nowSec - Number(p.seen_pos) : nowSec
       );
       const last_contact = toInt(
         p.seen != null ? nowSec - Number(p.seen) : nowSec
       );
-      const lon = num(p.lon);
-      const lat = num(p.lat);
-      const baro_alt = num(p.alt_baro != null ? p.alt_baro : p.altitude);
-      const on_ground = !!p.gnd;
-      const velocity = num(
-        p.gs != null ? p.gs * 0.514444 : p.speed
-      ); // knots→m/s if gs is knots
-      const true_track = num(p.track != null ? p.track : p.trak);
-      const vertical_rate = num(p.vrate != null ? p.vrate : p.vr);
-      const sensors = null;
-      const geo_alt = num(
-        p.alt_geom != null ? p.alt_geom : p.altitude_geom
-      );
-      const squawk = (p.squawk || "").toString() || null;
-      const spi = false;
-      const position_source = 0;
 
-      if (!icao24 || !Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+      const squawk = (p.squawk || "").toString() || null;
 
       return [
         icao24,
         callsign,
-        origin_country,
+        "", // origin_country unknown
         time_position || null,
         last_contact || null,
         lon,
         lat,
-        Number.isFinite(baro_alt) ? baro_alt : null,
-        velocity || null,
-        true_track || null,
-        Number.isFinite(vertical_rate) ? vertical_rate : null,
-        sensors,
-        Number.isFinite(geo_alt) ? geo_alt : null,
+        Number.isFinite(baro_alt_m) ? baro_alt_m : null,
+        on_ground,
+        Number.isFinite(velocity_mps) ? velocity_mps : null,
+        Number.isFinite(true_track) ? true_track : null,
+        Number.isFinite(vertical_rate_mps) ? vertical_rate_mps : null,
+        null, // sensors
+        Number.isFinite(geo_alt_m) ? geo_alt_m : null,
         squawk,
-        spi,
-        position_source,
+        false, // spi
+        0, // position_source
       ];
     })
     .filter(Boolean);
