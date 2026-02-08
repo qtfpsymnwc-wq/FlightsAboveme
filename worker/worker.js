@@ -143,15 +143,18 @@ function aerodataConfigured(env) {
   return Boolean(env && env.AERODATA_KEY && env.AERODATA_HOST);
 }
 
+/**
+ * ✅ Cache key version bump (v2) to avoid old cached bodies blocking new response formats.
+ */
 function cacheKeyFlight(origin, callsign) {
   return new Request(
-    `${origin}/__cache/aerodata/flight/${encodeURIComponent(callsign)}`,
+    `${origin}/__cache/aerodata/v2/flight/${encodeURIComponent(callsign)}`,
     { method: "GET" }
   );
 }
 function cacheKeyAircraft(origin, hex) {
   return new Request(
-    `${origin}/__cache/aerodata/aircraft/${encodeURIComponent(hex)}`,
+    `${origin}/__cache/aerodata/v2/aircraft/${encodeURIComponent(hex)}`,
     { method: "GET" }
   );
 }
@@ -355,12 +358,12 @@ export default {
           headers: {
             ...cors,
             "Content-Type": "application/json; charset=utf-8",
-            // short cache to cut request volume, plus SWR to keep UI alive during upstream hiccups
             "Cache-Control": "public, max-age=8, s-maxage=15, stale-while-revalidate=45",
             ...headersExtra,
           },
         });
         ctx.waitUntil(cache.put(cacheKey, out.clone()));
+
         // Warm AeroDataBox cache asynchronously (UI contract unchanged)
         const bboxCenter = [
           (Number(lamin) + Number(lamax)) / 2,
@@ -382,10 +385,10 @@ export default {
             } catch {}
           })()
         );
+
         return out;
       };
 
-      // 1) Try OpenSky
       try {
         const headers = await buildOpenSkyHeaders(env);
 
@@ -397,7 +400,6 @@ export default {
 
         const text = await res.text();
 
-        // If unauthorized and we used OAuth, clear token and retry once
         if (!res.ok && res.status === 401 && _tokenCache.mode === "oauth") {
           clearTokenCache();
           const headers2 = await buildOpenSkyHeaders(env);
@@ -412,7 +414,6 @@ export default {
             return respondAndCache(text2, { "X-Provider": "opensky" });
           }
 
-          // OpenSky failed even after retry: fall through to cache/fallback
           return await handleOpenSkyFailure({
             env,
             cors,
@@ -429,7 +430,6 @@ export default {
           return respondAndCache(text, { "X-Provider": "opensky" });
         }
 
-        // OpenSky non-OK: try cache → fallback → error
         return await handleOpenSkyFailure({
           env,
           cors,
@@ -441,7 +441,6 @@ export default {
           bbox: { lamin, lomin, lamax, lomax },
         });
       } catch (err) {
-        // OpenSky fetch threw (timeout/network): try cache → fallback → error
         return await handleOpenSkyFailure({
           env,
           cors,
@@ -476,7 +475,6 @@ export default {
       const cache = caches.default;
       const ck = cacheKeyFlight(url.origin, callsign);
 
-      // Cache-first: serve last-known-good (prevents credit burn + improves kiosk stability)
       const hit = await cache.match(ck);
       if (hit) return withCors(hit, cors, "HIT");
 
@@ -601,7 +599,6 @@ export default {
       const cache = caches.default;
       const ck = cacheKeyAircraft(url.origin, hex);
 
-      // Cache-first: serve last-known-good
       const hit = await cache.match(ck);
       if (hit) return withCors(hit, cors, "HIT");
 
@@ -655,7 +652,6 @@ export default {
             cors
           );
 
-        // ✅ FIX: wrap aircraft JSON with ok:true so UI enrichment accepts it
         let raw;
         try {
           raw = JSON.parse(text);
@@ -663,6 +659,7 @@ export default {
           return json({ ok: false, icao24: hex, error: "aerodata_non_json" }, 502, cors);
         }
 
+        // ✅ Wrap for UI compatibility
         const payload = {
           ok: true,
           icao24: hex,
@@ -711,11 +708,9 @@ async function handleOpenSkyFailure({
   bbox,
   thrown,
 }) {
-  // 1) Serve cached if available
   const cached = await cache.match(cacheKey);
   if (cached) return withCors(cached, cors, "HIT-STALE");
 
-  // 2) If OpenSky rate-limited or timed out / networked out, try ADSB.lol fallback
   const shouldFallback =
     status === 429 ||
     status === 502 ||
@@ -740,7 +735,6 @@ async function handleOpenSkyFailure({
         });
         ctx.waitUntil(cache.put(cacheKey, out.clone()));
 
-        // Warm AeroDataBox cache asynchronously (UI contract unchanged)
         try {
           const bboxCenter = [
             (Number(bbox.lamin) + Number(bbox.lamax)) / 2,
@@ -766,9 +760,7 @@ async function handleOpenSkyFailure({
 
         return out;
       }
-    } catch (e) {
-      // fall through
-    }
+    } catch (e) {}
   }
 
   return json(
@@ -877,7 +869,7 @@ async function getOpenSkyAccessToken(env) {
 }
 
 // -------------------- ADSB.lol Fallback (adapt to OpenSky "states") --------------------
-// FIXED: correct OpenSky indices + unit conversions so ALT/DIR work when fallback is used.
+// Correct OpenSky indices + unit conversions so ALT/DIR work when fallback is used.
 
 function feetToMeters(ft) {
   const n = Number(ft);
@@ -930,24 +922,6 @@ async function fetchADSBLOLAsOpenSky(env, bbox) {
 
   const nowSec = Math.floor(Date.now() / 1000);
 
-  // OpenSky format (array indices):
-  // 0 icao24
-  // 1 callsign
-  // 2 origin_country
-  // 3 time_position
-  // 4 last_contact
-  // 5 longitude
-  // 6 latitude
-  // 7 baro_altitude (meters)
-  // 8 on_ground
-  // 9 velocity (m/s)
-  // 10 true_track (deg)
-  // 11 vertical_rate (m/s)
-  // 12 sensors
-  // 13 geo_altitude (meters)
-  // 14 squawk
-  // 15 spi
-  // 16 position_source
   const states = aircraft
     .map((p) => {
       const icao24 = (p.hex || p.icao || p.icao24 || "")
@@ -1091,7 +1065,6 @@ async function openskyStatesHealth(env, cors) {
   try {
     const headers = await buildOpenSkyHeaders(env);
 
-    // Tiny bbox (required by states endpoint handler)
     const upstream = new URL(OPENSKY_STATES_URL);
     upstream.searchParams.set("lamin", "39.7");
     upstream.searchParams.set("lomin", "-104.99");
@@ -1146,11 +1119,6 @@ async function openskyCombinedHealth(env, cors) {
 
 // -------------------- Formatting helpers --------------------
 
-/**
- * OBJECT-SAFE normalizer.
- * AeroDataBox sometimes returns nested objects for fields like municipality/city.
- * This ensures we always return a clean string (prevents "[object Object]" in UI).
- */
 function nm(v) {
   if (v == null) return "";
   if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") {
@@ -1161,6 +1129,7 @@ function nm(v) {
       v.name ??
         v.city ??
         v.municipality ??
+        v.municipalityName ??
         v.location ??
         v.label ??
         v.value ??
@@ -1174,12 +1143,10 @@ function nm(v) {
 
 function fmtEnd(a) {
   if (!a) return "";
-
   const code = nm(a.iata || a.iataCode || a.icao || a.icaoCode || "");
-  const city = nm(a.municipality || a.city || a.location || "");
+  const city = nm(a.municipality || a.municipalityName || a.city || a.location || "");
   const name = nm(a.name || "");
   const best = city || name;
-
   if (best && code) return `${best} (${code})`;
   return best || code || "";
 }
