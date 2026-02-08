@@ -7,6 +7,8 @@ const UI_VERSION = "v181";
  * - main mode polls slower
  * - kiosk polls even slower
  * - if OpenSky 429 happens, back off for 60s
+ * - ✅ inFlight guard prevents overlapping polls (important on iOS/cellular)
+ * - ✅ pause polling when tab is hidden (reduces background hits)
  */
 const POLL_MAIN_MS = 8000;   // was 3500
 const POLL_KIOSK_MS = 12000; // kiosk is display-only; keep it lighter
@@ -347,16 +349,25 @@ async function main(){
 
   let lastPrimaryKey = "";
 
-  // ✅ Backoff gate (starts enabled)
+  // ✅ Backoff gate
   let nextAllowedAt = 0;
 
+  // ✅ Prevent overlapping polls (setInterval can stack on slow networks)
+  let inFlight = false;
+
   async function tick(){
+    // Pause when tab is hidden (prevents background spam)
+    try { if (document.hidden) return; } catch {}
+
+    if (inFlight) return;
+
     const now = Date.now();
     if (now < nextAllowedAt) {
       if (statusEl) statusEl.textContent = `Backoff…`;
       return;
     }
 
+    inFlight = true;
     try{
       const url = new URL(`${API_BASE}/opensky/states`);
       Object.entries(bb).forEach(([k,v])=>url.searchParams.set(k,v));
@@ -454,6 +465,8 @@ async function main(){
 
       if (statusEl) statusEl.textContent = "Radar error";
       showErr(msg);
+    } finally {
+      inFlight = false;
     }
   }
 
