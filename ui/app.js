@@ -1,6 +1,6 @@
 // FlightsAboveMe UI
 const API_BASE = "https://flightsabove.t2hkmhgbwz.workers.dev";
-const UI_VERSION = "v182";
+const UI_VERSION = "v183";
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;
@@ -16,16 +16,18 @@ const LIST_ROUTE_BUDGET = 1;    // keep routes conservative to protect credits
 
 const enrichCache = new Map();       // key: `${hex}|${callsign}` -> {routeText, modelText, airlineName}
 const enrichInFlight = new Set();    // keys currently being enriched
-const enrichQueue = [];             // queue of { type, flight, key }
+const enrichQueue = [];              // queue of { type, flight, key }
 let enrichPumpRunning = false;
 
 const $ = (id) => document.getElementById(id);
 const errBox = $("errBox");
 
+// Keep error box plumbing (harmless even if element is missing).
 function showErr(msg){
   const m = String(msg||"");
   if (/AbortError/i.test(m) || /fetch aborted/i.test(m) || /aborted/i.test(m)) return;
   try {
+    if (!errBox) return;
     errBox.textContent = msg;
     errBox.classList.remove("hidden");
   } catch {}
@@ -269,8 +271,6 @@ async function enrichRoute(f){
         airlineName: data.airlineName || f.airlineName,
         airlineGuess: f.airlineGuess || guessAirline(f.callsign),
       };
-
-      // Sometimes flight endpoint also knows aircraft model; use it as a fallback if we don't have airframe yet
       if (!f.modelText && data.aircraftModel) patch.modelText = data.aircraftModel;
 
       enrichCache.set(k, { ...(enrichCache.get(k) || {}), ...patch });
@@ -286,8 +286,6 @@ async function enrichAircraft(f){
   const k = cacheKeyForFlight(f);
   try {
     const data = await fetchJSON(`${API_BASE}/aircraft/icao24/${encodeURIComponent(hex)}`, ENRICH_TIMEOUT_MS);
-
-    // Accept wrapped or raw JSON
     if (!data) return;
     if (data.ok === false) return;
     if (data.found === false) return;
@@ -311,7 +309,6 @@ function queueEnrich(type, f){
   const inflightKey = `${type}:${k}`;
   if (enrichInFlight.has(inflightKey)) return;
 
-  // Avoid queue duplicates
   for (let i = 0; i < enrichQueue.length; i++) {
     if (enrichQueue[i].type === type && enrichQueue[i].key === k) return;
   }
@@ -325,7 +322,6 @@ function pumpEnrichment(renderFn){
 
   const run = async () => {
     try {
-      // run small batches so iOS stays smooth
       let batch = 0;
       while (enrichQueue.length && batch < 3) {
         const job = enrichQueue.shift();
@@ -343,13 +339,10 @@ function pumpEnrichment(renderFn){
         }
 
         batch += 1;
-
-        // Re-render after each successful job so user sees progress immediately
         renderFn();
       }
     } finally {
       enrichPumpRunning = false;
-      // If queue still has work, schedule next slice
       if (enrichQueue.length) setTimeout(() => pumpEnrichment(renderFn), 250);
     }
   };
@@ -448,10 +441,8 @@ async function main(){
   }
 
   function queueTopEnrichment(top){
-    // Apply cached first
     for (const f of top) applyCachedEnrichment(f);
 
-    // Queue aircraft for all 5 fast
     let aircraftBudget = LIST_AIRCRAFT_BUDGET;
     for (const f of top) {
       if (aircraftBudget <= 0) break;
@@ -463,7 +454,6 @@ async function main(){
       }
     }
 
-    // Queue routes conservatively (primary is handled separately; list gets 1 per cycle)
     let routeBudget = LIST_ROUTE_BUDGET;
     for (const f of top) {
       if (routeBudget <= 0) break;
@@ -489,6 +479,7 @@ async function main(){
     }
 
     inFlight = true;
+
     try{
       const url = new URL(`${API_BASE}/opensky/states`);
       Object.entries(bb).forEach(([k,v])=>url.searchParams.set(k,v));
@@ -533,7 +524,6 @@ async function main(){
       lastPrimary = lastTop[0] || flights[0];
       lastSecondary = lastTop[1] || null;
 
-      // Apply cached enrichment immediately before first render
       for (const f of lastTop) applyCachedEnrichment(f);
       applyCachedEnrichment(lastPrimary);
       if (lastSecondary) applyCachedEnrichment(lastSecondary);
@@ -541,12 +531,9 @@ async function main(){
       if (statusEl) statusEl.textContent = isKiosk() ? "Kiosk" : "Live";
       renderAll();
 
-      // ✅ Always enrich primary route + aircraft first (fast timeout)
-      // This keeps the big card feeling responsive.
+      // Prefer enriching primary first, then list
       queueEnrich("aircraft", lastPrimary);
       queueEnrich("route", lastPrimary);
-
-      // ✅ Then enrich list (aircraft fast, route conservative)
       queueTopEnrichment(lastTop);
 
       pumpEnrichment(renderAll);
@@ -554,16 +541,20 @@ async function main(){
     } catch(e){
       const msg = String(e?.message || e);
 
+      // 429 backoff stays (quietly)
       if (/^HTTP 429:/i.test(msg) || /Too many requests/i.test(msg)) {
         nextAllowedAt = Date.now() + BACKOFF_429_MS;
         if (statusEl) statusEl.textContent = "Rate limited";
-        showErr("OpenSky rate limited (429). Backing off for 60s.");
         return;
       }
 
-// Keep last-known-good display; do not alarm the UI
-if (statusEl) statusEl.textContent = isKiosk() ? "Kiosk" : "Live";
-// optional: console.warn(msg);
+      // ✅ No “Radar error” UI. Keep status calm and keep last-known-good on screen.
+      if (statusEl) statusEl.textContent = isKiosk() ? "Kiosk" : "Live";
+
+      // Optional: keep internal visibility without alarming UI
+      // console.warn("Radar fetch failed:", msg);
+    } finally {
+      inFlight = false;
     }
   }
 
