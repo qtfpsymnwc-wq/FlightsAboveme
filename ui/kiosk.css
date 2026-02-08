@@ -1,347 +1,232 @@
-/* FlightsAboveMe — Kiosk (signage-grade, iPad portrait + landscape)
-   UI-only. Keeps existing IDs so app.js can populate fields unchanged.
-*/
+/* ================================
+   ROOT / THEME
+================================ */
 
 :root{
-  color-scheme: dark;
+  --bg-main: #0b1118;
+  --bg-panel: rgba(255,255,255,.03);
+  --bg-panel-soft: rgba(255,255,255,.06);
+  --bg-logo: rgba(255,255,255,.18);
 
-  --bg0:#05070c;
-  --bg1:#070a12;
+  --text-main: #f3f7fb;
+  --text-dim: rgba(255,255,255,.65);
+  --text-muted: rgba(255,255,255,.45);
 
-  --text: rgba(255,255,255,.94);
+  --accent: #b6ecff;
 
-  --glowA: rgba(120,220,255,.22);
-  --glowB: rgba(120,220,255,.12);
-
-  --safeTop: env(safe-area-inset-top);
-  --safeRight: env(safe-area-inset-right);
-  --safeBottom: env(safe-area-inset-bottom);
-  --safeLeft: env(safe-area-inset-left);
-
-  --pad: clamp(8px, 1.2vmin, 14px);
-
-  /* Big type */
-  --airline: clamp(64px, 9.6vmin, 156px);
-  --route:   clamp(54px, 8.2vmin, 128px);
-  --sub:     clamp(40px, 6.0vmin, 92px);
-  --tiny:    clamp(16px, 2.2vmin, 28px);
-
-  /* Stats */
-  --statV:   clamp(58px, 9.0vmin, 148px);
-  --statK:   clamp(16px, 2.2vmin, 26px);
-
-  --topBar:  clamp(14px, 1.9vmin, 20px);
-  --exitH:   clamp(42px, 5.4vmin, 60px);
+  --statV: clamp(58px, 8.5vmin, 128px);
 }
 
-*{ box-sizing:border-box; }
-html, body{ height:100%; }
-body{
+/* Landscape tuning */
+@media (orientation: landscape){
+  :root{
+    --statV: clamp(50px, 7.2vmin, 116px);
+  }
+}
+
+/* ================================
+   BASE
+================================ */
+
+*{
+  box-sizing: border-box;
+}
+
+html,body{
   margin:0;
-  overflow:hidden;
+  padding:0;
+  background: var(--bg-main);
+  color: var(--text-main);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+               Inter, Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* ================================
+   DOT MATRIX BACKGROUND
+================================ */
+
+.kiosk{
   background:
-    radial-gradient(1200px 700px at 50% -120px, rgba(120,160,255,.12), transparent 60%),
-    linear-gradient(180deg, rgba(255,255,255,.06), transparent 22%),
-    linear-gradient(180deg, var(--bg1), var(--bg0));
-  color:var(--text);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  letter-spacing: .2px;
+    radial-gradient(circle at 1px 1px,
+      rgba(255,255,255,.06) 1px,
+      transparent 1.5px);
+  background-size: 8px 8px;
 }
 
-.hidden{ display:none !important; }
+/* ================================
+   HEADER
+================================ */
 
-#app.kioskApp{
-  height: 100svh;
-  padding:
-    calc(var(--safeTop) + var(--pad))
-    calc(var(--safeRight) + var(--pad))
-    calc(var(--safeBottom) + var(--pad))
-    calc(var(--safeLeft) + var(--pad));
-  display:flex;
-  flex-direction:column;
-  gap: clamp(8px, 1.2vmin, 12px);
+.kiosk-header{
+  height: 64px;
+  padding: 0 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(
+    to bottom,
+    rgba(255,255,255,.06),
+    rgba(255,255,255,0)
+  );
+  letter-spacing: .2em;
+  font-weight: 600;
+  color: var(--text-muted);
 }
 
-/* Top bar */
-.topBar{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap: 12px;
-  user-select:none;
+/* ================================
+   MAIN CARD
+================================ */
+
+.kiosk-card{
+  padding: 36px 48px 28px;
 }
 
-.appName{
-  font-size: var(--topBar);
-  font-weight: 900;
-  letter-spacing: 1.2px;
-  color: rgba(255,255,255,.82);
-  text-transform: uppercase;
+/* ================================
+   AIRLINE + LOGO
+================================ */
+
+.kiosk-airline{
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 12px;
 }
 
-.exitBtn{
-  text-decoration:none;
-  height: var(--exitH);
-  padding: 0 clamp(14px, 2.2vmin, 24px);
-  border-radius: 999px;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  font-size: var(--topBar);
-  font-weight: 950;
-  letter-spacing: 1px;
-  color: rgba(255,255,255,.92);
-  border: 1px solid rgba(255,255,255,.18);
-  background: rgba(255,255,255,.08);
-  box-shadow:
-    0 16px 34px rgba(0,0,0,.40),
-    inset 0 1px 0 rgba(255,255,255,.10);
-  -webkit-tap-highlight-color: transparent;
-}
-.exitBtn:active{ transform: translateY(1px); }
-
-/* Board */
-.board{
-  flex: 1;
-  min-height: 0;
-  border-radius: 0;
-  border: 0;
-  overflow:hidden;
-
-  background:
-    radial-gradient(circle at 1px 1px, rgba(255,255,255,.038) 1px, transparent 1.6px) 0 0 / 10px 10px,
-    linear-gradient(180deg, rgba(0,0,0,.12), rgba(0,0,0,.36)),
-    linear-gradient(180deg, rgba(20,30,55,.14), rgba(0,0,0,.0) 35%),
-    linear-gradient(180deg, #070a12, #04060b);
-
-  display:grid;
-  grid-template-rows: 1fr auto;
+.kiosk-logo{
+  width: 96px;
+  height: 96px;
+  border-radius: 18px;
+  background: var(--bg-logo);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(6px);
 }
 
-/* Top pane */
-.topPane{
-  display:grid;
-  grid-template-columns: auto 1fr;
-  gap: clamp(10px, 1.4vmin, 16px);
-  padding: clamp(14px, 2.2vmin, 22px);
-  align-items:center;
-  min-height: 0;
-}
-
-@media (orientation: portrait){
-  .topPane{
-    grid-template-columns: auto 1fr;
-    align-items:start;
-    padding: clamp(14px, 2.0vmin, 20px);
-    gap: clamp(12px, 1.8vmin, 18px);
-  }
-}
-
-.logoPane{
-  display:flex;
-  align-items:center;
-  justify-content:flex-start;
-}
-
-.logo{
-  width: clamp(150px, 22vmin, 270px);
-  height: clamp(150px, 22vmin, 270px);
+.kiosk-logo img{
+  max-width: 78%;
+  max-height: 78%;
   object-fit: contain;
-
-  background:
-    radial-gradient(120% 120% at 30% 25%, rgba(255,255,255,.30), rgba(255,255,255,.14) 55%, rgba(255,255,255,.10)),
-    rgba(255,255,255,.16);
-  border: 1px solid rgba(255,255,255,.30);
-  padding: clamp(10px, 1.4vmin, 16px);
-  border-radius: 22px;
-
-  box-shadow:
-    0 18px 34px rgba(0,0,0,.55),
-    inset 0 1px 0 rgba(255,255,255,.22),
-    inset 0 -1px 0 rgba(0,0,0,.20),
-    0 0 0 2px rgba(255,255,255,.08),
-    0 0 26px rgba(120,220,255,.12);
-
-  filter: drop-shadow(0 10px 18px rgba(0,0,0,.30));
 }
 
-@media (orientation: portrait){
-  .logo{
-    width: clamp(120px, 18vmin, 210px);
-    height: clamp(120px, 18vmin, 210px);
-  }
+/* Airline name — BIG */
+.kiosk-airline-name{
+  font-size: clamp(44px, 6.2vmin, 88px);
+  font-weight: 900;
+  letter-spacing: -.02em;
 }
 
-.mainText{
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-  gap: clamp(10px, 1.5vmin, 16px);
-  min-width: 0;
-  width: 100%;
-}
+/* ================================
+   FLIGHT + AIRCRAFT
+================================ */
 
-.line{
-  text-shadow:
-    0 0 12px var(--glowA),
-    0 0 28px var(--glowB);
-}
-
-.airline{
-  font-size: var(--airline);
-  font-weight: 950;
-  letter-spacing: .6px;
-  line-height: 1.02;
-  text-wrap: balance;
-  max-width: 100%;
-}
-
-.routeBlock{
-  display:flex;
-  flex-direction:column;
-  gap: clamp(6px, 1.0vmin, 10px);
-}
-
-.route{
-  font-size: var(--route);
-  font-weight: 950;
-  color: rgba(255,255,255,.92);
-  line-height: 1.04;
-  max-width: 100%;
-  overflow:hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.route2{ color: rgba(255,255,255,.88); }
-
-.sub{
-  font-size: var(--sub);
-  font-weight: 950;
-  color: rgba(255,255,255,.86);
-  display:flex;
+.kiosk-flight{
+  margin-top: 8px;
+  display: flex;
   flex-wrap: wrap;
-  align-items:baseline;
+  align-items: baseline;
   gap: 14px;
-  line-height: 1.10;
-}
-.callsign{ color: rgba(255,255,255,.98); }
-.model{ color: rgba(255,255,255,.86); }
-.sep{ color: rgba(255,255,255,.50); }
-
-.tiny{
-  font-size: var(--tiny);
-  font-weight: 850;
-  color: rgba(255,255,255,.62);
-  letter-spacing: .9px;
-  display:flex;
-  gap: 12px;
-  align-items:baseline;
-}
-.tinyLabel{ color: rgba(255,255,255,.52); text-transform: uppercase; }
-.tinyValue{ color: rgba(255,255,255,.78); }
-
-/* Bottom stats */
-.bottomPane{
-  padding: clamp(10px, 1.8vmin, 16px);
-  display:flex;
-  flex-direction:column;
-  gap: clamp(10px, 1.4vmin, 12px);
-  border-top: 1px solid rgba(255,255,255,.10);
-  background: linear-gradient(180deg, rgba(0,0,0,.10), rgba(0,0,0,.18));
 }
 
-.statsRow{
-  display:grid;
-  grid-template-columns: 1fr 1fr;
-  gap: clamp(10px, 1.6vmin, 14px);
+.kiosk-callsign{
+  font-size: clamp(26px, 3.4vmin, 44px);
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.kiosk-dot{
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.4);
+}
+
+.kiosk-aircraft{
+  font-size: clamp(26px, 3.4vmin, 44px);
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+/* ICAO24 small + quiet */
+.kiosk-icao{
+  margin-top: 6px;
+  font-size: 14px;
+  letter-spacing: .2em;
+  color: var(--text-muted);
+}
+
+/* ================================
+   STATS GRID
+================================ */
+
+.kiosk-stats{
+  margin-top: 26px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
 }
 
 .stat{
-  border: 1px solid rgba(255,255,255,.10);
-  border-radius: 16px;
-  background: rgba(255,255,255,.04);
-  padding: clamp(10px, 1.6vmin, 14px);
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-  gap: clamp(6px, 1.0vmin, 8px);
-  min-width: 0; /* ✅ allows inner content to shrink */
+  background: var(--bg-panel);
+  border-radius: 18px;
+  padding: 18px 22px;
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
-.stat .k{
-  font-size: var(--statK);
-  font-weight: 950;
-  color: rgba(255,255,255,.62);
-  letter-spacing: 1.2px;
-  text-transform: uppercase;
+/* Label */
+.stat .l{
+  font-size: 14px;
+  letter-spacing: .3em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
 }
 
-/* ✅ FIX: stat values never wrap; they shrink/clip gracefully */
+/* VALUE — NEVER WRAP, NEVER TRUNCATE */
 .stat .v{
   font-size: var(--statV);
   font-weight: 950;
-  color: rgba(180,240,255,.96);
   line-height: 1.0;
-  letter-spacing: .6px;
+  letter-spacing: .4px;
 
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
+  overflow: visible;
+
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+
+  color: var(--accent);
 
   text-shadow:
     0 0 12px rgba(120,220,255,.28),
     0 0 34px rgba(120,220,255,.16);
 }
 
-/* ✅ Landscape-specific tweak: slightly reduce max stat value size
-      so "2,850 ft" / "589 mph" stays on one line more often. */
-@media (orientation: landscape){
-  :root{
-    --statV: clamp(54px, 7.6vmin, 124px);
-  }
+/* ================================
+   FOOTER
+================================ */
+
+.kiosk-footer{
+  margin-top: 14px;
+  text-align: center;
+  font-size: 14px;
+  letter-spacing: .25em;
+  color: var(--text-muted);
 }
 
-.statusLine{
-  margin-top: auto;
-  display:flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  justify-content:center;
-  align-items:center;
+/* ================================
+   EXIT BUTTON
+================================ */
 
-  font-size: clamp(14px, 2.0vmin, 20px);
-  font-weight: 900;
-  letter-spacing: .7px;
-  color: rgba(255,255,255,.72);
-
-  padding-top: clamp(8px, 1.2vmin, 10px);
-  border-top: 1px solid rgba(255,255,255,.08);
-}
-
-.dot{ color: rgba(255,255,255,.45); }
-
-.errBox{
-  position:fixed;
-  left: calc(var(--safeLeft) + var(--pad));
-  right: calc(var(--safeRight) + var(--pad));
-  bottom: calc(var(--safeBottom) + var(--pad));
-  background: rgba(60,16,26,.95);
-  border: 1px solid rgba(255,138,160,.35);
-  color: rgba(255,215,222,.98);
-  padding: 14px 16px;
-  border-radius: 16px;
-  font-size: clamp(14px, 2.0vmin, 18px);
-  font-weight: 800;
-  z-index: 999;
-}
-
-.compatHidden{
-  position:absolute;
-  width:1px;
-  height:1px;
-  overflow:hidden;
-  clip: rect(0 0 0 0);
-  clip-path: inset(50%);
-  white-space: nowrap;
+.kiosk-exit{
+  position: absolute;
+  top: 14px;
+  right: 18px;
+  padding: 10px 18px;
+  border-radius: 18px;
+  background: rgba(255,255,255,.08);
+  color: var(--text-main);
+  font-weight: 600;
 }
