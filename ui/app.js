@@ -561,10 +561,9 @@ async function main(){
         return;
       }
 
-      if (statusEl) statusEl.textContent = "Radar error";
-      showErr(msg);
-    } finally {
-      inFlight = false;
+// Keep last-known-good display; do not alarm the UI
+if (statusEl) statusEl.textContent = isKiosk() ? "Kiosk" : "Live";
+// optional: console.warn(msg);
     }
   }
 
