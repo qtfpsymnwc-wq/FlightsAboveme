@@ -26,12 +26,12 @@
   --pad: clamp(8px, 1.2vmin, 14px);
 
   /* BIG typography targets (distance readability first) */
-  /* ⬆️ bigger airline + aircraft for signage */
-  --airline: clamp(62px, 9.2vmin, 150px);
+  /* ⬆️ slightly bigger airline + route + sub for signage */
+  --airline: clamp(68px, 9.6vmin, 158px);
 
-  /* Route + aircraft line (bigger + bolder for ~15ft) */
-  --route:   clamp(50px, 7.6vmin, 118px);
-  --sub:     clamp(38px, 5.7vmin, 86px);
+  /* Route + aircraft line */
+  --route:   clamp(54px, 7.9vmin, 122px);
+  --sub:     clamp(40px, 5.9vmin, 90px);
 
   --tiny:    clamp(16px, 2.2vmin, 28px);
 
@@ -43,11 +43,11 @@
   --exitH:   clamp(42px, 5.4vmin, 60px);
 }
 
-/* Landscape tuning: slightly smaller stats so they never feel forced */
+/* Landscape tuning: keep values readable without clipping */
 @media (orientation: landscape){
   :root{
     --statV: clamp(48px, 7.0vmin, 120px);
-    --route: clamp(46px, 6.6vmin, 104px);
+    --route: clamp(48px, 6.8vmin, 108px);
   }
 }
 
@@ -176,15 +176,20 @@ body{
   padding: clamp(10px, 1.4vmin, 16px);
   border-radius: 22px;
 
+  /* UPDATED: lighter plate */
   background:
-    radial-gradient(120% 120% at 30% 25%, rgba(255,255,255,.28), rgba(255,255,255,.14) 55%, rgba(255,255,255,.10)),
-    rgba(255,255,255,.14);
+    radial-gradient(120% 120% at 30% 25%,
+      rgba(255,255,255,.40),
+      rgba(255,255,255,.22) 55%,
+      rgba(255,255,255,.16)
+    ),
+    rgba(255,255,255,.18);
 
-  border: 1px solid rgba(255,255,255,.26);
+  border: 1px solid rgba(255,255,255,.30);
 
   box-shadow:
     0 18px 34px rgba(0,0,0,.55),
-    inset 0 1px 0 rgba(255,255,255,.20),
+    inset 0 1px 0 rgba(255,255,255,.22),
     inset 0 -1px 0 rgba(0,0,0,.18),
     0 0 26px rgba(120,220,255,.10);
 
@@ -230,17 +235,18 @@ body{
   gap: clamp(8px, 1.2vmin, 12px);
 }
 
-/* Keep each route line single-line (your kiosk.html JS guarantees 2 lines) */
+/* UPDATED: no ellipsis — allow full text, wrap if needed */
 .route{
   font-size: var(--route);
   font-weight: 950;
   color: rgba(255,255,255,.92);
-  line-height: 1.04;
+  line-height: 1.06;
 
   max-width: 100%;
-  overflow:hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  text-wrap: balance;
 }
 .route2{ color: rgba(255,255,255,.88); }
 
@@ -278,8 +284,10 @@ body{
   display:flex;
   flex-direction:column;
   gap: clamp(10px, 1.6vmin, 14px);
-  border-top: 1px solid rgba(255,255,255,.10);
-  background: linear-gradient(180deg, rgba(0,0,0,.10), rgba(0,0,0,.20));
+
+  /* UPDATED: softer divider; avoids “line collision” vibe */
+  border-top: 1px solid rgba(255,255,255,.08);
+  background: linear-gradient(180deg, rgba(0,0,0,.08), rgba(0,0,0,.18));
 }
 
 .statsRow{
@@ -289,16 +297,22 @@ body{
   min-height: 0;
 }
 
+/* UPDATED: remove box lines entirely */
 .stat{
-  border: 1px solid rgba(255,255,255,.10);
+  border: none;
   border-radius: 16px;
   background: rgba(255,255,255,.04);
-  padding: clamp(12px, 2.0vmin, 16px);
+
+  /* a touch more padding gives the big digits breathing room */
+  padding: clamp(14px, 2.2vmin, 18px);
+
   display:flex;
   flex-direction:column;
   justify-content:center;
   gap: clamp(6px, 1.0vmin, 10px);
-  min-width: 0; /* allows inner content to size properly */
+
+  min-width: 0;
+  min-height: clamp(112px, 14vmin, 160px);
 }
 
 .stat .k{
@@ -319,10 +333,10 @@ body{
   font-weight: 950;
   color: rgba(180,240,255,.95);
   line-height: 1.0;
-  letter-spacing: .35px;
 
   white-space: nowrap;
   overflow: visible;
+  text-overflow: clip;
 
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
@@ -332,11 +346,14 @@ body{
     0 0 34px rgba(120,220,255,.16);
 }
 
-/* Optional: slightly tighter tracking line in landscape to avoid crowding */
+/* Landscape: tighten spacing slightly so values never feel squeezed */
 @media (orientation: landscape){
-  .stat .v{ letter-spacing: .25px; }
+  .stat .v{
+    letter-spacing: .15px;
+  }
 }
 
+/* Footer */
 .statusLine{
   margin-top: auto;
   display:flex;
