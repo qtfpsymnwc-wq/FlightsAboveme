@@ -8,6 +8,7 @@
 </head>
 <body class="kiosk">
   <div id="app" class="kioskApp">
+    <div class="kioskTitle">FlightsAboveMe</div>
     <main class="layout kioskLayout">
 
       <!-- Closest flight (primary) -->
@@ -75,6 +76,9 @@
 
     <div id="errBox" class="errBox hidden"></div>
   </div>
+
+  <!-- Exit button (fixed, top-right) -->
+  <a class="modeToggle kioskOnly" href="./index.html" aria-label="Exit kiosk mode">Exit</a>
 
   <script>
     // Flag kiosk mode without changing your Worker/polling behavior.
