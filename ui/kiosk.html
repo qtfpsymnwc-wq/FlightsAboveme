@@ -114,19 +114,32 @@
         const raw = (src.textContent || '').trim();
         if (!raw || raw === '—') { l1.textContent = '—'; l2.textContent = ''; return; }
 
-        // Common formats we’ve seen: "ORD → LAX", "ORD-LAX", "ORD to LAX"
-        // We normalize to ORIGIN and DEST, then render:
-        // line1: "ORD →"  line2: "LAX"
+        // Preferred: split on a route separator if present.
+        // Works for both short codes ("ORD → LAX") and long airport strings
+        // ("New York (LGA) → Fayetteville (XNA)")
+        const sepMatch = raw.match(/\s*(→|->|\s-\s|\s–\s|\s—\s|\sto\s)\s*/i);
+        if (sepMatch) {
+          const sep = sepMatch[1];
+          const parts = raw.split(new RegExp(`\\s*${sep.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\s*`, 'i'));
+          if (parts.length >= 2) {
+            const left = (parts[0] || '').trim();
+            const right = parts.slice(1).join(' ').trim();
+            // Always render arrow at the end of line 1
+            l1.textContent = left ? `${left} \u2192` : '\u2192';
+            l2.textContent = right;
+            return;
+          }
+        }
+
+        // Conservative code-only parse (kept for completeness)
         const m = raw.match(/^\s*([A-Z0-9]{2,4})\s*(?:→|->|-|–|—|to)\s*([A-Z0-9]{2,4})\s*$/i);
         if (m) {
-          const o = m[1].toUpperCase();
-          const d = m[2].toUpperCase();
-          l1.textContent = `${o} \u2192`;
-          l2.textContent = d;
+          l1.textContent = `${m[1].toUpperCase()} \u2192`;
+          l2.textContent = m[2].toUpperCase();
           return;
         }
 
-        // Fallback: if we can’t parse, show as two lines by splitting near the middle
+        // Fallback: split near the middle, but prefer splitting at the nearest space.
         const mid = Math.max(1, Math.floor(raw.length / 2));
         let cut = raw.lastIndexOf(' ', mid);
         if (cut < 0) cut = mid;
@@ -141,6 +154,6 @@
     })();
   </script>
 
-  <script src="./app.js?v=181"></script>
+  <script src="./app.js?v=183"></script>
 </body>
 </html>
