@@ -44,8 +44,6 @@ const ADSBLOL_DEFAULT_BASE = "https://api.adsb.lol";
 const ADSBLOL_TIMEOUT_MS = 12000;
 
 // ---- AeroDataBox Credit Efficiency (Warm Cache Enrichment) ----
-// Goal: reduce duplicate AeroDataBox calls by warming cache for likely-relevant flights
-// without changing the UI contract. This runs asynchronously via ctx.waitUntil().
 
 // TTLs
 const AERODATA_AIRCRAFT_TTL_S = 60 * 60 * 24 * 7; // 7 days
@@ -563,7 +561,6 @@ export default {
           headers: {
             ...cors,
             "Content-Type": "application/json; charset=utf-8",
-            // Cache longer (credit efficiency). UI stays unchanged.
             "Cache-Control": `public, max-age=${AERODATA_FLIGHT_TTL_S}, s-maxage=${AERODATA_FLIGHT_TTL_S}`,
           },
         });
@@ -630,7 +627,6 @@ export default {
               headers: {
                 ...cors,
                 "Content-Type": "application/json; charset=utf-8",
-                // Cache 'not found' briefly to avoid hammering
                 "Cache-Control": "public, max-age=21600, s-maxage=21600",
               },
             }
@@ -659,8 +655,21 @@ export default {
             cors
           );
 
-        // Cache the raw JSON response (airframe data is stable)
-        const out = new Response(text, {
+        // ✅ FIX: wrap aircraft JSON with ok:true so UI enrichment accepts it
+        let raw;
+        try {
+          raw = JSON.parse(text);
+        } catch {
+          return json({ ok: false, icao24: hex, error: "aerodata_non_json" }, 502, cors);
+        }
+
+        const payload = {
+          ok: true,
+          icao24: hex,
+          ...raw,
+        };
+
+        const out = new Response(JSON.stringify(payload), {
           status: 200,
           headers: {
             ...cors,
@@ -758,7 +767,7 @@ async function handleOpenSkyFailure({
         return out;
       }
     } catch (e) {
-      // fall through to error below
+      // fall through
     }
   }
 
@@ -887,8 +896,6 @@ async function fetchADSBLOLAsOpenSky(env, bbox) {
   const base =
     (env.ADSBLOL_BASE && String(env.ADSBLOL_BASE)) || ADSBLOL_DEFAULT_BASE;
 
-  // ADSB.lol endpoints are ADSBExchange-like. We'll use /v2/lat/lon/dist style.
-  // Since we have bbox, approximate by center + radius (max distance to corner).
   const lamin = Number(bbox.lamin);
   const lomin = Number(bbox.lomin);
   const lamax = Number(bbox.lamax);
@@ -952,23 +959,19 @@ async function fetchADSBLOLAsOpenSky(env, bbox) {
 
       if (!icao24 || !Number.isFinite(lat) || !Number.isFinite(lon)) return null;
 
-      // Altitude: ADSB.lol commonly returns feet. Convert to meters.
       const altFt = num(p.alt_baro != null ? p.alt_baro : p.altitude);
       const baro_alt_m = Number.isFinite(altFt) ? feetToMeters(altFt) : NaN;
 
       const on_ground = !!p.gnd;
 
-      // Ground speed: typically knots. Convert to m/s.
       const gsKnots = num(p.gs != null ? p.gs : p.speed);
       const velocity_mps = Number.isFinite(gsKnots) ? knotsToMps(gsKnots) : NaN;
 
       const true_track = num(p.track != null ? p.track : p.trak);
 
-      // Vertical rate: often ft/min. Convert to m/s when present.
       const vrFpm = num(p.vrate != null ? p.vrate : p.vr);
       const vertical_rate_mps = Number.isFinite(vrFpm) ? fpmToMps(vrFpm) : NaN;
 
-      // Geo altitude if present (feet -> meters)
       const geoFt = num(p.alt_geom != null ? p.alt_geom : p.altitude_geom);
       const geo_alt_m = Number.isFinite(geoFt) ? feetToMeters(geoFt) : NaN;
 
@@ -984,7 +987,7 @@ async function fetchADSBLOLAsOpenSky(env, bbox) {
       return [
         icao24,
         callsign,
-        "", // origin_country unknown
+        "",
         time_position || null,
         last_contact || null,
         lon,
@@ -994,11 +997,11 @@ async function fetchADSBLOLAsOpenSky(env, bbox) {
         Number.isFinite(velocity_mps) ? velocity_mps : null,
         Number.isFinite(true_track) ? true_track : null,
         Number.isFinite(vertical_rate_mps) ? vertical_rate_mps : null,
-        null, // sensors
+        null,
         Number.isFinite(geo_alt_m) ? geo_alt_m : null,
         squawk,
-        false, // spi
-        0, // position_source
+        false,
+        0,
       ];
     })
     .filter(Boolean);
@@ -1154,7 +1157,6 @@ function nm(v) {
     return String(v).trim();
   }
   if (typeof v === "object") {
-    // Try common name-ish fields
     return nm(
       v.name ??
         v.city ??
@@ -1171,11 +1173,9 @@ function nm(v) {
 }
 
 function fmtEnd(a) {
-  // AeroDataBox airports can be objects; we try for city/name/code (object-safe)
   if (!a) return "";
 
   const code = nm(a.iata || a.iataCode || a.icao || a.icaoCode || "");
-  // municipality/city can sometimes be objects -> nm() handles it now
   const city = nm(a.municipality || a.city || a.location || "");
   const name = nm(a.name || "");
   const best = city || name;
