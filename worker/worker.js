@@ -1,8 +1,10 @@
 /**
- * FlightWall API Worker (v169)
+ * FlightWall API Worker (v170)
  *
  * Endpoints:
  *  - GET /health
+ *  - GET /health/opensky-token
+ *  - GET /health/opensky-states
  *  - GET /health/opensky
  *  - GET /opensky/states?lamin&lomin&lamax&lomax (bbox required)
  *  - GET /flight/<CALLSIGN> (AeroDataBox callsign lookup)
@@ -15,13 +17,22 @@
  *  2) Legacy Basic Auth (if you still have it)
  *     - OPENSKY_USER (Secret)
  *     - OPENSKY_PASS (Secret)
+ *
+ * Stability goals:
+ *  - Longer OpenSky timeout (cellular/routing can be slower)
+ *  - Cache last-known-good states per bbox + auth mode
+ *  - Serve cached states if OpenSky times out (prevents blank UI)
  */
 
-const WORKER_VERSION = "v169";
+const WORKER_VERSION = "v170";
 
 const OPENSKY_STATES_URL = "https://opensky-network.org/api/states/all";
 const OPENSKY_TOKEN_URL =
   "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token";
+
+// Timeouts: token fast, states longer (OpenSky can be slow on some routes)
+const OPENSKY_TOKEN_TIMEOUT_MS = 9000;
+const OPENSKY_STATES_TIMEOUT_MS = 18000;
 
 // In-memory token cache (per Worker isolate)
 let _tokenCache = {
@@ -55,9 +66,15 @@ export default {
       );
     }
 
-    // ---- OpenSky health check (safe; no token/secret output) ----
+    // ---- OpenSky debug endpoints (safe; no secrets/tokens returned) ----
+    if (url.pathname === "/health/opensky-token") {
+      return await openskyTokenHealth(env, cors);
+    }
+    if (url.pathname === "/health/opensky-states") {
+      return await openskyStatesHealth(env, cors);
+    }
     if (url.pathname === "/health/opensky") {
-      return await openskyHealth(env, cors);
+      return await openskyCombinedHealth(env, cors);
     }
 
     const parts = url.pathname.split("/").filter(Boolean);
@@ -98,19 +115,25 @@ export default {
       try {
         const headers = await buildOpenSkyHeaders(env);
 
-        // IMPORTANT: keep OpenSky timeout tight to avoid hanging the UI
-        const res = await fetchWithTimeout(upstream.toString(), { method: "GET", headers }, 9000);
+        const res = await fetchWithTimeout(
+          upstream.toString(),
+          { method: "GET", headers },
+          OPENSKY_STATES_TIMEOUT_MS
+        );
         const text = await res.text();
 
         // If unauthorized and we used OAuth, clear token and retry once
         if (!res.ok && res.status === 401 && _tokenCache.mode === "oauth") {
           clearTokenCache();
           const headers2 = await buildOpenSkyHeaders(env);
-          const res2 = await fetchWithTimeout(upstream.toString(), { method: "GET", headers: headers2 }, 9000);
+          const res2 = await fetchWithTimeout(
+            upstream.toString(),
+            { method: "GET", headers: headers2 },
+            OPENSKY_STATES_TIMEOUT_MS
+          );
           const text2 = await res2.text();
 
           if (!res2.ok) {
-            // If upstream fails, fall back to cached response if available
             const cached = await cache.match(cacheKey);
             if (cached) return withCors(cached, cors, "HIT-STALE");
             return json(
@@ -125,8 +148,7 @@ export default {
             headers: {
               ...cors,
               "Content-Type": "application/json; charset=utf-8",
-              // tiny cache + allow serving slightly stale if OpenSky hiccups
-              "Cache-Control": "public, max-age=2, s-maxage=5, stale-while-revalidate=25",
+              "Cache-Control": "public, max-age=2, s-maxage=5, stale-while-revalidate=45",
             },
           });
 
@@ -135,7 +157,6 @@ export default {
         }
 
         if (!res.ok) {
-          // If upstream fails, fall back to cached response if available
           const cached = await cache.match(cacheKey);
           if (cached) return withCors(cached, cors, "HIT-STALE");
           return json(
@@ -150,7 +171,7 @@ export default {
           headers: {
             ...cors,
             "Content-Type": "application/json; charset=utf-8",
-            "Cache-Control": "public, max-age=2, s-maxage=5, stale-while-revalidate=25",
+            "Cache-Control": "public, max-age=2, s-maxage=5, stale-while-revalidate=45",
           },
         });
 
@@ -314,9 +335,35 @@ export default {
   },
 };
 
-// -------------------- OpenSky Helpers --------------------
+// -------------------- OpenSky Health --------------------
 
-async function openskyHealth(env, cors) {
+async function openskyTokenHealth(env, cors) {
+  const mode = detectOpenSkyAuthMode(env);
+  if (mode !== "oauth") {
+    return json({ ok: false, authMode: mode, hint: "Set OPENSKY_CLIENT_ID and OPENSKY_CLIENT_SECRET" }, 200, cors);
+  }
+
+  try {
+    const token = await getOAuthToken(env, true);
+    return json(
+      {
+        ok: !!token,
+        authMode: mode,
+        tokenCached: _tokenCache.expiresAtMs > Date.now(),
+      },
+      200,
+      cors
+    );
+  } catch (err) {
+    return json(
+      { ok: false, authMode: mode, error: "token_fetch_failed", detail: err && err.message ? err.message : "unknown" },
+      200,
+      cors
+    );
+  }
+}
+
+async function openskyStatesHealth(env, cors) {
   const mode = detectOpenSkyAuthMode(env);
 
   // tiny bbox (reduces load and improves responsiveness)
@@ -328,7 +375,7 @@ async function openskyHealth(env, cors) {
 
   try {
     const headers = await buildOpenSkyHeaders(env);
-    const res = await fetchWithTimeout(upstream.toString(), { method: "GET", headers }, 9000);
+    const res = await fetchWithTimeout(upstream.toString(), { method: "GET", headers }, OPENSKY_STATES_TIMEOUT_MS);
 
     const rateRemaining =
       res.headers.get("x-rate-limit-remaining") ||
@@ -350,13 +397,22 @@ async function openskyHealth(env, cors) {
       );
     }
 
+    // Don't dump full payload; just confirm it's shaped right
+    let statesCount = null;
+    try {
+      const data = await res.json();
+      statesCount = Array.isArray(data?.states) ? data.states.length : null;
+    } catch {
+      // ignore
+    }
+
     return json(
       {
         ok: true,
         authMode: mode,
         openskyStatus: res.status,
         rateRemaining,
-        tokenCached: _tokenCache.mode === "oauth" ? (_tokenCache.expiresAtMs > Date.now()) : null,
+        statesCount,
       },
       200,
       cors
@@ -370,6 +426,52 @@ async function openskyHealth(env, cors) {
   }
 }
 
+async function openskyCombinedHealth(env, cors) {
+  const mode = detectOpenSkyAuthMode(env);
+
+  const tokenPart = { ok: null };
+  const statesPart = { ok: null };
+
+  if (mode === "oauth") {
+    try {
+      const token = await getOAuthToken(env, false);
+      tokenPart.ok = !!token;
+      tokenPart.tokenCached = _tokenCache.expiresAtMs > Date.now();
+    } catch (e) {
+      tokenPart.ok = false;
+      tokenPart.detail = e && e.message ? e.message : "unknown";
+    }
+  } else {
+    tokenPart.ok = mode === "basic" ? null : false;
+  }
+
+  try {
+    const r = await openskyStatesHealth(env, cors);
+    const body = await r.json();
+    statesPart.ok = !!body.ok;
+    statesPart.openskyStatus = body.openskyStatus || null;
+    statesPart.statesCount = body.statesCount ?? null;
+    statesPart.rateRemaining = body.rateRemaining ?? null;
+    if (!statesPart.ok) statesPart.detail = body.detail || body.error || null;
+  } catch (e) {
+    statesPart.ok = false;
+    statesPart.detail = e && e.message ? e.message : "unknown";
+  }
+
+  return json(
+    {
+      ok: !!statesPart.ok,
+      authMode: mode,
+      token: tokenPart,
+      states: statesPart,
+    },
+    200,
+    cors
+  );
+}
+
+// -------------------- OpenSky Auth Helpers --------------------
+
 function detectOpenSkyAuthMode(env) {
   if (env.OPENSKY_CLIENT_ID && env.OPENSKY_CLIENT_SECRET) return "oauth";
   if (env.OPENSKY_USER && env.OPENSKY_PASS) return "basic";
@@ -382,18 +484,19 @@ function clearTokenCache() {
 }
 
 async function buildOpenSkyHeaders(env) {
-  const headers = { Accept: "application/json" };
+  const headers = {
+    Accept: "application/json",
+    "User-Agent": "FlightsAboveMe-Worker",
+  };
 
-  // OAuth2 (recommended)
   if (env.OPENSKY_CLIENT_ID && env.OPENSKY_CLIENT_SECRET) {
-    const token = await getOAuthToken(env);
+    const token = await getOAuthToken(env, false);
     if (token) {
       headers.Authorization = `Bearer ${token}`;
       return headers;
     }
   }
 
-  // Legacy Basic Auth fallback
   if (env.OPENSKY_USER && env.OPENSKY_PASS) {
     const token = btoa(`${env.OPENSKY_USER}:${env.OPENSKY_PASS}`);
     headers.Authorization = `Basic ${token}`;
@@ -402,10 +505,13 @@ async function buildOpenSkyHeaders(env) {
   return headers;
 }
 
-async function getOAuthToken(env) {
+async function getOAuthToken(env, forceRefresh) {
   const now = Date.now();
-  if (_tokenCache.mode === "oauth" && _tokenCache.accessToken && _tokenCache.expiresAtMs > now + 10_000) {
-    return _tokenCache.accessToken;
+
+  if (!forceRefresh) {
+    if (_tokenCache.mode === "oauth" && _tokenCache.accessToken && _tokenCache.expiresAtMs > now + 10_000) {
+      return _tokenCache.accessToken;
+    }
   }
 
   if (_tokenPromise) return _tokenPromise;
@@ -414,7 +520,7 @@ async function getOAuthToken(env) {
     try {
       const clientId = String(env.OPENSKY_CLIENT_ID || "").trim();
       const clientSecret = String(env.OPENSKY_CLIENT_SECRET || "").trim();
-      if (!clientId || !clientSecret) return "";
+      if (!clientId || !clientSecret) throw new Error("missing_client_credentials");
 
       const body = new URLSearchParams();
       body.set("grant_type", "client_credentials");
@@ -425,16 +531,19 @@ async function getOAuthToken(env) {
         OPENSKY_TOKEN_URL,
         {
           method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "User-Agent": "FlightsAboveMe-Worker",
+          },
           body: body.toString(),
         },
-        9000
+        OPENSKY_TOKEN_TIMEOUT_MS
       );
 
       const text = await res.text();
       if (!res.ok) {
         clearTokenCache();
-        return "";
+        throw new Error(`token_http_${res.status}: ${text.slice(0, 120)}`);
       }
 
       let data;
@@ -442,7 +551,7 @@ async function getOAuthToken(env) {
         data = JSON.parse(text);
       } catch {
         clearTokenCache();
-        return "";
+        throw new Error("token_non_json");
       }
 
       const accessToken = String(data?.access_token || "").trim();
@@ -450,11 +559,11 @@ async function getOAuthToken(env) {
 
       if (!accessToken) {
         clearTokenCache();
-        return "";
+        throw new Error("token_missing_access_token");
       }
 
-      // refresh early by 60s to avoid edge-of-expiry 401s
       const safeExpiresIn = Math.max(60, expiresInSec - 60);
+
       _tokenCache = {
         accessToken,
         expiresAtMs: Date.now() + safeExpiresIn * 1000,
