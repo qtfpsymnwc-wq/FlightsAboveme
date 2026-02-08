@@ -1,7 +1,16 @@
 // FlightWall UI (v170)
 const API_BASE = "https://flightsabove.t2hkmhgbwz.workers.dev";
 const UI_VERSION = "v181";
-const POLL_MS = 3500;
+
+/**
+ * ✅ Rate-limit protection:
+ * - main mode polls slower
+ * - kiosk polls even slower
+ * - if OpenSky 429 happens, back off for 60s
+ */
+const POLL_MAIN_MS = 8000;   // was 3500
+const POLL_KIOSK_MS = 12000; // kiosk is display-only; keep it lighter
+const BACKOFF_429_MS = 60000;
 
 const enrichCache = new Map();
 const $ = (id) => document.getElementById(id);
@@ -101,7 +110,10 @@ async function fetchJSON(url, timeoutMs=9000){
   try {
     const res = await fetch(url, { signal: ctrl.signal, cache:"no-store", credentials:"omit" });
     const text = await res.text();
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0,220)}`);
+    if (!res.ok) {
+      // include status in message so tick() can backoff on 429
+      throw new Error(`HTTP ${res.status}: ${text.slice(0,220)}`);
+    }
     return JSON.parse(text);
   } finally {
     clearTimeout(t);
@@ -133,8 +145,8 @@ function renderPrimary(f, radarMeta){
   if ($("route")) $("route").textContent = f.routeText || "—";
   if ($("model")) $("model").textContent = f.modelText || "—";
 
-  // (You already decided to remove "Showing" everywhere)
-  if ($("radarLine")) $("radarLine").textContent = `Radar: ${radarMeta.count} flights`;
+  // If you removed “Showing” in HTML, this line can be simplified later — leaving as-is for compatibility.
+  if ($("radarLine")) $("radarLine").textContent = `Radar: ${radarMeta.count} flights • Showing: ${radarMeta.showing}`;
 }
 
 function renderSecondary(f){
@@ -175,17 +187,18 @@ function renderList(list){
   const el = $("list");
   if (!el) return;
   el.innerHTML = "";
-
-  // ✅ LIST SIMPLIFIED: callsign + distance only
   list.forEach((f)=>{
     const row = document.createElement("div");
     row.className = "row";
     row.innerHTML = `
       <div class="l">
         <div class="cs">${f.callsign || "—"}</div>
+        <div class="rt">${f.routeText || "—"}</div>
+        <div class="m">${f.modelText || "—"}</div>
       </div>
       <div class="r">
         <div class="d">${fmtMi(f.distanceMi)}</div>
+        <div class="a">${fmtAlt(f.baroAlt)}</div>
       </div>
     `;
     el.appendChild(row);
@@ -280,7 +293,6 @@ function isKiosk(){
 
 function enableKioskIfRequested(){
   if (!isKiosk()) return;
-  // Ensure kiosk CSS applies even if you’re on index.html
   try { document.body.classList.add("kiosk"); } catch {}
   try { window.__KIOSK_MODE__ = true; } catch {}
 }
@@ -334,7 +346,17 @@ async function main(){
   if (statusEl) statusEl.textContent = "Radar…";
 
   let lastPrimaryKey = "";
+
+  // ✅ Backoff gate (starts enabled)
+  let nextAllowedAt = 0;
+
   async function tick(){
+    const now = Date.now();
+    if (now < nextAllowedAt) {
+      if (statusEl) statusEl.textContent = `Backoff…`;
+      return;
+    }
+
     try{
       const url = new URL(`${API_BASE}/opensky/states`);
       Object.entries(bb).forEach(([k,v])=>url.searchParams.set(k,v));
@@ -420,13 +442,26 @@ async function main(){
         });
       }
     } catch(e){
+      const msg = String(e?.message || e);
+
+      // ✅ If OpenSky rate limits us, back off hard
+      if (/^HTTP 429:/i.test(msg) || /Too many requests/i.test(msg)) {
+        nextAllowedAt = Date.now() + BACKOFF_429_MS;
+        if (statusEl) statusEl.textContent = "Rate limited";
+        showErr("OpenSky rate limited (429). Backing off for 60s.");
+        return;
+      }
+
       if (statusEl) statusEl.textContent = "Radar error";
-      showErr(String(e.message || e));
+      showErr(msg);
     }
   }
 
   await tick();
-  setInterval(tick, POLL_MS);
+
+  // ✅ Use different poll interval based on mode (main vs kiosk)
+  const pollMs = isKiosk() ? POLL_KIOSK_MS : POLL_MAIN_MS;
+  setInterval(tick, pollMs);
 }
 
 main();
