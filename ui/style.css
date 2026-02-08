@@ -361,7 +361,7 @@ body.kiosk .kioskOnly{
 }
 
 /* ─────────────────────────────────────────────
-   KIOSK MODE — COLUMN WIDTH FIX (more room for route/model)
+   KIOSK MODE — COLUMN WIDTH FIX (authoritative)
    ───────────────────────────────────────────── */
 
 body.kiosk{ overflow:hidden; }
@@ -422,16 +422,13 @@ body.kiosk .card::before{
   pointer-events:none;
 }
 
-/* Packed content block — IMPORTANT: remove max-width clamp */
+/* Packed content block */
 body.kiosk .primaryHeader{
   width:100%;
   margin:0;
 
   display:grid;
-
-  /* ✅ Logo column smaller, text column gets the rest */
   grid-template-columns: clamp(150px, 14vmin, 240px) 1fr;
-
   column-gap: clamp(12px, 1.6vmin, 18px);
 
   align-items:center;
@@ -441,18 +438,13 @@ body.kiosk .primaryHeader{
   padding-bottom:clamp(8px,1.0vmin,10px);
 }
 
-/* Airline header row */
 body.kiosk .airlineHeader{
   grid-column:1 / -1;
   display:grid;
-
-  /* ✅ match the same columns */
   grid-template-columns: clamp(150px, 14vmin, 240px) 1fr;
-
   column-gap: clamp(12px, 1.6vmin, 18px);
   align-items:center;
   justify-content:start;
-  margin-bottom:clamp(2px,.5vmin,6px);
 }
 
 /* Logo */
@@ -473,7 +465,6 @@ body.kiosk .airlineName{
   font-weight:950;
   letter-spacing:.1px;
   color:var(--k-white);
-  text-shadow:0 2px 24px rgba(0,0,0,.62);
 
   white-space:nowrap;
   overflow:hidden;
@@ -490,34 +481,35 @@ body.kiosk .callsign{
   letter-spacing:1.0px;
   font-weight:950;
   color:var(--k-white);
-  text-shadow:0 2px 18px rgba(0,0,0,.55);
   margin-top:clamp(2px,.6vmin,6px);
 
   white-space:nowrap;
   min-width:0;
 }
 
-/* ✅ Route + aircraft — now the text column is truly wide */
+/* ✅ FIXED: Route + aircraft wrap (2 lines max) */
 body.kiosk .route,
 body.kiosk .model{
   grid-column:2;
   font-family:var(--font-sans);
   font-weight:950;
   color:var(--k-led);
-  text-shadow:0 0 18px rgba(120,210,255,.26);
   letter-spacing:.25px;
-  line-height:1.02;
+  line-height:1.04;
 
   font-size:clamp(64px, 6.8vmin, 112px);
   margin-top:clamp(6px,.9vmin,10px);
 
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
+  white-space:normal;
+  overflow:visible;
+  text-overflow:unset;
 
-  /* ✅ critical so the element can expand in grid */
+  display:-webkit-box;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:2;
+
   min-width:0;
-  max-width:none;
+  max-width:100%;
 }
 
 /* ICAO */
@@ -582,12 +574,11 @@ body.kiosk .stat .v{
   font-size:clamp(48px, 5.0vmin, 80px);
   font-weight:950;
   color:var(--k-led);
-  text-shadow:0 0 18px rgba(120,210,255,.28);
 }
 
 body.kiosk .footerLine{ display:none; }
 
-/* Tablet portrait: still huge but keep column widths consistent */
+/* Tablet portrait */
 @media (min-width: 768px) and (orientation: portrait){
   body.kiosk .primaryHeader,
   body.kiosk .airlineHeader{
@@ -597,14 +588,6 @@ body.kiosk .footerLine{ display:none; }
     width:clamp(140px, 13vmin, 210px);
     height:clamp(140px, 13vmin, 210px);
   }
-
-  body.kiosk .airlineName{ font-size:clamp(100px, 11.0vmin, 200px); }
-  body.kiosk .callsign{ font-size:clamp(86px, 9.0vmin, 156px); }
-  body.kiosk .route,
-  body.kiosk .model{ font-size:clamp(58px, 6.2vmin, 100px); }
-
-  body.kiosk .stat .k{ font-size:clamp(40px, 4.2vmin, 66px); }
-  body.kiosk .stat .v{ font-size:clamp(44px, 4.6vmin, 72px); }
 }
 
 /* Phone kiosk */
