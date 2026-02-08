@@ -26,12 +26,9 @@
   --pad: clamp(8px, 1.2vmin, 14px);
 
   /* BIG typography targets (distance readability first) */
-  /* ⬆️ slightly bigger airline + route + sub for signage */
-  --airline: clamp(68px, 9.6vmin, 158px);
-
-  /* Route + aircraft line */
-  --route:   clamp(54px, 7.9vmin, 122px);
-  --sub:     clamp(40px, 5.9vmin, 90px);
+  --airline: clamp(62px, 9.2vmin, 150px);
+  --route:   clamp(50px, 7.6vmin, 118px);
+  --sub:     clamp(38px, 5.7vmin, 86px);
 
   --tiny:    clamp(16px, 2.2vmin, 28px);
 
@@ -43,16 +40,16 @@
   --exitH:   clamp(42px, 5.4vmin, 60px);
 }
 
-/* Landscape tuning: keep values readable without clipping */
 @media (orientation: landscape){
   :root{
     --statV: clamp(48px, 7.0vmin, 120px);
-    --route: clamp(48px, 6.8vmin, 108px);
+    --route: clamp(46px, 6.6vmin, 104px);
   }
 }
 
 *{ box-sizing:border-box; }
 html, body{ height:100%; }
+
 body{
   margin:0;
   overflow:hidden;
@@ -113,7 +110,6 @@ body{
   box-shadow:
     0 16px 34px rgba(0,0,0,.40),
     inset 0 1px 0 rgba(255,255,255,.10);
-  -webkit-tap-highlight-color: transparent;
 }
 .exitBtn:active{ transform: translateY(1px); }
 
@@ -121,13 +117,10 @@ body{
 .board{
   flex: 1;
   min-height: 0;
-
-  /* Full-screen feel: remove "card" framing */
   border-radius: 0;
   border: 0;
   overflow:hidden;
 
-  /* Dot matrix + subtle shading */
   background:
     radial-gradient(circle at 1px 1px, rgba(255,255,255,.085) 1px, transparent 1.6px) 0 0 / 8px 8px,
     linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.42)),
@@ -145,7 +138,6 @@ body{
   gap: clamp(10px, 1.4vmin, 16px);
   padding: clamp(14px, 2.2vmin, 22px);
   align-items:center;
-  min-height: 0;
 }
 
 @media (orientation: portrait){
@@ -160,14 +152,13 @@ body{
 
 .logoPane{
   height: 100%;
-  min-height: 0;
   display:flex;
   align-items:flex-start;
   justify-content:flex-start;
   padding-top: clamp(6px, 1.2vmin, 10px);
 }
 
-/* ✅ Lighter logo plate so the dot matrix doesn’t “dirty” logos */
+/* ✅ ONLY CHANGE IS HERE */
 .logo{
   width: clamp(150px, 22vmin, 270px);
   height: clamp(150px, 22vmin, 270px);
@@ -176,22 +167,21 @@ body{
   padding: clamp(10px, 1.4vmin, 16px);
   border-radius: 22px;
 
-  /* UPDATED: lighter plate */
+  /* Warm-white plate (color accurate) */
   background:
     radial-gradient(120% 120% at 30% 25%,
-      rgba(255,255,255,.40),
-      rgba(255,255,255,.22) 55%,
-      rgba(255,255,255,.16)
+      #ffffff,
+      #fbfbfb 55%,
+      #f4f4f4
     ),
-    rgba(255,255,255,.18);
+    #fbfbfb;
 
-  border: 1px solid rgba(255,255,255,.30);
+  border: 1px solid rgba(0,0,0,.08);
 
   box-shadow:
     0 18px 34px rgba(0,0,0,.55),
-    inset 0 1px 0 rgba(255,255,255,.22),
-    inset 0 -1px 0 rgba(0,0,0,.18),
-    0 0 26px rgba(120,220,255,.10);
+    inset 0 1px 0 rgba(255,255,255,.85),
+    inset 0 -1px 0 rgba(0,0,0,.12);
 
   filter: drop-shadow(0 10px 18px rgba(0,0,0,.28));
 }
@@ -207,10 +197,8 @@ body{
 .mainText{
   display:flex;
   flex-direction:column;
-  justify-content:flex-start;
   gap: clamp(10px, 1.5vmin, 16px);
   min-width: 0;
-  width: 100%;
 }
 
 .line{
@@ -222,61 +210,32 @@ body{
 .airline{
   font-size: var(--airline);
   font-weight: 950;
-  letter-spacing: .6px;
   line-height: 1.02;
-  text-wrap: balance;
-  max-width: 100%;
 }
 
-/* Two-line route block */
 .routeBlock{
   display:flex;
   flex-direction:column;
   gap: clamp(8px, 1.2vmin, 12px);
 }
 
-/* UPDATED: no ellipsis — allow full text, wrap if needed */
 .route{
   font-size: var(--route);
   font-weight: 950;
-  color: rgba(255,255,255,.92);
-  line-height: 1.06;
-
-  max-width: 100%;
-  overflow: visible;
-  text-overflow: clip;
   white-space: normal;
-  text-wrap: balance;
 }
-.route2{ color: rgba(255,255,255,.88); }
 
-/* Callsign + model */
 .sub{
   font-size: var(--sub);
   font-weight: 950;
-  color: rgba(255,255,255,.86);
   display:flex;
-  flex-wrap: wrap;
-  align-items:baseline;
   gap: 14px;
-  line-height: 1.10;
 }
-
-.callsign{ color: rgba(255,255,255,.98); }
-.model{ color: rgba(255,255,255,.86); }
-.sep{ color: rgba(255,255,255,.50); }
 
 .tiny{
   font-size: var(--tiny);
-  font-weight: 850;
-  color: rgba(255,255,255,.62);
-  letter-spacing: .9px;
-  display:flex;
-  gap: 12px;
-  align-items:baseline;
+  opacity:.7;
 }
-.tinyLabel{ color: rgba(255,255,255,.52); text-transform: uppercase; }
-.tinyValue{ color: rgba(255,255,255,.78); }
 
 /* Bottom stats */
 .bottomPane{
@@ -284,94 +243,38 @@ body{
   display:flex;
   flex-direction:column;
   gap: clamp(10px, 1.6vmin, 14px);
-
-  /* UPDATED: softer divider; avoids “line collision” vibe */
-  border-top: 1px solid rgba(255,255,255,.08);
-  background: linear-gradient(180deg, rgba(0,0,0,.08), rgba(0,0,0,.18));
 }
 
 .statsRow{
   display:grid;
   grid-template-columns: 1fr 1fr;
   gap: clamp(12px, 2.0vmin, 18px);
-  min-height: 0;
 }
 
-/* UPDATED: remove box lines entirely */
 .stat{
   border: none;
-  border-radius: 16px;
   background: rgba(255,255,255,.04);
-
-  /* a touch more padding gives the big digits breathing room */
   padding: clamp(14px, 2.2vmin, 18px);
-
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-  gap: clamp(6px, 1.0vmin, 10px);
-
-  min-width: 0;
-  min-height: clamp(112px, 14vmin, 160px);
 }
 
 .stat .k{
   font-size: var(--statK);
-  font-weight: 950;
-  color: rgba(255,255,255,.62);
-  letter-spacing: 1.2px;
-  text-transform: uppercase;
+  font-weight: 900;
 }
 
-/* ✅ KEY FIXES:
-   - never wrap
-   - never ellipsis
-   - preserve full value
-*/
 .stat .v{
   font-size: var(--statV);
   font-weight: 950;
-  color: rgba(180,240,255,.95);
-  line-height: 1.0;
-
   white-space: nowrap;
-  overflow: visible;
-  text-overflow: clip;
-
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum";
-
-  text-shadow:
-    0 0 12px rgba(120,220,255,.28),
-    0 0 34px rgba(120,220,255,.16);
 }
 
-/* Landscape: tighten spacing slightly so values never feel squeezed */
-@media (orientation: landscape){
-  .stat .v{
-    letter-spacing: .15px;
-  }
-}
-
-/* Footer */
 .statusLine{
-  margin-top: auto;
   display:flex;
-  flex-wrap: wrap;
-  gap: 10px;
   justify-content:center;
-  align-items:center;
-
+  gap: 10px;
   font-size: clamp(14px, 2.0vmin, 20px);
-  font-weight: 900;
-  letter-spacing: .7px;
-  color: rgba(255,255,255,.70);
-
-  padding-top: clamp(8px, 1.4vmin, 12px);
-  border-top: 1px solid rgba(255,255,255,.08);
+  opacity:.7;
 }
-
-.dot{ color: rgba(255,255,255,.45); }
 
 .errBox{
   position:fixed;
@@ -379,12 +282,9 @@ body{
   right: calc(var(--safeRight) + var(--pad));
   bottom: calc(var(--safeBottom) + var(--pad));
   background: rgba(60,16,26,.95);
-  border: 1px solid rgba(255,138,160,.35);
   color: rgba(255,215,222,.98);
   padding: 14px 16px;
   border-radius: 16px;
-  font-size: clamp(14px, 2.0vmin, 18px);
-  font-weight: 800;
   z-index: 999;
 }
 
@@ -393,7 +293,5 @@ body{
   width:1px;
   height:1px;
   overflow:hidden;
-  clip: rect(0 0 0 0);
   clip-path: inset(50%);
-  white-space: nowrap;
 }
