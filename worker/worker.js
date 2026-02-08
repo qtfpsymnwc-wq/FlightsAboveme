@@ -806,7 +806,11 @@ async function buildOpenSkyHeaders(env) {
 async function getOpenSkyAccessToken(env) {
   const now = Date.now();
 
-  if (_tokenCache.mode === "oauth" && _tokenCache.accessToken && now < _tokenCache.expiresAtMs - 15_000) {
+  if (
+    _tokenCache.mode === "oauth" &&
+    _tokenCache.accessToken &&
+    now < _tokenCache.expiresAtMs - 15_000
+  ) {
     return _tokenCache.accessToken;
   }
 
@@ -866,9 +870,10 @@ async function getOpenSkyAccessToken(env) {
 // -------------------- ADSB.lol Fallback (adapt to OpenSky "states") --------------------
 
 async function fetchADSBLOLAsOpenSky(env, bbox) {
-  const base = (env.ADSBLOL_BASE && String(env.ADSBLOL_BASE)) || ADSBLOL_DEFAULT_BASE;
+  const base =
+    (env.ADSBLOL_BASE && String(env.ADSBLOL_BASE)) || ADSBLOL_DEFAULT_BASE;
 
-  // ADSB.lol endpoints are ADSBExchange-like. We'll use /v2/lat/lon/radius style where available.
+  // ADSB.lol endpoints are ADSBExchange-like. We'll use /v2/lat/lon/dist style.
   // Since we have bbox, approximate by center + radius (max distance to corner).
   const lamin = Number(bbox.lamin);
   const lomin = Number(bbox.lomin);
@@ -885,15 +890,20 @@ async function fetchADSBLOLAsOpenSky(env, bbox) {
   const r4 = haversineKm(clat, clon, lamax, lomax);
   const radiusKm = Math.max(r1, r2, r3, r4);
 
-  const url = new URL(`${base}/v2/lat/${clat}/lon/${clon}/dist/${Math.ceil(radiusKm)}`);
+  const url = new URL(
+    `${base}/v2/lat/${clat}/lon/${clon}/dist/${Math.ceil(radiusKm)}`
+  );
 
-  const res = await fetchWithTimeout(url.toString(), { method: "GET" }, ADSBLOL_TIMEOUT_MS);
+  const res = await fetchWithTimeout(
+    url.toString(),
+    { method: "GET" },
+    ADSBLOL_TIMEOUT_MS
+  );
   if (!res.ok) return null;
 
   const data = await res.json().catch(() => null);
   if (!data) return null;
 
-  // Attempt to adapt a few common payload shapes:
   const aircraft = data.ac || data.aircraft || data.planes || [];
   if (!Array.isArray(aircraft)) return null;
 
@@ -901,20 +911,30 @@ async function fetchADSBLOLAsOpenSky(env, bbox) {
 
   const states = aircraft
     .map((p) => {
-      const icao24 = (p.hex || p.icao || p.icao24 || "").toString().toLowerCase();
+      const icao24 = (p.hex || p.icao || p.icao24 || "")
+        .toString()
+        .toLowerCase();
       const callsign = (p.flight || p.callsign || "").toString();
-      const origin_country = ""; // unknown from ADSB.lol
-      const time_position = toInt(p.seen_pos != null ? nowSec - Number(p.seen_pos) : nowSec);
-      const last_contact = toInt(p.seen != null ? nowSec - Number(p.seen) : nowSec);
+      const origin_country = "";
+      const time_position = toInt(
+        p.seen_pos != null ? nowSec - Number(p.seen_pos) : nowSec
+      );
+      const last_contact = toInt(
+        p.seen != null ? nowSec - Number(p.seen) : nowSec
+      );
       const lon = num(p.lon);
       const lat = num(p.lat);
       const baro_alt = num(p.alt_baro != null ? p.alt_baro : p.altitude);
       const on_ground = !!p.gnd;
-      const velocity = num(p.gs != null ? p.gs * 0.514444 : p.speed); // knots→m/s if gs is knots
+      const velocity = num(
+        p.gs != null ? p.gs * 0.514444 : p.speed
+      ); // knots→m/s if gs is knots
       const true_track = num(p.track != null ? p.track : p.trak);
       const vertical_rate = num(p.vrate != null ? p.vrate : p.vr);
       const sensors = null;
-      const geo_alt = num(p.alt_geom != null ? p.alt_geom : p.altitude_geom);
+      const geo_alt = num(
+        p.alt_geom != null ? p.alt_geom : p.altitude_geom
+      );
       const squawk = (p.squawk || "").toString() || null;
       const spi = false;
       const position_source = 0;
@@ -1000,13 +1020,25 @@ function toInt(x) {
 async function openskyTokenHealth(env, cors) {
   const mode = detectOpenSkyAuthMode(env);
   if (mode !== "oauth") {
-    return json({ ok: true, mode, hint: "OAuth not configured; using basic/none" }, 200, cors);
+    return json(
+      { ok: true, mode, hint: "OAuth not configured; using basic/none" },
+      200,
+      cors
+    );
   }
   try {
     const token = await getOpenSkyAccessToken(env);
-    return json({ ok: !!token, mode: "oauth", tokenCached: !!_tokenCache.accessToken }, 200, cors);
+    return json(
+      { ok: !!token, mode: "oauth", tokenCached: !!_tokenCache.accessToken },
+      200,
+      cors
+    );
   } catch (e) {
-    return json({ ok: false, mode: "oauth", error: "token_fetch_failed" }, 502, cors);
+    return json(
+      { ok: false, mode: "oauth", error: "token_fetch_failed" },
+      502,
+      cors
+    );
   }
 }
 
@@ -1040,7 +1072,11 @@ async function openskyStatesHealth(env, cors) {
       cors
     );
   } catch (e) {
-    return json({ ok: false, authMode: mode, error: "states_fetch_failed" }, 502, cors);
+    return json(
+      { ok: false, authMode: mode, error: "states_fetch_failed" },
+      502,
+      cors
+    );
   }
 }
 
@@ -1066,27 +1102,43 @@ async function openskyCombinedHealth(env, cors) {
 
 // -------------------- Formatting helpers --------------------
 
+/**
+ * OBJECT-SAFE normalizer.
+ * AeroDataBox sometimes returns nested objects for fields like municipality/city.
+ * This ensures we always return a clean string (prevents "[object Object]" in UI).
+ */
+function nm(v) {
+  if (v == null) return "";
+  if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") {
+    return String(v).trim();
+  }
+  if (typeof v === "object") {
+    // Try common name-ish fields
+    return nm(
+      v.name ??
+        v.city ??
+        v.municipality ??
+        v.location ??
+        v.label ??
+        v.value ??
+        v.code ??
+        v.iata ??
+        v.icao
+    );
+  }
+  return "";
+}
+
 function fmtEnd(a) {
-  // AeroDataBox airports can be objects; we try for city/name/code
+  // AeroDataBox airports can be objects; we try for city/name/code (object-safe)
   if (!a) return "";
+
   const code = nm(a.iata || a.iataCode || a.icao || a.icaoCode || "");
+  // municipality/city can sometimes be objects -> nm() handles it now
   const city = nm(a.municipality || a.city || a.location || "");
   const name = nm(a.name || "");
-  const bestCity = city || name;
-  if (bestCity && code) return `${bestCity} (${code})`;
-  return bestCity || code || "";
-}
+  const best = city || name;
 
-function nm(s) {
-  return (s ?? "").toString().trim();
-}
-
-function toNum(x) {
-  const n = Number(x);
-  return Number.isFinite(n) ? n : NaN;
-}
-
-function firstFinite(...vals) {
-  for (const v of vals) if (Number.isFinite(v)) return v;
-  return NaN;
+  if (best && code) return `${best} (${code})`;
+  return best || code || "";
 }
