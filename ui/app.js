@@ -15,6 +15,12 @@ const POLL_KIOSK_MS = 12000; // kiosk is display-only; keep it lighter
 const BACKOFF_429_MS = 60000;
 
 const enrichCache = new Map();
+const enrichInFlight = new Set();
+
+// Enrich up to this many *list* entries per poll cycle (primary still enriched separately).
+// Keeps credit usage predictable while still filling in the 5-card list quickly across polls.
+const ENRICH_LIST_MAX_FLIGHTS_PER_TICK = 2;
+
 const $ = (id) => document.getElementById(id);
 const errBox = $("errBox");
 
@@ -262,11 +268,30 @@ async function enrichAircraft(primary){
   if (!hex) return;
   try {
     const data = await fetchJSON(`${API_BASE}/aircraft/icao24/${encodeURIComponent(hex)}`, 9000);
-    if (data && data.ok && data.found) {
+    // Worker may return either:
+    //  - { ok:true, found:false, icao24 } (no data)
+    //  - { ok:true, ...airframeFields }
+    //  - raw AeroDataBox JSON (older cache); we still try to read it safely
+    if (data && (data.ok === true || data.ok == null)) {
+      if (data.found === false) return;
+
+      // Prefer human-friendly labels when available
+      const typeName = nm(data.typeName);
+      const line = nm(data.productionLine);
+      const model = nm(data.model) || nm(data.modelName);
+      const code = nm(data.modelCode) || nm(data.icaoCode) || nm(data.iataCodeShort);
       const mfg = nm(data.manufacturer);
-      const model = nm(data.model);
-      const code = nm(data.modelCode);
-      primary.modelText = (mfg ? (mfg + " ") : "") + (model || "—") + (code && code !== model ? ` (${code})` : "");
+
+      // Build a readable string without being too long
+      let out = "";
+      if (typeName) out = typeName;
+      else if (mfg || model) out = (mfg ? (mfg + " ") : "") + (model || "—");
+      else if (line) out = line;
+      else out = "—";
+
+      if (code && out && !out.includes(code) && out !== "—") out += ` (${code})`;
+
+      primary.modelText = out;
       const cs = normalizeCallsign(primary.callsign);
       const k = `${hex}|${cs}`;
       enrichCache.set(k, { ...(enrichCache.get(k) || {}), modelText: primary.modelText });
@@ -349,6 +374,63 @@ async function main(){
 
   let lastPrimaryKey = "";
 
+  // Enrich the 5 nearby entries (route + aircraft) gradually across polls.
+  // This uses the Worker cache-first behavior, and we cap how many list flights we attempt per tick.
+  function kickListEnrichment(top, primary, secondary, radarMeta){
+    if (!Array.isArray(top) || !top.length) return;
+
+    // Don’t spam: limit how many *flights* we try to enrich per poll.
+    let budget = ENRICH_LIST_MAX_FLIGHTS_PER_TICK;
+
+    const tasks = [];
+    for (const f of top) {
+      if (budget <= 0) break;
+
+      const cs = normalizeCallsign(f.callsign);
+      const hex = nm(f.icao24).toLowerCase();
+      const k = `${hex}|${cs}`;
+
+      // If we already have both, skip.
+      const cached = enrichCache.get(k) || {};
+      const needsRoute = !(f.routeText || cached.routeText);
+      const needsModel = !(f.modelText || cached.modelText);
+      if (!needsRoute && !needsModel) continue;
+
+      // Avoid duplicate in-flight enrichment for the same flight in the same session.
+      if (enrichInFlight.has(k)) continue;
+      enrichInFlight.add(k);
+      budget -= 1;
+
+      tasks.push(
+        Promise.allSettled([
+          needsRoute ? enrichRoute(f) : Promise.resolve(),
+          needsModel ? enrichAircraft(f) : Promise.resolve(),
+        ]).finally(()=>{
+          enrichInFlight.delete(k);
+        })
+      );
+    }
+
+    if (!tasks.length) return;
+
+    Promise.allSettled(tasks).then(()=>{
+      // Re-apply cache → objects, then re-render what’s visible.
+      for (const f of top) {
+        const k = `${nm(f.icao24).toLowerCase()}|${normalizeCallsign(f.callsign)}`;
+        const cached = enrichCache.get(k);
+        if (cached) Object.assign(f, cached);
+      }
+
+      // Primary/secondary may be references from `top`; render again to reflect new fields.
+      renderPrimary(primary, radarMeta);
+      if (isKiosk()) {
+        renderSecondary(secondary);
+      } else {
+        renderList(top);
+      }
+    });
+  }
+
   // ✅ Backoff gate
   let nextAllowedAt = 0;
 
@@ -419,6 +501,9 @@ async function main(){
         renderSecondary(null);
         renderList(top);
       }
+
+      // ✅ Also enrich the top 5 list (gradually) so routes + aircraft populate below.
+      kickListEnrichment(top, primary, secondary, radarMeta);
 
       const key = `${primary.icao24}|${normalizeCallsign(primary.callsign)}`;
       const cachedPrimary = enrichCache.get(key);
