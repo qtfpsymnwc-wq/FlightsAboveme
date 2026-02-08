@@ -9,8 +9,6 @@
   --bg1:#070a12;
 
   --text: rgba(255,255,255,.94);
-  --muted: rgba(255,255,255,.78);
-  --faint: rgba(255,255,255,.55);
 
   --glowA: rgba(120,220,255,.22);
   --glowB: rgba(120,220,255,.12);
@@ -110,7 +108,6 @@ body{
   border: 0;
   overflow:hidden;
 
-  /* ✅ Dot matrix even softer so logos/text win */
   background:
     radial-gradient(circle at 1px 1px, rgba(255,255,255,.038) 1px, transparent 1.6px) 0 0 / 10px 10px,
     linear-gradient(180deg, rgba(0,0,0,.12), rgba(0,0,0,.36)),
@@ -121,8 +118,7 @@ body{
   grid-template-rows: 1fr auto;
 }
 
-/* -------------------- TOP PANE LAYOUT -------------------- */
-/* Default (landscape): logo left, text right */
+/* Top pane */
 .topPane{
   display:grid;
   grid-template-columns: auto 1fr;
@@ -132,31 +128,26 @@ body{
   min-height: 0;
 }
 
-/* ✅ Portrait: force stable 2-col grid so logo never overlaps/drifts */
 @media (orientation: portrait){
   .topPane{
     grid-template-columns: auto 1fr;
-    grid-template-rows: auto;
     align-items:start;
     padding: clamp(14px, 2.0vmin, 20px);
     gap: clamp(12px, 1.8vmin, 18px);
   }
 }
 
-/* Logo block */
 .logoPane{
   display:flex;
   align-items:center;
   justify-content:flex-start;
 }
 
-/* ✅ LIGHTER logo plate + inner highlight + glow ring */
 .logo{
   width: clamp(150px, 22vmin, 270px);
   height: clamp(150px, 22vmin, 270px);
   object-fit: contain;
 
-  /* plate */
   background:
     radial-gradient(120% 120% at 30% 25%, rgba(255,255,255,.30), rgba(255,255,255,.14) 55%, rgba(255,255,255,.10)),
     rgba(255,255,255,.16);
@@ -174,7 +165,6 @@ body{
   filter: drop-shadow(0 10px 18px rgba(0,0,0,.30));
 }
 
-/* In portrait, keep logo a bit smaller so text gets room */
 @media (orientation: portrait){
   .logo{
     width: clamp(120px, 18vmin, 210px);
@@ -182,7 +172,6 @@ body{
   }
 }
 
-/* Text */
 .mainText{
   display:flex;
   flex-direction:column;
@@ -207,7 +196,6 @@ body{
   max-width: 100%;
 }
 
-/* Route (2 lines) */
 .routeBlock{
   display:flex;
   flex-direction:column;
@@ -219,16 +207,13 @@ body{
   font-weight: 950;
   color: rgba(255,255,255,.92);
   line-height: 1.04;
-
   max-width: 100%;
   overflow:hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .route2{ color: rgba(255,255,255,.88); }
 
-/* Callsign + model */
 .sub{
   font-size: var(--sub);
   font-weight: 950;
@@ -255,7 +240,7 @@ body{
 .tinyLabel{ color: rgba(255,255,255,.52); text-transform: uppercase; }
 .tinyValue{ color: rgba(255,255,255,.78); }
 
-/* -------------------- STATS -------------------- */
+/* Bottom stats */
 .bottomPane{
   padding: clamp(10px, 1.8vmin, 16px);
   display:flex;
@@ -280,6 +265,7 @@ body{
   flex-direction:column;
   justify-content:center;
   gap: clamp(6px, 1.0vmin, 8px);
+  min-width: 0; /* ✅ allows inner content to shrink */
 }
 
 .stat .k{
@@ -290,15 +276,30 @@ body{
   text-transform: uppercase;
 }
 
+/* ✅ FIX: stat values never wrap; they shrink/clip gracefully */
 .stat .v{
   font-size: var(--statV);
   font-weight: 950;
   color: rgba(180,240,255,.96);
   line-height: 1.0;
   letter-spacing: .6px;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+
   text-shadow:
     0 0 12px rgba(120,220,255,.28),
     0 0 34px rgba(120,220,255,.16);
+}
+
+/* ✅ Landscape-specific tweak: slightly reduce max stat value size
+      so "2,850 ft" / "589 mph" stays on one line more often. */
+@media (orientation: landscape){
+  :root{
+    --statV: clamp(54px, 7.6vmin, 124px);
+  }
 }
 
 .statusLine{
