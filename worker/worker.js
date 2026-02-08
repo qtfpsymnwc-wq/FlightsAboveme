@@ -21,7 +21,9 @@
  * Stability goals:
  *  - Longer OpenSky timeout (cellular/routing can be slower)
  *  - Cache last-known-good states per bbox + auth mode
- *  - Serve cached states if OpenSky times out (prevents blank UI)
+ *  - ✅ CACHE-FIRST states: serve cached immediately; refresh in background
+ *    - prevents blank kiosk during OpenSky slowness/timeouts
+ *  - Serve cached states if OpenSky times out / 429s
  */
 
 const WORKER_VERSION = "v170";
@@ -33,6 +35,9 @@ const OPENSKY_TOKEN_URL =
 // Timeouts: token fast, states longer (OpenSky can be slow on some routes)
 const OPENSKY_TOKEN_TIMEOUT_MS = 9000;
 const OPENSKY_STATES_TIMEOUT_MS = 18000;
+
+// Cache policy for states (edge)
+const STATES_CACHE_CONTROL = "public, max-age=10, s-maxage=30, stale-while-revalidate=120";
 
 // In-memory token cache (per Worker isolate)
 let _tokenCache = {
@@ -59,11 +64,7 @@ export default {
 
     // ---- Health ----
     if (url.pathname === "/health") {
-      return json(
-        { ok: true, ts: new Date().toISOString(), version: WORKER_VERSION },
-        200,
-        cors
-      );
+      return json({ ok: true, ts: new Date().toISOString(), version: WORKER_VERSION }, 200, cors);
     }
 
     // ---- OpenSky debug endpoints (safe; no secrets/tokens returned) ----
@@ -79,7 +80,7 @@ export default {
 
     const parts = url.pathname.split("/").filter(Boolean);
 
-    // ---- OpenSky States ----
+    // ---- OpenSky States (CACHE-FIRST) ----
     if (parts[0] === "opensky" && parts[1] === "states") {
       const lamin = url.searchParams.get("lamin");
       const lomin = url.searchParams.get("lomin");
@@ -112,76 +113,28 @@ export default {
 
       const cache = caches.default;
 
+      // ✅ CACHE-FIRST: if we have cached states, return immediately and refresh in background.
+      const cached = await cache.match(cacheKey);
+      if (cached) {
+        ctx.waitUntil(refreshOpenSkyStates(cache, cacheKey, upstream, env, cors));
+        return withCors(cached, cors, "HIT");
+      }
+
+      // Cache miss: fetch live (and populate cache)
       try {
-        const headers = await buildOpenSkyHeaders(env);
-
-        const res = await fetchWithTimeout(
-          upstream.toString(),
-          { method: "GET", headers },
-          OPENSKY_STATES_TIMEOUT_MS
-        );
-        const text = await res.text();
-
-        // If unauthorized and we used OAuth, clear token and retry once
-        if (!res.ok && res.status === 401 && _tokenCache.mode === "oauth") {
-          clearTokenCache();
-          const headers2 = await buildOpenSkyHeaders(env);
-          const res2 = await fetchWithTimeout(
-            upstream.toString(),
-            { method: "GET", headers: headers2 },
-            OPENSKY_STATES_TIMEOUT_MS
-          );
-          const text2 = await res2.text();
-
-          if (!res2.ok) {
-            const cached = await cache.match(cacheKey);
-            if (cached) return withCors(cached, cors, "HIT-STALE");
-            return json(
-              { ok: false, error: "opensky_upstream_error", status: res2.status, detail: text2.slice(0, 220) },
-              502,
-              cors
-            );
-          }
-
-          const out2 = new Response(text2, {
-            status: 200,
-            headers: {
-              ...cors,
-              "Content-Type": "application/json; charset=utf-8",
-              "Cache-Control": "public, max-age=10, s-maxage=30, stale-while-revalidate=120",
-            },
-          });
-
-          ctx.waitUntil(cache.put(cacheKey, out2.clone()));
-          return out2;
-        }
-
-        if (!res.ok) {
-          const cached = await cache.match(cacheKey);
-          if (cached) return withCors(cached, cors, "HIT-STALE");
-          return json(
-            { ok: false, error: "opensky_upstream_error", status: res.status, detail: text.slice(0, 220) },
-            502,
-            cors
-          );
-        }
-
-        const out = new Response(text, {
+        const fresh = await fetchOpenSkyStatesOnce(upstream, env, cors);
+        const out = new Response(fresh.bodyText, {
           status: 200,
           headers: {
             ...cors,
             "Content-Type": "application/json; charset=utf-8",
-            "Cache-Control": "public, max-age=10, s-maxage=30, stale-while-revalidate=120",
+            "Cache-Control": STATES_CACHE_CONTROL,
           },
         });
-
         ctx.waitUntil(cache.put(cacheKey, out.clone()));
         return out;
       } catch (err) {
-        // Timeout / network failure: fall back to cached response if present
-        const cached = await cache.match(cacheKey);
-        if (cached) return withCors(cached, cors, "HIT-STALE");
-
+        // No cache + live failed => bubble error (prevents “silent blank”)
         return json(
           { ok: false, error: "opensky_fetch_failed", detail: err && err.message ? err.message : "unknown" },
           502,
@@ -334,6 +287,61 @@ export default {
     return new Response("FlightWall API worker", { status: 200, headers: cors });
   },
 };
+
+// -------------------- OpenSky CACHE-FIRST refresh --------------------
+
+async function refreshOpenSkyStates(cache, cacheKey, upstream, env, cors) {
+  try {
+    const fresh = await fetchOpenSkyStatesOnce(upstream, env, cors);
+    if (!fresh || !fresh.ok) return;
+
+    const out = new Response(fresh.bodyText, {
+      status: 200,
+      headers: {
+        ...cors,
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": STATES_CACHE_CONTROL,
+      },
+    });
+
+    await cache.put(cacheKey, out);
+  } catch {
+    // Swallow refresh errors: cache-first means users keep seeing last-known-good.
+  }
+}
+
+/**
+ * Fetch states once with auth + OAuth retry-on-401 logic.
+ * Returns: { ok:true, bodyText:string } or throws Error("...") on hard failure.
+ *
+ * Notes:
+ * - On 429: throw a special error so caller can keep cached.
+ * - On non-OK: throw with status + snippet.
+ */
+async function fetchOpenSkyStatesOnce(upstream, env, cors) {
+  let headers = await buildOpenSkyHeaders(env);
+
+  let res = await fetchWithTimeout(upstream.toString(), { method: "GET", headers }, OPENSKY_STATES_TIMEOUT_MS);
+
+  // If unauthorized and we used OAuth, clear token and retry once
+  if (!res.ok && res.status === 401 && _tokenCache.mode === "oauth") {
+    clearTokenCache();
+    headers = await buildOpenSkyHeaders(env);
+    res = await fetchWithTimeout(upstream.toString(), { method: "GET", headers }, OPENSKY_STATES_TIMEOUT_MS);
+  }
+
+  const text = await res.text();
+
+  if (res.status === 429) {
+    throw new Error(`opensky_rate_limited: ${text.slice(0, 120)}`);
+  }
+
+  if (!res.ok) {
+    throw new Error(`opensky_http_${res.status}: ${text.slice(0, 220)}`);
+  }
+
+  return { ok: true, bodyText: text };
+}
 
 // -------------------- OpenSky Health --------------------
 
