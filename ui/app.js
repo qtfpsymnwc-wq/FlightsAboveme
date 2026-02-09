@@ -10,6 +10,11 @@ const BACKOFF_429_MS = 60000;
 // Enrichment timeouts (keep short so UI never “hangs” waiting on metadata)
 const ENRICH_TIMEOUT_MS = 4500;
 
+// Performance tuning (v1.3.1): allow slower cellular fetches for states
+const STATES_TIMEOUT_MS = 16000;
+const GEO_TIMEOUT_MS = 12000;
+const LAST_LOC_KEY = "fam_last_loc_v1";
+
 // Enrichment budgets (per “cycle”)
 // v1.2.9+: only enrich the closest flight
 const LIST_AIRCRAFT_BUDGET = 0;
@@ -169,6 +174,29 @@ function bboxAround(lat, lon){
     lomax: (lon + dLon).toFixed(4),
   };
 }
+
+// Last-known location fallback (v1.3.1 performance patch)
+function saveLastLocation(lat, lon, accuracy){
+  try {
+    const obj = { lat:Number(lat), lon:Number(lon), accuracy: Number.isFinite(Number(accuracy)) ? Number(accuracy) : null, ts: Date.now() };
+    localStorage.setItem(LAST_LOC_KEY, JSON.stringify(obj));
+  } catch {}
+}
+function loadLastLocation(maxAgeMs = 1000 * 60 * 60 * 24 * 7){
+  try {
+    const raw = localStorage.getItem(LAST_LOC_KEY);
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    if (!obj) return null;
+    if (!Number.isFinite(Number(obj.lat)) || !Number.isFinite(Number(obj.lon))) return null;
+    const ts = Number(obj.ts || 0);
+    if (ts && (Date.now() - ts) > maxAgeMs) return null;
+    return { lat: Number(obj.lat), lon: Number(obj.lon), accuracy: obj.accuracy ?? null, ts };
+  } catch {
+    return null;
+  }
+}
+
 
 async function fetchJSON(url, timeoutMs=9000){
   const ctrl = new AbortController();
@@ -500,9 +528,16 @@ async function main(){
     navigator.geolocation.getCurrentPosition(
       (p)=>resolve(p),
       (e)=>reject(new Error(e.message || "Location denied")),
-      { enableHighAccuracy:true, timeout:12000, maximumAge:5000 }
+      { enableHighAccuracy:true, timeout:GEO_TIMEOUT_MS, maximumAge:5000 }
     );
   }).catch((e)=>{
+    // v1.3.1: On flaky cellular GPS, fall back to last known location so the app still loads.
+    const last = loadLastLocation();
+    if (last) {
+      if (statusEl) statusEl.textContent = "Using last location…";
+      showErr("Location failed — using last known location");
+      return { coords: { latitude: last.lat, longitude: last.lon, accuracy: last.accuracy }, __fromLast: true };
+    }
     if (statusEl) statusEl.textContent = "Location failed";
     showErr(String(e.message || e));
     throw e;
@@ -510,6 +545,8 @@ async function main(){
 
   const lat = pos.coords.latitude;
   const lon = pos.coords.longitude;
+  // v1.3.1: persist last good location to survive cellular GPS flakiness
+  saveLastLocation(lat, lon, pos?.coords?.accuracy);
   const bb = bboxAround(lat, lon);
 
   if (statusEl) statusEl.textContent = "Radar…";
@@ -585,7 +622,7 @@ async function main(){
       const url = new URL(`${API_BASE}/opensky/states`);
       Object.entries(bb).forEach(([k,v])=>url.searchParams.set(k,v));
 
-      const data = await fetchJSON(url.toString(), 9000);
+      const data = await fetchJSON(url.toString(), STATES_TIMEOUT_MS);
       const states = Array.isArray(data?.states) ? data.states : [];
 
       lastRadarMeta = { count: states.length, showing: Math.min(states.length, 5) };
