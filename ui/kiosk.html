@@ -131,11 +131,12 @@
           }
         }
 
-        // Conservative code-only parse (kept for completeness)
+        // Code-only route (e.g. "ORD → LAX"): render on ONE line.
+        // (This matches your kiosk portrait behavior where route is codes-only.)
         const m = raw.match(/^\s*([A-Z0-9]{2,4})\s*(?:→|->|-|–|—|to)\s*([A-Z0-9]{2,4})\s*$/i);
         if (m) {
-          l1.textContent = `${m[1].toUpperCase()} \u2192`;
-          l2.textContent = m[2].toUpperCase();
+          l1.textContent = `${m[1].toUpperCase()} \u2192 ${m[2].toUpperCase()}`;
+          l2.textContent = '';
           return;
         }
 

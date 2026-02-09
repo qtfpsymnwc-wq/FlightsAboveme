@@ -567,3 +567,46 @@ body{
   clip-path: inset(50%);
   white-space: nowrap;
 }
+/* =============================
+   v1.3.2 KIOSK PATCH (iPhone Portrait)
+   Fix: prevent logo overlap when aircraft model runs long
+   Change: show code-only route on ONE line in compact portrait
+   Scope: kiosk mode only
+   ============================= */
+
+@media (orientation: portrait) and (max-width: 430px){
+  /* Slightly smaller logo plate to buy vertical room */
+  body.kiosk .logo{
+    width: clamp(84px, 12.8vmin, 132px);
+    height: clamp(84px, 12.8vmin, 132px);
+    padding: clamp(8px, 1.2vmin, 12px);
+    border-radius: 18px;
+  }
+
+  /* Route: collapse to single line in this compact mode
+     (kiosk.html will already feed routeLine2="" for code-only routes) */
+  body.kiosk .routeBlock{ gap: 0; }
+  body.kiosk #routeLine2{ display:none; }
+  body.kiosk #routeLine1{ white-space: nowrap; }
+
+  /* Aircraft line: keep single row, shrink model, and allow safe clipping */
+  body.kiosk .sub{
+    flex-wrap: nowrap;
+    gap: 10px;
+    max-width: 100%;
+    overflow: hidden;
+  }
+  body.kiosk .sub .callsign,
+  body.kiosk .sub .sep{ flex: 0 0 auto; }
+
+  body.kiosk .sub .model{
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: calc(var(--sub) * 0.86);
+    letter-spacing: .06px;
+
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: clip; /* (no ellipsis in kiosk) */
+  }
+}
