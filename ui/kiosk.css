@@ -305,7 +305,11 @@ body{
 .statsRow{
   display:grid;
   grid-template-columns: 1fr 1fr;
-  gap: clamp(12px, 2.0vmin, 18px);
+
+  /* ✅ STATS FIX: separate horizontal vs vertical spacing */
+  column-gap: clamp(16px, 3.0vmin, 24px);
+  row-gap: clamp(10px, 1.6vmin, 14px);
+
   min-height: 0;
 }
 
@@ -316,13 +320,29 @@ body{
   background: transparent;
   box-shadow: none;
 
-  padding: clamp(10px, 1.6vmin, 14px);
+  /* ✅ STATS FIX: keep breathing room but avoid "tile" feel */
+  padding: clamp(8px, 1.2vmin, 12px) 0;
 
   display:flex;
   flex-direction:column;
   justify-content:center;
   gap: clamp(6px, 1.0vmin, 10px);
   min-width: 0;
+
+  /* ✅ STATS FIX: avionics tick accent (not a box) */
+  position: relative;
+  padding-left: clamp(12px, 1.8vmin, 16px);
+}
+
+.stat::before{
+  content:"";
+  position:absolute;
+  left:0;
+  top: clamp(6px, 1.0vmin, 10px);
+  bottom: clamp(6px, 1.0vmin, 10px);
+  width: 2px;
+  border-radius: 2px;
+  background: rgba(255,255,255,.10);
 }
 
 .stat .k{
@@ -351,6 +371,13 @@ body{
   text-shadow:
     0 0 10px rgba(255,255,255,.14),
     0 0 26px rgba(255,255,255,.08);
+}
+
+@media (orientation: portrait){
+  /* ✅ STATS FIX: portrait-only safety so units/digits never collide */
+  .statsRow{
+    column-gap: clamp(18px, 4.0vmin, 28px);
+  }
 }
 
 @media (orientation: landscape){
