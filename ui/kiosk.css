@@ -1,8 +1,422 @@
+/* FlightsAboveMe — Kiosk (LED-board / signage-grade)
+   UI-only. Keeps existing IDs so app.js can populate fields unchanged.
+   Updated:
+   - Logo plate is TRUE white (no gray cast)
+   - Aircraft line bigger
+   - Remove ALL stat “boxes” (no borders, no inset outlines, no tile backgrounds)
+   - Remove divider lines that values were colliding with
+   - Reduce dead space by preventing the top section from stretching
+   - No ellipsis anywhere in kiosk text
+*/
 
-/* Full kiosk.css — portrait spacing fix applied */
-@media (orientation: portrait) {
-  .kiosk .stats {
-    column-gap: 1.25rem;
-    row-gap: 0.75rem;
+:root{
+  color-scheme: dark;
+
+  --bg0:#05070c;
+  --bg1:#070a12;
+
+  --text: rgba(255,255,255,.94);
+  --muted: rgba(255,255,255,.78);
+  --faint: rgba(255,255,255,.55);
+
+  --glowA: rgba(120,220,255,.18);
+  --glowB: rgba(120,220,255,.10);
+
+  --stroke: rgba(255,255,255,.12);
+
+  --safeTop: env(safe-area-inset-top);
+  --safeRight: env(safe-area-inset-right);
+  --safeBottom: env(safe-area-inset-bottom);
+  --safeLeft: env(safe-area-inset-left);
+
+  /* Outer safe padding (keep minimal so the display feels full-screen) */
+  --pad: clamp(8px, 1.2vmin, 14px);
+
+  /* BIG typography targets (distance readability first) */
+  --airline: clamp(62px, 9.2vmin, 150px);
+
+  /* Route lines */
+  --route:   clamp(50px, 7.6vmin, 118px);
+
+  /* Callsign + aircraft line (⬆️ bigger than before) */
+  --sub:     clamp(44px, 6.2vmin, 96px);
+
+  --tiny:    clamp(16px, 2.2vmin, 28px);
+
+  /* Stats */
+  --statV:   clamp(56px, 8.6vmin, 138px);
+  --statK:   clamp(16px, 2.2vmin, 26px);
+
+  --topBar:  clamp(14px, 1.9vmin, 20px);
+  --exitH:   clamp(42px, 5.4vmin, 60px);
+}
+
+/* Landscape tuning: slightly smaller stats so they never feel forced */
+@media (orientation: landscape){
+  :root{
+    --statV: clamp(50px, 7.2vmin, 124px);
+    --route: clamp(46px, 6.6vmin, 104px);
+    --sub:   clamp(42px, 5.6vmin, 88px);
   }
+}
+
+*{ box-sizing:border-box; }
+html, body{ height:100%; }
+body{
+  margin:0;
+  overflow:hidden;
+  background:
+    radial-gradient(1200px 700px at 50% -120px, rgba(120,160,255,.12), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,.06), transparent 22%),
+    linear-gradient(180deg, var(--bg1), var(--bg0));
+  color:var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  letter-spacing: .2px;
+}
+
+.hidden{ display:none !important; }
+
+#app.kioskApp{
+  height: 100svh;
+  padding:
+    calc(var(--safeTop) + var(--pad))
+    calc(var(--safeRight) + var(--pad))
+    calc(var(--safeBottom) + var(--pad))
+    calc(var(--safeLeft) + var(--pad));
+  display:flex;
+  flex-direction:column;
+  gap: clamp(8px, 1.2vmin, 12px);
+}
+
+/* Top bar */
+.topBar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 12px;
+  user-select:none;
+}
+
+.appName{
+  font-size: var(--topBar);
+  font-weight: 900;
+  letter-spacing: 1.2px;
+  color: rgba(255,255,255,.82);
+  text-transform: uppercase;
+}
+
+.exitBtn{
+  text-decoration:none;
+  height: var(--exitH);
+  padding: 0 clamp(14px, 2.2vmin, 24px);
+  border-radius: 999px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font-size: var(--topBar);
+  font-weight: 950;
+  letter-spacing: 1px;
+  color: rgba(255,255,255,.92);
+  border: 1px solid rgba(255,255,255,.18);
+  background: rgba(255,255,255,.08);
+  box-shadow:
+    0 16px 34px rgba(0,0,0,.40),
+    inset 0 1px 0 rgba(255,255,255,.10);
+  -webkit-tap-highlight-color: transparent;
+}
+.exitBtn:active{ transform: translateY(1px); }
+
+/* Board */
+.board{
+  flex: 1;
+  min-height: 0;
+
+  /* Full-screen feel */
+  border-radius: 0;
+  border: 0;
+  overflow:hidden;
+
+  /* Dot matrix + subtle shading */
+  background:
+    radial-gradient(circle at 1px 1px, rgba(255,255,255,.085) 1px, transparent 1.6px) 0 0 / 8px 8px,
+    linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.42)),
+    linear-gradient(180deg, rgba(20,30,55,.18), rgba(0,0,0,.0) 35%),
+    linear-gradient(180deg, #070a12, #04060b);
+
+  display:grid;
+
+  /* ✅ Prevent top from stretching into dead space */
+  grid-template-rows: auto 1fr;
+}
+
+/* Top section */
+.topPane{
+  display:grid;
+  grid-template-columns: auto 1fr;
+  gap: clamp(10px, 1.4vmin, 16px);
+
+  /* slightly tighter than before to reduce dead space */
+  padding: clamp(12px, 2.0vmin, 18px);
+
+  align-items:center;
+  min-height: 0;
+}
+
+@media (orientation: portrait){
+  .topPane{
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+    justify-items:center;
+    align-items:start;
+    gap: clamp(10px, 1.6vmin, 16px);
+  }
+}
+
+.logoPane{
+  height: 100%;
+  min-height: 0;
+  display:flex;
+  align-items:flex-start;
+  justify-content:flex-start;
+  padding-top: clamp(4px, 0.9vmin, 8px);
+}
+
+/* ✅ TRUE WHITE logo plate (no gray cast) */
+.logo{
+  width: clamp(150px, 22vmin, 270px);
+  height: clamp(150px, 22vmin, 270px);
+  object-fit: contain;
+
+  padding: clamp(10px, 1.4vmin, 16px);
+  border-radius: 22px;
+
+  background:
+    radial-gradient(120% 120% at 30% 25%, rgba(255,255,255,1), rgba(255,255,255,.98) 55%, rgba(255,255,255,.96)),
+    #ffffff;
+
+  border: 1px solid rgba(0,0,0,.10);
+
+  box-shadow:
+    0 20px 38px rgba(0,0,0,.60),
+    inset 0 1px 0 rgba(255,255,255,.85),
+    inset 0 -1px 0 rgba(0,0,0,.08);
+
+  filter: drop-shadow(0 12px 18px rgba(0,0,0,.30));
+}
+
+@media (orientation: portrait){
+  .logo{
+    width: clamp(130px, 18vmin, 220px);
+    height: clamp(130px, 18vmin, 220px);
+  }
+}
+
+/* Text */
+.mainText{
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-start;
+
+  /* slightly tighter */
+  gap: clamp(8px, 1.2vmin, 12px);
+
+  min-width: 0;
+  width: 100%;
+}
+
+.line{
+  text-shadow:
+    0 0 12px var(--glowA),
+    0 0 28px var(--glowB);
+}
+
+.airline{
+  font-size: var(--airline);
+  font-weight: 950;
+  letter-spacing: .6px;
+  line-height: 1.02;
+  text-wrap: balance;
+  max-width: 100%;
+}
+
+/* Two-line route block */
+.routeBlock{
+  display:flex;
+  flex-direction:column;
+  gap: clamp(6px, 1.0vmin, 10px);
+}
+
+/* ✅ No ellipsis anywhere */
+.route{
+  font-size: var(--route);
+  font-weight: 950;
+  color: rgba(255,255,255,.92);
+  line-height: 1.04;
+
+  max-width: 100%;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  word-break: break-word;
+}
+.route2{ color: rgba(255,255,255,.88); }
+
+/* Callsign + model */
+.sub{
+  font-size: var(--sub);
+  font-weight: 950;
+  color: rgba(255,255,255,.90);
+  display:flex;
+  flex-wrap: wrap;
+  align-items:baseline;
+  gap: 14px;
+  line-height: 1.10;
+}
+
+.callsign{ color: rgba(255,255,255,.98); }
+.model{ color: rgba(255,255,255,.90); }
+.sep{ color: rgba(255,255,255,.50); }
+
+.tiny{
+  font-size: var(--tiny);
+  font-weight: 850;
+  color: rgba(255,255,255,.62);
+  letter-spacing: .9px;
+  display:flex;
+  gap: 12px;
+  align-items:baseline;
+}
+.tinyLabel{ color: rgba(255,255,255,.52); text-transform: uppercase; }
+.tinyValue{ color: rgba(255,255,255,.78); }
+
+/* Bottom stats */
+.bottomPane{
+  padding: clamp(12px, 2.0vmin, 18px);
+  display:flex;
+  flex-direction:column;
+  gap: clamp(10px, 1.6vmin, 14px);
+
+  /* ✅ Remove the divider line entirely (it was colliding visually) */
+  border-top: 0;
+
+  background: linear-gradient(180deg, rgba(0,0,0,.08), rgba(0,0,0,.18));
+}
+
+.statsRow{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(10px, 1.6vmin, 14px);
+  min-height: 0;
+}
+
+/* ✅ NO BOXES: no border, no background tile, no inset outline, no shadow */
+.stat{
+  /* Floating readout: no tile feel */
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+
+  /* Remove interior padding so it doesn’t imply a rectangle */
+  padding: 0;
+
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:flex-start;
+  gap: clamp(4px, 0.8vmin, 8px);
+  min-width: 0;
+
+  position: relative;
+}
+
+/* subtle “instrument” accent (not a box) */
+.stat::before{
+  content:"";
+  position:absolute;
+  left: -10px;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, rgba(120,220,255,.22), rgba(255,255,255,.06));
+  opacity: .55;
+}
+
+.stat .k{
+  font-size: var(--statK);
+  font-weight: 950;
+  color: rgba(255,255,255,.60);
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+}
+
+/* ✅ Values: never wrap, never ellipsis, and NOT “blue” */
+.stat .v{
+  font-size: var(--statV);
+  font-weight: 950;
+  color: rgba(255,255,255,.95);
+  line-height: 1.0;
+  letter-spacing: .35px;
+
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+
+  text-shadow:
+    0 0 12px rgba(255,255,255,.12),
+    0 0 30px rgba(120,220,255,.10);
+}
+
+@media (orientation: landscape){
+  .stat .v{ letter-spacing: .25px; }
+}
+
+.statusLine{
+  margin-top: auto;
+  display:flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content:center;
+  align-items:center;
+
+  font-size: clamp(14px, 2.0vmin, 20px);
+  font-weight: 900;
+  letter-spacing: .7px;
+  color: rgba(255,255,255,.70);
+
+  padding-top: clamp(8px, 1.4vmin, 12px);
+
+  /* ✅ Remove divider line to keep the bottom clean */
+  border-top: 0;
+}
+
+.dot{ color: rgba(255,255,255,.45); }
+
+.errBox{
+  position:fixed;
+  left: calc(var(--safeLeft) + var(--pad));
+  right: calc(var(--safeRight) + var(--pad));
+  bottom: calc(var(--safeBottom) + var(--pad));
+  background: rgba(60,16,26,.95);
+  border: 1px solid rgba(255,138,160,.35);
+  color: rgba(255,215,222,.98);
+  padding: 14px 16px;
+  border-radius: 16px;
+  font-size: clamp(14px, 2.0vmin, 18px);
+  font-weight: 800;
+  z-index: 999;
+}
+
+.compatHidden{
+  position:absolute;
+  width:1px;
+  height:1px;
+  overflow:hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
