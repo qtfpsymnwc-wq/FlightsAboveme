@@ -11,8 +11,8 @@ const BACKOFF_429_MS = 60000;
 const ENRICH_TIMEOUT_MS = 4500;
 
 // Enrichment budgets (per “cycle”)
-const LIST_AIRCRAFT_BUDGET = 5; // fill aircraft for all 5 fast
-const LIST_ROUTE_BUDGET = 1;    // keep routes conservative to protect credits
+const LIST_AIRCRAFT_BUDGET = 0; // v1.2.9+: only enrich the closest flight
+const LIST_ROUTE_BUDGET = 0;    // v1.2.9+: only enrich the closest flight
 
 const enrichCache = new Map();       // key: `${hex}|${callsign}` -> {routeText, modelText, airlineName}
 const enrichInFlight = new Set();    // keys currently being enriched
@@ -183,15 +183,6 @@ async function fetchJSON(url, timeoutMs=9000){
   }
 }
 
-/* ✅ Route sanitizer: never show a lone "-" */
-function cleanRouteText(routeText){
-  const t = nm(routeText);
-  if (!t) return "—";
-  const s = t.replace(/\s+/g, " ").trim();
-  if (s === "-" || s === "—" || s.toLowerCase() === "n/a") return "—";
-  return s;
-}
-
 /* ✅ Portrait route formatting: show only airport codes in kiosk portrait
    IMPORTANT: Never drop destination. If we can't extract BOTH codes, return original.
 */
@@ -213,12 +204,12 @@ function routeCodesOnly(text){
 
   // Normalize whitespace/newlines and arrow variants
   const t = raw.replace(/\s+/g, " ").trim();
-  const arrowParts = t.split(/\s*(?:→|->)\s*/);
+  const arrowMatch = t.split(/\s*(?:→|->|→)\s*/);
 
-  // If it looks like "LEFT → RIGHT" parse sides
-  if (arrowParts.length >= 2) {
-    const left = arrowParts[0];
-    const right = arrowParts.slice(1).join(" ");
+  // If it looks like "ORIG ... → DEST ..." parse sides
+  if (arrowMatch.length >= 2) {
+    const left = arrowMatch[0];
+    const right = arrowMatch.slice(1).join(" "); // in case there are extra arrows/noise
 
     const leftCodes = extractCodesFromSide(left);
     const rightCodes = extractCodesFromSide(right);
@@ -227,7 +218,8 @@ function routeCodesOnly(text){
     const d = rightCodes.length ? rightCodes[rightCodes.length - 1] : null;
 
     if (o && d && o !== d) return `${o} → ${d}`;
-    return raw; // never degrade
+    // If we can't get BOTH safely, do NOT degrade.
+    return raw;
   }
 
   // No arrow found: try global parentheses
@@ -238,28 +230,14 @@ function routeCodesOnly(text){
   const bareCodes = [...raw.toUpperCase().matchAll(/\b[A-Z0-9]{3,4}\b/g)].map(m => m[0]);
   if (bareCodes.length >= 2) return `${bareCodes[0]} → ${bareCodes[bareCodes.length - 1]}`;
 
+  // Still not enough info: keep original (never drop destination)
   return raw;
 }
 
 function formatRouteForDisplay(routeText){
-  const cleaned = cleanRouteText(routeText);
-  if (cleaned === "—") return "—";
-  if (isKiosk() && isPortrait()) return routeCodesOnly(cleaned);
-  return cleaned;
-}
-
-/* ✅ Stat formatter selection (portrait kiosk = compact) */
-function useCompactStats(){
-  return isKiosk() && isPortrait();
-}
-function fmtAltForUI(m){
-  return useCompactStats() ? fmtAltCompact(m) : fmtAlt(m);
-}
-function fmtSpdForUI(ms){
-  return useCompactStats() ? fmtSpdCompact(ms) : fmtSpd(ms);
-}
-function fmtMiForUI(mi){
-  return useCompactStats() ? fmtMiCompact(mi) : fmtMi(mi);
+  const t = nm(routeText) || "—";
+  if (isKiosk() && isPortrait()) return routeCodesOnly(t);
+  return t;
 }
 
 // -------------------- Rendering --------------------
@@ -281,9 +259,11 @@ function renderPrimary(f, radarMeta){
     img.classList.remove("hidden");
   }
 
-  if ($("alt")) $("alt").textContent = fmtAltForUI(f.baroAlt);
-  if ($("spd")) $("spd").textContent = fmtSpdForUI(f.velocity);
-  if ($("dist")) $("dist").textContent = fmtMiForUI(f.distanceMi);
+  const compactStats = (isKiosk() && isPortrait() && window.innerWidth <= 430);
+
+  if ($("alt")) $("alt").textContent = compactStats ? fmtAltCompact(f.baroAlt) : fmtAlt(f.baroAlt);
+  if ($("spd")) $("spd").textContent = compactStats ? fmtSpdCompact(f.velocity) : fmtSpd(f.velocity);
+  if ($("dist")) $("dist").textContent = compactStats ? fmtMiCompact(f.distanceMi) : fmtMi(f.distanceMi);
 
   // ✅ Kiosk portrait: shorten TRK to cardinal only (prevents TRK/DIST collisions)
   if ($("dir")) $("dir").textContent = headingToText(
@@ -291,7 +271,7 @@ function renderPrimary(f, radarMeta){
     { short: (isKiosk() && isPortrait()) }
   );
 
-  if ($("route")) $("route").textContent = formatRouteForDisplay(f.routeText);
+  if ($("route")) $("route").textContent = formatRouteForDisplay(f.routeText || "—");
   if ($("model")) $("model").textContent = f.modelText || "—";
 
   if ($("radarLine")) $("radarLine").textContent = `Radar: ${radarMeta.count} flights • Showing: ${radarMeta.showing}`;
@@ -322,12 +302,14 @@ function renderSecondary(f){
     img2.classList.remove("hidden");
   }
 
-  $("route2").textContent = formatRouteForDisplay(f.routeText);
+  $("route2").textContent = formatRouteForDisplay(f.routeText || "—");
   $("model2").textContent = f.modelText || "—";
 
-  $("dist2").textContent = fmtMiForUI(f.distanceMi);
-  $("alt2").textContent = fmtAltForUI(f.baroAlt);
-  $("spd2").textContent = fmtSpdForUI(f.velocity);
+  const compactStats = (isKiosk() && isPortrait() && window.innerWidth <= 430);
+
+  $("dist2").textContent = compactStats ? fmtMiCompact(f.distanceMi) : fmtMi(f.distanceMi);
+  $("alt2").textContent = compactStats ? fmtAltCompact(f.baroAlt) : fmtAlt(f.baroAlt);
+  $("spd2").textContent = compactStats ? fmtSpdCompact(f.velocity) : fmtSpd(f.velocity);
 
   // ✅ Kiosk portrait: shorten TRK to cardinal only (prevents TRK/DIST collisions)
   $("dir2").textContent = headingToText(
@@ -570,6 +552,7 @@ async function main(){
   } catch {}
 
   function queueTopEnrichment(top){
+    // Keep cached enrichment (free) but do not queue new work (budgets are 0)
     for (const f of top) applyCachedEnrichment(f);
 
     let aircraftBudget = LIST_AIRCRAFT_BUDGET;
@@ -660,9 +643,11 @@ async function main(){
       if (statusEl) statusEl.textContent = isKiosk() ? "Kiosk" : "Live";
       renderAll();
 
-      // Prefer enriching primary first, then list
+      // ✅ Only enrich the closest flight (primary)
       queueEnrich("aircraft", lastPrimary);
       queueEnrich("route", lastPrimary);
+
+      // Keep list cached-only (budgets are 0, so this will not add jobs)
       queueTopEnrichment(lastTop);
 
       pumpEnrichment(renderAll);
