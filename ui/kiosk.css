@@ -306,8 +306,8 @@ body{
   display:grid;
   grid-template-columns: 1fr 1fr;
 
-  /* ✅ STATS FIX: separate horizontal vs vertical spacing */
-  column-gap: clamp(16px, 3.0vmin, 24px);
+  /* ✅ STATS: bigger horizontal separation to prevent "ft567" collisions */
+  column-gap: clamp(22px, 4.6vmin, 40px);
   row-gap: clamp(10px, 1.6vmin, 14px);
 
   min-height: 0;
@@ -320,7 +320,7 @@ body{
   background: transparent;
   box-shadow: none;
 
-  /* ✅ STATS FIX: keep breathing room but avoid "tile" feel */
+  /* keep minimal breathing room without implying a tile */
   padding: clamp(8px, 1.2vmin, 12px) 0;
 
   display:flex;
@@ -328,21 +328,6 @@ body{
   justify-content:center;
   gap: clamp(6px, 1.0vmin, 10px);
   min-width: 0;
-
-  /* ✅ STATS FIX: avionics tick accent (not a box) */
-  position: relative;
-  padding-left: clamp(12px, 1.8vmin, 16px);
-}
-
-.stat::before{
-  content:"";
-  position:absolute;
-  left:0;
-  top: clamp(6px, 1.0vmin, 10px);
-  bottom: clamp(6px, 1.0vmin, 10px);
-  width: 2px;
-  border-radius: 2px;
-  background: rgba(255,255,255,.10);
 }
 
 .stat .k{
@@ -374,9 +359,9 @@ body{
 }
 
 @media (orientation: portrait){
-  /* ✅ STATS FIX: portrait-only safety so units/digits never collide */
+  /* ✅ STATS: portrait-only extra separation */
   .statsRow{
-    column-gap: clamp(18px, 4.0vmin, 28px);
+    column-gap: clamp(26px, 6.0vmin, 54px);
   }
 }
 
