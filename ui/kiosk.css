@@ -11,6 +11,7 @@
    v1.2.8 (candidate):
    - REMOVE stat headers (ALT/SPD/TRK/DIST)
    - Use reclaimed vertical space to make stat values taller
+   - Landscape: center-justify stat values in their cells
 */
 
 :root{
@@ -317,35 +318,27 @@ body{
 .statsRow{
   display:grid;
   grid-template-columns: 1fr 1fr;
-
-  /* keep proven separation (prevents ft+digits collisions) */
   column-gap: clamp(22px, 4.6vmin, 40px);
   row-gap: clamp(10px, 1.6vmin, 14px);
-
   min-height: 0;
 }
 
-/* ✅ NO BOXES: no border, no background tile, no inset outline, no shadow */
 .stat{
   border: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
 
-  /* slightly tighter now that headers are gone */
   padding: clamp(6px, 1.0vmin, 10px) 0;
 
   display:flex;
   flex-direction:column;
   justify-content:center;
-
-  /* tighter vertical rhythm */
   gap: clamp(2px, 0.5vmin, 6px);
-
   min-width: 0;
 }
 
-/* 🚫 REMOVE STAT HEADERS (reclaim vertical space) */
+/* headers removed */
 .stat .k{
   display:none;
 }
@@ -354,8 +347,6 @@ body{
   font-size: var(--statV);
   font-weight: 950;
   color: rgba(255,255,255,.95);
-
-  /* slightly tighter so larger numbers fit comfortably */
   line-height: .96;
   letter-spacing: .25px;
 
@@ -377,8 +368,14 @@ body{
   }
 }
 
+/* ✅ LANDSCAPE: center-justify each stat within its cell */
 @media (orientation: landscape){
-  .stat .v{ letter-spacing: .20px; }
+  .stat{
+    align-items: center;
+  }
+  .stat .v{
+    text-align: center;
+  }
 }
 
 .statusLine{
@@ -395,8 +392,6 @@ body{
   color: rgba(255,255,255,.70);
 
   padding-top: clamp(8px, 1.4vmin, 12px);
-
-  /* ✅ Remove divider line to keep the bottom clean */
   border-top: 0;
 }
 
