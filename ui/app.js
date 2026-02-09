@@ -50,11 +50,45 @@ function haversineMi(lat1, lon1, lat2, lon2){
   return 2*R*Math.asin(Math.sqrt(a));
 }
 
-function headingToText(deg){
+/* Kiosk detection */
+function isKiosk(){
+  try {
+    if (window.__KIOSK_MODE__ === true) return true;
+    if (document.body.classList.contains("kiosk")) return true;
+    const p = new URLSearchParams(location.search);
+    if (p.get("kiosk") === "1" || p.get("kiosk") === "true") return true;
+    if ((location.pathname || "").toLowerCase().endsWith("/kiosk.html")) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+function enableKioskIfRequested(){
+  if (!isKiosk()) return;
+  try { document.body.classList.add("kiosk"); } catch {}
+  try { window.__KIOSK_MODE__ = true; } catch {}
+}
+
+/* ✅ Portrait detection helper */
+function isPortrait(){
+  try {
+    return window.matchMedia && window.matchMedia("(orientation: portrait)").matches;
+  } catch {
+    return false;
+  }
+}
+
+/* ✅ TRK formatting: allow short (no degrees) for kiosk portrait to prevent TRK/DIST collisions */
+function headingToText(deg, opts={}){
   if (!Number.isFinite(deg)) return "—";
   const dirs = ["N","NE","E","SE","S","SW","W","NW"];
   const idx = Math.round((((deg%360)+360)%360) / 45) % 8;
-  return dirs[idx] + ` (${Math.round(deg)}°)`;
+  const card = dirs[idx];
+  const d = Math.round(deg);
+
+  if (opts && opts.short === true) return card;
+  return card + ` (${d}°)`;
 }
 
 function fmtAlt(m) {
@@ -129,35 +163,7 @@ async function fetchJSON(url, timeoutMs=9000){
   }
 }
 
-/* Kiosk detection */
-function isKiosk(){
-  try {
-    if (window.__KIOSK_MODE__ === true) return true;
-    if (document.body.classList.contains("kiosk")) return true;
-    const p = new URLSearchParams(location.search);
-    if (p.get("kiosk") === "1" || p.get("kiosk") === "true") return true;
-    if ((location.pathname || "").toLowerCase().endsWith("/kiosk.html")) return true;
-    return false;
-  } catch {
-    return false;
-  }
-}
-
-function enableKioskIfRequested(){
-  if (!isKiosk()) return;
-  try { document.body.classList.add("kiosk"); } catch {}
-  try { window.__KIOSK_MODE__ = true; } catch {}
-}
-
 /* ✅ Portrait route formatting: show only airport codes in kiosk portrait */
-function isPortrait(){
-  try {
-    return window.matchMedia && window.matchMedia("(orientation: portrait)").matches;
-  } catch {
-    return false;
-  }
-}
-
 function routeCodesOnly(text){
   const t = nm(text);
   if (!t || t === "—") return t || "—";
@@ -166,7 +172,7 @@ function routeCodesOnly(text){
   const parenCodes = [...t.matchAll(/\(([A-Z0-9]{3,4})\)/g)].map(m => m[1]);
   if (parenCodes.length >= 2) return `${parenCodes[0]} → ${parenCodes[parenCodes.length - 1]}`;
 
-  // Fallback: look for standalone 3–4 char airport codes near arrow
+  // Fallback: look for standalone 3–4 char airport codes
   const bareCodes = [...t.matchAll(/\b[A-Z0-9]{3,4}\b/g)].map(m => m[0]);
   if (bareCodes.length >= 2) return `${bareCodes[0]} → ${bareCodes[bareCodes.length - 1]}`;
 
@@ -202,7 +208,12 @@ function renderPrimary(f, radarMeta){
   if ($("alt")) $("alt").textContent = fmtAlt(f.baroAlt);
   if ($("spd")) $("spd").textContent = fmtSpd(f.velocity);
   if ($("dist")) $("dist").textContent = fmtMi(f.distanceMi);
-  if ($("dir")) $("dir").textContent = headingToText(f.trueTrack);
+
+  // ✅ Kiosk portrait: shorten TRK to cardinal only (prevents TRK/DIST collisions)
+  if ($("dir")) $("dir").textContent = headingToText(
+    f.trueTrack,
+    { short: (isKiosk() && isPortrait()) }
+  );
 
   if ($("route")) $("route").textContent = formatRouteForDisplay(f.routeText || "—");
   if ($("model")) $("model").textContent = f.modelText || "—";
@@ -241,7 +252,12 @@ function renderSecondary(f){
   $("dist2").textContent = fmtMi(f.distanceMi);
   $("alt2").textContent = fmtAlt(f.baroAlt);
   $("spd2").textContent = fmtSpd(f.velocity);
-  $("dir2").textContent = headingToText(f.trueTrack);
+
+  // ✅ Kiosk portrait: shorten TRK to cardinal only (prevents TRK/DIST collisions)
+  $("dir2").textContent = headingToText(
+    f.trueTrack,
+    { short: (isKiosk() && isPortrait()) }
+  );
 }
 
 function renderList(list){
