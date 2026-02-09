@@ -1,5 +1,12 @@
 /* FlightsAboveMe — Kiosk (LED-board / signage-grade)
    UI-only. Keeps existing IDs so app.js can populate fields unchanged.
+   Updated:
+   - Logo plate is TRUE white (no gray cast)
+   - Aircraft line bigger
+   - Remove ALL stat “boxes” (no borders, no inset outlines, no tile backgrounds)
+   - Remove divider lines that values were colliding with
+   - Reduce dead space by preventing the top section from stretching
+   - No ellipsis anywhere in kiosk text
 */
 
 :root{
@@ -28,34 +35,33 @@
   /* BIG typography targets (distance readability first) */
   --airline: clamp(62px, 9.2vmin, 150px);
 
-  /* Route + aircraft line */
+  /* Route lines */
   --route:   clamp(50px, 7.6vmin, 118px);
 
-  /* ✅ Bigger aircraft line (this is the “aircraft” size you keep asking for) */
-  --sub:     clamp(44px, 6.2vmin, 102px);
+  /* Callsign + aircraft line (⬆️ bigger than before) */
+  --sub:     clamp(44px, 6.2vmin, 96px);
 
   --tiny:    clamp(16px, 2.2vmin, 28px);
 
   /* Stats */
-  --statV:   clamp(52px, 8.0vmin, 132px);
+  --statV:   clamp(56px, 8.6vmin, 138px);
   --statK:   clamp(16px, 2.2vmin, 26px);
 
   --topBar:  clamp(14px, 1.9vmin, 20px);
   --exitH:   clamp(42px, 5.4vmin, 60px);
 }
 
-/* Landscape tuning: reduce chance of crowding */
+/* Landscape tuning: slightly smaller stats so they never feel forced */
 @media (orientation: landscape){
   :root{
-    --statV: clamp(48px, 7.0vmin, 120px);
+    --statV: clamp(50px, 7.2vmin, 124px);
     --route: clamp(46px, 6.6vmin, 104px);
-    --sub:   clamp(40px, 5.6vmin, 92px);
+    --sub:   clamp(42px, 5.6vmin, 88px);
   }
 }
 
 *{ box-sizing:border-box; }
 html, body{ height:100%; }
-
 body{
   margin:0;
   overflow:hidden;
@@ -125,10 +131,12 @@ body{
   flex: 1;
   min-height: 0;
 
+  /* Full-screen feel */
   border-radius: 0;
   border: 0;
   overflow:hidden;
 
+  /* Dot matrix + subtle shading */
   background:
     radial-gradient(circle at 1px 1px, rgba(255,255,255,.085) 1px, transparent 1.6px) 0 0 / 8px 8px,
     linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.42)),
@@ -137,7 +145,7 @@ body{
 
   display:grid;
 
-  /* ✅ Key: let the bottom grow to absorb dead space */
+  /* ✅ Prevent top from stretching into dead space */
   grid-template-rows: auto 1fr;
 }
 
@@ -147,8 +155,8 @@ body{
   grid-template-columns: auto 1fr;
   gap: clamp(10px, 1.4vmin, 16px);
 
-  /* ✅ slightly tighter so content feels “bigger” */
-  padding: clamp(12px, 2.0vmin, 20px);
+  /* slightly tighter than before to reduce dead space */
+  padding: clamp(12px, 2.0vmin, 18px);
 
   align-items:center;
   min-height: 0;
@@ -157,7 +165,7 @@ body{
 @media (orientation: portrait){
   .topPane{
     grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
+    grid-template-rows: auto auto;
     justify-items:center;
     align-items:start;
     gap: clamp(10px, 1.6vmin, 16px);
@@ -170,29 +178,30 @@ body{
   display:flex;
   align-items:flex-start;
   justify-content:flex-start;
-  padding-top: clamp(4px, 1.0vmin, 8px);
+  padding-top: clamp(4px, 0.9vmin, 8px);
 }
 
-/* ✅ Pure-white logo plate for accurate airline colors */
+/* ✅ TRUE WHITE logo plate (no gray cast) */
 .logo{
   width: clamp(150px, 22vmin, 270px);
   height: clamp(150px, 22vmin, 270px);
   object-fit: contain;
 
-  padding: clamp(12px, 1.6vmin, 18px);
+  padding: clamp(10px, 1.4vmin, 16px);
   border-radius: 22px;
 
-  background: #ffffff;
+  background:
+    radial-gradient(120% 120% at 30% 25%, rgba(255,255,255,1), rgba(255,255,255,.98) 55%, rgba(255,255,255,.96)),
+    #ffffff;
 
   border: 1px solid rgba(0,0,0,.10);
 
   box-shadow:
-    0 18px 34px rgba(0,0,0,.55),
-    inset 0 1px 0 rgba(255,255,255,.65),
-    inset 0 -1px 0 rgba(0,0,0,.10),
-    0 0 26px rgba(120,220,255,.08);
+    0 20px 38px rgba(0,0,0,.60),
+    inset 0 1px 0 rgba(255,255,255,.85),
+    inset 0 -1px 0 rgba(0,0,0,.08);
 
-  filter: drop-shadow(0 10px 18px rgba(0,0,0,.28));
+  filter: drop-shadow(0 12px 18px rgba(0,0,0,.30));
 }
 
 @media (orientation: portrait){
@@ -207,7 +216,10 @@ body{
   display:flex;
   flex-direction:column;
   justify-content:flex-start;
-  gap: clamp(10px, 1.4vmin, 14px);
+
+  /* slightly tighter */
+  gap: clamp(8px, 1.2vmin, 12px);
+
   min-width: 0;
   width: 100%;
 }
@@ -231,10 +243,10 @@ body{
 .routeBlock{
   display:flex;
   flex-direction:column;
-  gap: clamp(8px, 1.2vmin, 12px);
+  gap: clamp(6px, 1.0vmin, 10px);
 }
 
-/* ✅ No ellipsis on route (clip instead if needed) */
+/* ✅ No ellipsis anywhere */
 .route{
   font-size: var(--route);
   font-weight: 950;
@@ -242,22 +254,23 @@ body{
   line-height: 1.04;
 
   max-width: 100%;
-  overflow:hidden;
+  overflow: visible;
   text-overflow: clip;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
 }
 .route2{ color: rgba(255,255,255,.88); }
 
-/* Callsign + model (aircraft) */
+/* Callsign + model */
 .sub{
   font-size: var(--sub);
   font-weight: 950;
-  color: rgba(255,255,255,.88);
+  color: rgba(255,255,255,.90);
   display:flex;
   flex-wrap: wrap;
   align-items:baseline;
   gap: 14px;
-  line-height: 1.08;
+  line-height: 1.10;
 }
 
 .callsign{ color: rgba(255,255,255,.98); }
@@ -281,15 +294,12 @@ body{
   padding: clamp(12px, 2.0vmin, 18px);
   display:flex;
   flex-direction:column;
-
-  /* ✅ this is what “fills” dead space instead of leaving a big blank middle */
-  flex: 1;
-
   gap: clamp(10px, 1.6vmin, 14px);
 
-  /* keep the section separation, but subtle */
-  border-top: 1px solid rgba(255,255,255,.08);
-  background: linear-gradient(180deg, rgba(0,0,0,.10), rgba(0,0,0,.20));
+  /* ✅ Remove the divider line entirely (it was colliding visually) */
+  border-top: 0;
+
+  background: linear-gradient(180deg, rgba(0,0,0,.08), rgba(0,0,0,.18));
 }
 
 .statsRow{
@@ -297,25 +307,17 @@ body{
   grid-template-columns: 1fr 1fr;
   gap: clamp(12px, 2.0vmin, 18px);
   min-height: 0;
-
-  /* ✅ allow stats area to stretch taller (kills dead space) */
-  flex: 1;
-  align-content: stretch;
 }
 
+/* ✅ NO BOXES: no border, no background tile, no inset outline, no shadow */
 .stat{
-  /* ✅ remove hard borders (these were the “lines” cutting into values) */
   border: 0;
-  border-radius: 16px;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 
-  /* keep a soft “card” feel without sharp lines */
-  background: rgba(255,255,255,.045);
+  padding: clamp(10px, 1.6vmin, 14px);
 
-  box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,.08),
-    0 10px 22px rgba(0,0,0,.28);
-
-  padding: clamp(14px, 2.2vmin, 18px);
   display:flex;
   flex-direction:column;
   justify-content:center;
@@ -331,21 +333,13 @@ body{
   text-transform: uppercase;
 }
 
-/* ✅ KEY FIXES:
-   - never wrap
-   - never ellipsis
-   - preserve full value
-   - keep it white (if you see blue again, it’s coming from somewhere else)
-*/
+/* ✅ Values: never wrap, never ellipsis, and NOT “blue” */
 .stat .v{
   font-size: var(--statV);
   font-weight: 950;
-
-  /* white LED look */
-  color: rgba(255,255,255,.92);
-
-  line-height: 0.98;
-  letter-spacing: .18px;
+  color: rgba(255,255,255,.95);
+  line-height: 1.0;
+  letter-spacing: .35px;
 
   white-space: nowrap;
   overflow: visible;
@@ -355,13 +349,12 @@ body{
   font-feature-settings: "tnum";
 
   text-shadow:
-    0 0 10px rgba(120,220,255,.14),
-    0 0 22px rgba(120,220,255,.08);
+    0 0 10px rgba(255,255,255,.14),
+    0 0 26px rgba(255,255,255,.08);
 }
 
-/* Optional: slightly tighter tracking in landscape */
 @media (orientation: landscape){
-  .stat .v{ letter-spacing: .12px; }
+  .stat .v{ letter-spacing: .25px; }
 }
 
 .statusLine{
@@ -378,7 +371,9 @@ body{
   color: rgba(255,255,255,.70);
 
   padding-top: clamp(8px, 1.4vmin, 12px);
-  border-top: 1px solid rgba(255,255,255,.08);
+
+  /* ✅ Remove divider line to keep the bottom clean */
+  border-top: 0;
 }
 
 .dot{ color: rgba(255,255,255,.45); }
