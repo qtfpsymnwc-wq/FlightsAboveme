@@ -305,31 +305,49 @@ body{
 .statsRow{
   display:grid;
   grid-template-columns: 1fr 1fr;
-  gap: clamp(12px, 2.0vmin, 18px);
+  gap: clamp(10px, 1.6vmin, 14px);
   min-height: 0;
 }
 
 /* ✅ NO BOXES: no border, no background tile, no inset outline, no shadow */
 .stat{
+  /* Floating readout: no tile feel */
   border: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
 
-  padding: clamp(10px, 1.6vmin, 14px);
+  /* Remove interior padding so it doesn’t imply a rectangle */
+  padding: 0;
 
   display:flex;
   flex-direction:column;
   justify-content:center;
-  gap: clamp(6px, 1.0vmin, 10px);
+  align-items:flex-start;
+  gap: clamp(4px, 0.8vmin, 8px);
   min-width: 0;
+
+  position: relative;
+}
+
+/* subtle “instrument” accent (not a box) */
+.stat::before{
+  content:"";
+  position:absolute;
+  left: -10px;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, rgba(120,220,255,.22), rgba(255,255,255,.06));
+  opacity: .55;
 }
 
 .stat .k{
   font-size: var(--statK);
   font-weight: 950;
-  color: rgba(255,255,255,.62);
-  letter-spacing: 1.2px;
+  color: rgba(255,255,255,.60);
+  letter-spacing: 1.6px;
   text-transform: uppercase;
 }
 
@@ -349,8 +367,8 @@ body{
   font-feature-settings: "tnum";
 
   text-shadow:
-    0 0 10px rgba(255,255,255,.14),
-    0 0 26px rgba(255,255,255,.08);
+    0 0 12px rgba(255,255,255,.12),
+    0 0 30px rgba(120,220,255,.10);
 }
 
 @media (orientation: landscape){
