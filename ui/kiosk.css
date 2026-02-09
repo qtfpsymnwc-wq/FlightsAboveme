@@ -13,10 +13,9 @@
    - REMOVE stat headers (ALT/SPD/TRK/DIST)
    - Use reclaimed vertical space to make stat values taller
    - Landscape: center-justify stat values in their cells
-   - Portrait: reduce stat size + stabilize logo/text alignment
-   - Portrait: enforce codes-on-one-line in route
-   - Compact iPhone (landscape short height): shrink typography + logo + stats to prevent collisions
-   - ✅ Fix iPhone portrait right-side stat clipping (add gutters + right-align right column)
+   - Portrait: codes-only route
+   - ✅ iPhone portrait: compact mode (smaller typography + logo + stats)
+   - ✅ Portrait: prevent right-side stat clipping (gutters + right align right column)
 */
 
 :root{
@@ -46,6 +45,7 @@
   --sub:     clamp(44px, 6.2vmin, 96px);
   --tiny:    clamp(16px, 2.2vmin, 28px);
 
+  /* Stats */
   --statV:   clamp(76px, 11.8vmin, 186px);
   --statK:   clamp(16px, 2.2vmin, 26px);
 
@@ -62,7 +62,7 @@
   }
 }
 
-/* Portrait safety */
+/* Portrait baseline safety */
 @media (orientation: portrait){
   :root{
     --statV: clamp(56px, 8.8vmin, 128px);
@@ -71,7 +71,26 @@
   }
 }
 
-/* ✅ iPhone COMPACT LANDSCAPE */
+/* ✅ iPhone portrait COMPACT mode
+   (Distance readability not critical; prioritize fit + polish) */
+@media (orientation: portrait) and (max-width: 430px){
+  :root{
+    --pad:    clamp(6px, 1.0vmin, 10px);
+
+    --airline: clamp(44px, 7.2vmin, 96px);
+    --route:   clamp(34px, 5.4vmin, 72px);
+    --sub:     clamp(30px, 4.8vmin, 64px);
+    --tiny:    clamp(12px, 1.9vmin, 18px);
+
+    /* This is the big win for avoiding overlap/cropping */
+    --statV:   clamp(44px, 7.8vmin, 104px);
+
+    --topBar:  clamp(12px, 1.7vmin, 16px);
+    --exitH:   clamp(34px, 4.8vmin, 46px);
+  }
+}
+
+/* ✅ iPhone compact landscape safety (short height) */
 @media (orientation: landscape) and (max-height: 460px){
   :root{
     --pad:   clamp(6px, 0.9vmin, 10px);
@@ -85,14 +104,6 @@
 
     --topBar:  clamp(12px, 1.7vmin, 16px);
     --exitH:   clamp(34px, 4.6vmin, 44px);
-  }
-}
-
-/* ✅ iPhone COMPACT PORTRAIT */
-@media (orientation: portrait) and (max-width: 420px){
-  :root{
-    --pad: clamp(6px, 1.0vmin, 10px);
-    --statV: clamp(48px, 8.0vmin, 112px);
   }
 }
 
@@ -208,7 +219,7 @@ body{
     grid-template-rows: auto auto;
     justify-items:center;
     align-items:start;
-    gap: clamp(18px, 3.4vmin, 30px);
+    gap: clamp(14px, 3.0vmin, 22px);
   }
 }
 
@@ -257,10 +268,20 @@ body{
   filter: drop-shadow(0 12px 18px rgba(0,0,0,.30));
 }
 
+/* Portrait logo size */
 @media (orientation: portrait){
   .logo{
-    width: clamp(118px, 16.5vmin, 190px);
-    height: clamp(118px, 16.5vmin, 190px);
+    width: clamp(108px, 15.5vmin, 170px);
+    height: clamp(108px, 15.5vmin, 170px);
+  }
+}
+
+/* Extra compact iPhone portrait logo */
+@media (orientation: portrait) and (max-width: 430px){
+  .logo{
+    width: clamp(96px, 14.2vmin, 150px);
+    height: clamp(96px, 14.2vmin, 150px);
+    border-radius: 20px;
   }
 }
 
@@ -383,13 +404,6 @@ body{
   background: linear-gradient(180deg, rgba(0,0,0,.08), rgba(0,0,0,.18));
 }
 
-@media (orientation: landscape) and (max-height: 460px){
-  .bottomPane{
-    padding: clamp(8px, 1.4vmin, 12px);
-    gap: clamp(8px, 1.2vmin, 10px);
-  }
-}
-
 .statsRow{
   display:grid;
   grid-template-columns: minmax(0,1fr) minmax(0,1fr);
@@ -397,25 +411,15 @@ body{
   row-gap: clamp(10px, 1.6vmin, 14px);
   min-height: 0;
 
-  /* ✅ Add a small inner gutter so right column never clips on phones */
-  padding-inline: clamp(6px, 1.2vmin, 12px);
+  /* ✅ Inner gutter so right column never clips */
+  padding-inline: clamp(8px, 1.6vmin, 14px);
 }
 
 @media (orientation: portrait){
   .statsRow{
-    column-gap: clamp(30px, 7.2vmin, 64px);
+    column-gap: clamp(26px, 6.2vmin, 56px);
     row-gap: clamp(12px, 2.2vmin, 18px);
-
-    /* ✅ Slightly bigger portrait gutter */
-    padding-inline: clamp(10px, 2.4vmin, 18px);
-  }
-}
-
-@media (orientation: landscape) and (max-height: 460px){
-  .statsRow{
-    column-gap: clamp(18px, 3.2vmin, 28px);
-    row-gap: clamp(8px, 1.2vmin, 10px);
-    padding-inline: clamp(6px, 1.2vmin, 10px);
+    padding-inline: clamp(12px, 3.0vmin, 20px);
   }
 }
 
@@ -443,8 +447,8 @@ body{
   color: rgba(255,255,255,.95);
   line-height: .96;
 
-  /* ✅ Slightly tighter so units fit on iPhone */
-  letter-spacing: .18px;
+  /* ✅ Tighter for phones */
+  letter-spacing: .12px;
 
   white-space: nowrap;
   max-width: 100%;
@@ -459,13 +463,12 @@ body{
     0 0 26px rgba(255,255,255,.08);
 }
 
+/* Portrait: right column aligns right (prevents unit clipping) */
 @media (orientation: portrait){
   .stat .v{
-    letter-spacing: .10px;
+    letter-spacing: .08px;
     line-height: .94;
   }
-
-  /* ✅ Portrait: right column aligns RIGHT so “mph/ft/mi” never gets cut */
   .statsRow .stat:nth-child(2),
   .statsRow .stat:nth-child(4){
     align-items: flex-end;
@@ -476,7 +479,7 @@ body{
   }
 }
 
-/* LANDSCAPE: center-justify each stat within its cell */
+/* Landscape: center stats */
 @media (orientation: landscape){
   .stat{ align-items: center; }
   .stat .v{ text-align: center; }
@@ -497,13 +500,6 @@ body{
 
   padding-top: clamp(8px, 1.4vmin, 12px);
   border-top: 0;
-}
-
-@media (orientation: landscape) and (max-height: 460px){
-  .statusLine{
-    font-size: clamp(12px, 1.6vmin, 16px);
-    padding-top: clamp(6px, 1.0vmin, 8px);
-  }
 }
 
 .dot{ color: rgba(255,255,255,.45); }
