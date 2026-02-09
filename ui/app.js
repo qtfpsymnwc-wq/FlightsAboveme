@@ -129,6 +129,57 @@ async function fetchJSON(url, timeoutMs=9000){
   }
 }
 
+/* Kiosk detection */
+function isKiosk(){
+  try {
+    if (window.__KIOSK_MODE__ === true) return true;
+    if (document.body.classList.contains("kiosk")) return true;
+    const p = new URLSearchParams(location.search);
+    if (p.get("kiosk") === "1" || p.get("kiosk") === "true") return true;
+    if ((location.pathname || "").toLowerCase().endsWith("/kiosk.html")) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+function enableKioskIfRequested(){
+  if (!isKiosk()) return;
+  try { document.body.classList.add("kiosk"); } catch {}
+  try { window.__KIOSK_MODE__ = true; } catch {}
+}
+
+/* ✅ Portrait route formatting: show only airport codes in kiosk portrait */
+function isPortrait(){
+  try {
+    return window.matchMedia && window.matchMedia("(orientation: portrait)").matches;
+  } catch {
+    return false;
+  }
+}
+
+function routeCodesOnly(text){
+  const t = nm(text);
+  if (!t || t === "—") return t || "—";
+
+  // Preferred: extract codes inside parentheses: "(DFW)" "(ORD)" etc
+  const parenCodes = [...t.matchAll(/\(([A-Z0-9]{3,4})\)/g)].map(m => m[1]);
+  if (parenCodes.length >= 2) return `${parenCodes[0]} → ${parenCodes[parenCodes.length - 1]}`;
+
+  // Fallback: look for standalone 3–4 char airport codes near arrow
+  const bareCodes = [...t.matchAll(/\b[A-Z0-9]{3,4}\b/g)].map(m => m[0]);
+  if (bareCodes.length >= 2) return `${bareCodes[0]} → ${bareCodes[bareCodes.length - 1]}`;
+
+  return t;
+}
+
+function formatRouteForDisplay(routeText){
+  const t = nm(routeText) || "—";
+  // Only in kiosk + portrait: codes only
+  if (isKiosk() && isPortrait()) return routeCodesOnly(t);
+  return t;
+}
+
 // -------------------- Rendering --------------------
 
 function renderPrimary(f, radarMeta){
@@ -153,7 +204,7 @@ function renderPrimary(f, radarMeta){
   if ($("dist")) $("dist").textContent = fmtMi(f.distanceMi);
   if ($("dir")) $("dir").textContent = headingToText(f.trueTrack);
 
-  if ($("route")) $("route").textContent = f.routeText || "—";
+  if ($("route")) $("route").textContent = formatRouteForDisplay(f.routeText || "—");
   if ($("model")) $("model").textContent = f.modelText || "—";
 
   if ($("radarLine")) $("radarLine").textContent = `Radar: ${radarMeta.count} flights • Showing: ${radarMeta.showing}`;
@@ -184,7 +235,7 @@ function renderSecondary(f){
     img2.classList.remove("hidden");
   }
 
-  $("route2").textContent = f.routeText || "—";
+  $("route2").textContent = formatRouteForDisplay(f.routeText || "—");
   $("model2").textContent = f.modelText || "—";
 
   $("dist2").textContent = fmtMi(f.distanceMi);
@@ -350,26 +401,6 @@ function pumpEnrichment(renderFn){
   run();
 }
 
-/* Kiosk detection */
-function isKiosk(){
-  try {
-    if (window.__KIOSK_MODE__ === true) return true;
-    if (document.body.classList.contains("kiosk")) return true;
-    const p = new URLSearchParams(location.search);
-    if (p.get("kiosk") === "1" || p.get("kiosk") === "true") return true;
-    if ((location.pathname || "").toLowerCase().endsWith("/kiosk.html")) return true;
-    return false;
-  } catch {
-    return false;
-  }
-}
-
-function enableKioskIfRequested(){
-  if (!isKiosk()) return;
-  try { document.body.classList.add("kiosk"); } catch {}
-  try { window.__KIOSK_MODE__ = true; } catch {}
-}
-
 // -------------------- Main loop --------------------
 
 async function main(){
@@ -439,6 +470,12 @@ async function main(){
       renderList(lastTop);
     }
   }
+
+  // ✅ Re-render on rotation so portrait shows codes-only instantly
+  try {
+    window.addEventListener("orientationchange", () => setTimeout(renderAll, 50));
+    window.addEventListener("resize", () => setTimeout(renderAll, 50));
+  } catch {}
 
   function queueTopEnrichment(top){
     for (const f of top) applyCachedEnrichment(f);
