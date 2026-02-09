@@ -79,16 +79,6 @@ function isPortrait(){
   }
 }
 
-/* ✅ iPhone-ish kiosk portrait: apply compact stat formatting to avoid clipping */
-function isIPhonePortraitKiosk(){
-  try {
-    const w = Math.min(window.innerWidth || 9999, window.innerHeight || 9999);
-    return isKiosk() && isPortrait() && w <= 430; // iPhone widths (incl Pro Max in portrait)
-  } catch {
-    return false;
-  }
-}
-
 /* ✅ TRK formatting: allow short (no degrees) for kiosk portrait to prevent TRK/DIST collisions */
 function headingToText(deg, opts={}){
   if (!Number.isFinite(deg)) return "—";
@@ -101,6 +91,7 @@ function headingToText(deg, opts={}){
   return card + ` (${d}°)`;
 }
 
+/* Normal (non-compact) formatters */
 function fmtAlt(m) {
   if (!Number.isFinite(m)) return "—";
   const ft = m * 3.28084;
@@ -116,16 +107,14 @@ function fmtMi(mi) {
   return mi.toFixed(mi < 10 ? 1 : 0) + " mi";
 }
 
-/* ✅ Compact units for kiosk iPhone portrait (kills clipping) */
+/* ✅ Compact formatters for kiosk iPhone portrait (prevents clipping) */
 function fmtAltCompact(m){
   if (!Number.isFinite(m)) return "—";
   const ft = m * 3.28084;
-
-  // 10,000ft+ becomes kft (e.g., 23.0kft)
-  if (ft >= 10000) return (ft/1000).toFixed(1) + "kft";
-
-  // otherwise keep full feet but remove space (e.g., 9,500ft)
-  return Math.round(ft).toLocaleString() + "ft";
+  // Always compact in kiosk portrait: kft (even at low alt)
+  const kft = ft / 1000;
+  const decimals = (kft < 10) ? 2 : 1;
+  return kft.toFixed(decimals) + "kft";
 }
 function fmtSpdCompact(ms){
   if (!Number.isFinite(ms)) return "—";
@@ -194,6 +183,15 @@ async function fetchJSON(url, timeoutMs=9000){
   }
 }
 
+/* ✅ Route sanitizer: never show a lone "-" */
+function cleanRouteText(routeText){
+  const t = nm(routeText);
+  if (!t) return "—";
+  const s = t.replace(/\s+/g, " ").trim();
+  if (s === "-" || s === "—" || s.toLowerCase() === "n/a") return "—";
+  return s;
+}
+
 /* ✅ Portrait route formatting: show only airport codes in kiosk portrait
    IMPORTANT: Never drop destination. If we can't extract BOTH codes, return original.
 */
@@ -215,12 +213,12 @@ function routeCodesOnly(text){
 
   // Normalize whitespace/newlines and arrow variants
   const t = raw.replace(/\s+/g, " ").trim();
-  const arrowMatch = t.split(/\s*(?:→|->)\s*/);
+  const arrowParts = t.split(/\s*(?:→|->)\s*/);
 
-  // If it looks like "ORIG ... → DEST ..." parse sides
-  if (arrowMatch.length >= 2) {
-    const left = arrowMatch[0];
-    const right = arrowMatch.slice(1).join(" "); // in case there are extra arrows/noise
+  // If it looks like "LEFT → RIGHT" parse sides
+  if (arrowParts.length >= 2) {
+    const left = arrowParts[0];
+    const right = arrowParts.slice(1).join(" ");
 
     const leftCodes = extractCodesFromSide(left);
     const rightCodes = extractCodesFromSide(right);
@@ -229,8 +227,7 @@ function routeCodesOnly(text){
     const d = rightCodes.length ? rightCodes[rightCodes.length - 1] : null;
 
     if (o && d && o !== d) return `${o} → ${d}`;
-    // If we can't get BOTH safely, do NOT degrade.
-    return raw;
+    return raw; // never degrade
   }
 
   // No arrow found: try global parentheses
@@ -241,14 +238,28 @@ function routeCodesOnly(text){
   const bareCodes = [...raw.toUpperCase().matchAll(/\b[A-Z0-9]{3,4}\b/g)].map(m => m[0]);
   if (bareCodes.length >= 2) return `${bareCodes[0]} → ${bareCodes[bareCodes.length - 1]}`;
 
-  // Still not enough info: keep original (never drop destination)
   return raw;
 }
 
 function formatRouteForDisplay(routeText){
-  const t = nm(routeText) || "—";
-  if (isKiosk() && isPortrait()) return routeCodesOnly(t);
-  return t;
+  const cleaned = cleanRouteText(routeText);
+  if (cleaned === "—") return "—";
+  if (isKiosk() && isPortrait()) return routeCodesOnly(cleaned);
+  return cleaned;
+}
+
+/* ✅ Stat formatter selection (portrait kiosk = compact) */
+function useCompactStats(){
+  return isKiosk() && isPortrait();
+}
+function fmtAltForUI(m){
+  return useCompactStats() ? fmtAltCompact(m) : fmtAlt(m);
+}
+function fmtSpdForUI(ms){
+  return useCompactStats() ? fmtSpdCompact(ms) : fmtSpd(ms);
+}
+function fmtMiForUI(mi){
+  return useCompactStats() ? fmtMiCompact(mi) : fmtMi(mi);
 }
 
 // -------------------- Rendering --------------------
@@ -270,11 +281,9 @@ function renderPrimary(f, radarMeta){
     img.classList.remove("hidden");
   }
 
-  const compact = isIPhonePortraitKiosk();
-
-  if ($("alt")) $("alt").textContent = compact ? fmtAltCompact(f.baroAlt) : fmtAlt(f.baroAlt);
-  if ($("spd")) $("spd").textContent = compact ? fmtSpdCompact(f.velocity) : fmtSpd(f.velocity);
-  if ($("dist")) $("dist").textContent = compact ? fmtMiCompact(f.distanceMi) : fmtMi(f.distanceMi);
+  if ($("alt")) $("alt").textContent = fmtAltForUI(f.baroAlt);
+  if ($("spd")) $("spd").textContent = fmtSpdForUI(f.velocity);
+  if ($("dist")) $("dist").textContent = fmtMiForUI(f.distanceMi);
 
   // ✅ Kiosk portrait: shorten TRK to cardinal only (prevents TRK/DIST collisions)
   if ($("dir")) $("dir").textContent = headingToText(
@@ -282,7 +291,7 @@ function renderPrimary(f, radarMeta){
     { short: (isKiosk() && isPortrait()) }
   );
 
-  if ($("route")) $("route").textContent = formatRouteForDisplay(f.routeText || "—");
+  if ($("route")) $("route").textContent = formatRouteForDisplay(f.routeText);
   if ($("model")) $("model").textContent = f.modelText || "—";
 
   if ($("radarLine")) $("radarLine").textContent = `Radar: ${radarMeta.count} flights • Showing: ${radarMeta.showing}`;
@@ -313,14 +322,12 @@ function renderSecondary(f){
     img2.classList.remove("hidden");
   }
 
-  $("route2").textContent = formatRouteForDisplay(f.routeText || "—");
+  $("route2").textContent = formatRouteForDisplay(f.routeText);
   $("model2").textContent = f.modelText || "—";
 
-  const compact = isIPhonePortraitKiosk();
-
-  $("dist2").textContent = compact ? fmtMiCompact(f.distanceMi) : fmtMi(f.distanceMi);
-  $("alt2").textContent  = compact ? fmtAltCompact(f.baroAlt)   : fmtAlt(f.baroAlt);
-  $("spd2").textContent  = compact ? fmtSpdCompact(f.velocity)  : fmtSpd(f.velocity);
+  $("dist2").textContent = fmtMiForUI(f.distanceMi);
+  $("alt2").textContent = fmtAltForUI(f.baroAlt);
+  $("spd2").textContent = fmtSpdForUI(f.velocity);
 
   // ✅ Kiosk portrait: shorten TRK to cardinal only (prevents TRK/DIST collisions)
   $("dir2").textContent = headingToText(
