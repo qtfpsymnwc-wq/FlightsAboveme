@@ -114,6 +114,16 @@
         const raw = (src.textContent || '').trim();
         if (!raw || raw === '—') { l1.textContent = '—'; l2.textContent = ''; return; }
 
+        // Code-only route (e.g. "ORD → LAX"): render on ONE line.
+        // IMPORTANT: check this FIRST so kiosk portrait (which hides line 2)
+        // never drops the destination.
+        const m = raw.match(/^\s*([A-Z0-9]{2,4})\s*(?:→|->|-|–|—|to)\s*([A-Z0-9]{2,4})\s*$/i);
+        if (m) {
+          l1.textContent = `${m[1].toUpperCase()} \u2192 ${m[2].toUpperCase()}`;
+          l2.textContent = '';
+          return;
+        }
+
         // Preferred: split on a route separator if present.
         // Works for both short codes ("ORD → LAX") and long airport strings
         // ("New York (LGA) → Fayetteville (XNA)")
@@ -129,15 +139,6 @@
             l2.textContent = right;
             return;
           }
-        }
-
-        // Code-only route (e.g. "ORD → LAX"): render on ONE line.
-        // (This matches your kiosk portrait behavior where route is codes-only.)
-        const m = raw.match(/^\s*([A-Z0-9]{2,4})\s*(?:→|->|-|–|—|to)\s*([A-Z0-9]{2,4})\s*$/i);
-        if (m) {
-          l1.textContent = `${m[1].toUpperCase()} \u2192 ${m[2].toUpperCase()}`;
-          l2.textContent = '';
-          return;
         }
 
         // Fallback: split near the middle, but prefer splitting at the nearest space.
