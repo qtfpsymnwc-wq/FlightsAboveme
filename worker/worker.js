@@ -331,6 +331,105 @@ export default {
 
       const cache = caches.default;
 
+      // v1.3.1 performance patch:
+      // Serve cached /opensky/states immediately (fast on cellular) and refresh in background with a short lock.
+      const refreshLock = new Request(
+        `${url.origin}/__cache/opensky/states_refresh_lock?lamin=${encodeURIComponent(lamin)}&lomin=${encodeURIComponent(
+          lomin
+        )}&lamax=${encodeURIComponent(lamax)}&lomax=${encodeURIComponent(lomax)}&mode=${encodeURIComponent(mode)}`,
+        { method: "GET" }
+      );
+
+      const cached = await cache.match(cacheKey);
+      if (cached) {
+        ctx.waitUntil(
+          (async () => {
+            try {
+              const lockHit = await cache.match(refreshLock);
+              if (lockHit) return;
+              await cacheJson(cache, refreshLock, { ok: true, ts: Date.now() }, 6);
+
+              const putStates = async (text, provider) => {
+                await cache.put(
+                  cacheKey,
+                  new Response(text, {
+                    status: 200,
+                    headers: {
+                      ...cors,
+                      "Content-Type": "application/json; charset=utf-8",
+                      "Cache-Control": "public, max-age=8, s-maxage=15, stale-while-revalidate=45",
+                      "X-Provider": provider || "opensky",
+                    },
+                  })
+                );
+              };
+
+              // Try OpenSky first
+              try {
+                const headers = await buildOpenSkyHeaders(env);
+
+                let res = await fetchWithTimeout(
+                  upstream.toString(),
+                  { method: "GET", headers },
+                  OPENSKY_STATES_TIMEOUT_MS
+                );
+                let text = await res.text();
+
+                if (!res.ok && res.status === 401 && _tokenCache.mode === "oauth") {
+                  clearTokenCache();
+                  const headers2 = await buildOpenSkyHeaders(env);
+                  res = await fetchWithTimeout(
+                    upstream.toString(),
+                    { method: "GET", headers: headers2 },
+                    OPENSKY_STATES_TIMEOUT_MS
+                  );
+                  text = await res.text();
+                }
+
+                if (res.ok) {
+                  await putStates(text, "opensky");
+                  return;
+                }
+
+                // On retryable errors, fall back to ADSB.lol to keep cache fresh
+                const shouldFallback =
+                  res.status === 429 ||
+                  res.status === 502 ||
+                  res.status === 503 ||
+                  res.status === 504;
+
+                if (shouldFallback) {
+                  const adapted = await fetchADSBLOLAsOpenSky(env, { lamin, lomin, lamax, lomax });
+                  if (adapted) {
+                    await putStates(JSON.stringify(adapted), "adsb.lol");
+                  }
+                }
+              } catch (e) {
+                try {
+                  const adapted = await fetchADSBLOLAsOpenSky(env, { lamin, lomin, lamax, lomax });
+                  if (adapted) {
+                    await cache.put(
+                      cacheKey,
+                      new Response(JSON.stringify(adapted), {
+                        status: 200,
+                        headers: {
+                          ...cors,
+                          "Content-Type": "application/json; charset=utf-8",
+                          "Cache-Control": "public, max-age=8, s-maxage=15, stale-while-revalidate=45",
+                          "X-Provider": "adsb.lol",
+                        },
+                      })
+                    );
+                  }
+                } catch {}
+              }
+            } catch {}
+          })()
+        );
+
+        return withCors(cached, cors, "HIT");
+      }
+
       const respondAndCache = (text, headersExtra = {}) => {
         const out = new Response(text, {
           status: 200,
