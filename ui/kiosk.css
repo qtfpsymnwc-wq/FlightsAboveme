@@ -16,6 +16,7 @@
    - Portrait: codes-only route
    - ✅ iPhone portrait: compact mode (smaller typography + logo + stats)
    - ✅ Portrait: prevent right-side stat clipping (gutters + right align right column)
+   - ✅ NEW: iPhone portrait stacks stats (no clipping, no overlap)
 */
 
 :root{
@@ -423,6 +424,36 @@ body{
   }
 }
 
+/* ✅ NEW: iPhone portrait stacks stats to eliminate clipping entirely */
+@media (orientation: portrait) and (max-width: 430px){
+  .bottomPane{
+    padding: clamp(10px, 1.6vmin, 14px);
+    gap: clamp(8px, 1.2vmin, 10px);
+  }
+
+  .statsRow{
+    grid-template-columns: 1fr;
+    column-gap: 0;
+    row-gap: clamp(10px, 2.0vmin, 16px);
+    padding-inline: clamp(8px, 2.4vmin, 16px);
+  }
+
+  .stat{
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: clamp(6px, 1.0vmin, 10px) 0;
+  }
+
+  .stat .v{
+    width: 100%;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: clip;
+  }
+}
+
 .stat{
   border: 0;
   border-radius: 0;
@@ -476,6 +507,18 @@ body{
   .statsRow .stat:nth-child(2) .v,
   .statsRow .stat:nth-child(4) .v{
     text-align: right;
+  }
+}
+
+/* But when stacked (iPhone portrait), don't force right align on 2/4 */
+@media (orientation: portrait) and (max-width: 430px){
+  .statsRow .stat:nth-child(2),
+  .statsRow .stat:nth-child(4){
+    align-items: stretch;
+  }
+  .statsRow .stat:nth-child(2) .v,
+  .statsRow .stat:nth-child(4) .v{
+    text-align: left;
   }
 }
 
