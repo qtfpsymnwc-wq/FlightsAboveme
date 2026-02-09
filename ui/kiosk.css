@@ -13,7 +13,7 @@
    - Use reclaimed vertical space to make stat values taller
    - Landscape: center-justify stat values in their cells
    - Portrait: reduce stat size + stabilize logo/text alignment
-   - Portrait: keep airport code route on one line
+   - Portrait: show route as ONE line (codes only) by hiding route2
 */
 
 :root{
@@ -62,8 +62,7 @@
 @media (orientation: landscape){
   :root{
     --statV: clamp(66px, 9.6vmin, 158px);
-    --route: clamp(46px, 6.6vmin, 104px
-    );
+    --route: clamp(46px, 6.6vmin, 104px);
     --sub:   clamp(42px, 5.6vmin, 88px);
   }
 }
@@ -147,12 +146,10 @@ body{
   flex: 1;
   min-height: 0;
 
-  /* Full-screen feel */
   border-radius: 0;
   border: 0;
   overflow:hidden;
 
-  /* Dot matrix + subtle shading */
   background:
     radial-gradient(circle at 1px 1px, rgba(255,255,255,.085) 1px, transparent 1.6px) 0 0 / 8px 8px,
     linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.42)),
@@ -160,8 +157,6 @@ body{
     linear-gradient(180deg, #070a12, #04060b);
 
   display:grid;
-
-  /* ✅ Prevent top from stretching into dead space */
   grid-template-rows: auto 1fr;
 }
 
@@ -170,10 +165,7 @@ body{
   display:grid;
   grid-template-columns: auto 1fr;
   gap: clamp(10px, 1.4vmin, 16px);
-
-  /* slightly tighter than before to reduce dead space */
   padding: clamp(12px, 2.0vmin, 18px);
-
   align-items:center;
   min-height: 0;
 }
@@ -184,8 +176,6 @@ body{
     grid-template-rows: auto auto;
     justify-items:center;
     align-items:start;
-
-    /* ✅ Portrait logo/text spacing: a bit more room so nothing feels cramped */
     gap: clamp(18px, 3.4vmin, 30px);
   }
 }
@@ -230,7 +220,6 @@ body{
   filter: drop-shadow(0 12px 18px rgba(0,0,0,.30));
 }
 
-/* ✅ Portrait logo size: slightly smaller so it never “crowds” the headline */
 @media (orientation: portrait){
   .logo{
     width: clamp(118px, 16.5vmin, 190px);
@@ -243,14 +232,11 @@ body{
   display:flex;
   flex-direction:column;
   justify-content:flex-start;
-
   gap: clamp(8px, 1.2vmin, 12px);
-
   min-width: 0;
   width: 100%;
 }
 
-/* ✅ Portrait: center the text stack so logo + text read as one unit */
 @media (orientation: portrait){
   .mainText{
     align-items: center;
@@ -295,8 +281,11 @@ body{
 }
 .route2{ color: rgba(255,255,255,.88); }
 
-/* ✅ Portrait: keep airport-code route on ONE line (PHL → XNA) */
+/* ✅ Portrait: show route as ONE line (codes-only) */
 @media (orientation: portrait){
+  /* the “wrapping” you’re seeing is route + route2 stacked — hide route2 */
+  .route2{ display:none !important; }
+
   .route{
     white-space: nowrap;
     word-break: normal;
@@ -317,7 +306,6 @@ body{
   line-height: 1.10;
 }
 
-/* Keep sub line centered in portrait too */
 @media (orientation: portrait){
   .sub{
     justify-content: center;
@@ -346,9 +334,7 @@ body{
   display:flex;
   flex-direction:column;
   gap: clamp(10px, 1.6vmin, 14px);
-
   border-top: 0;
-
   background: linear-gradient(180deg, rgba(0,0,0,.08), rgba(0,0,0,.18));
 }
 
@@ -360,7 +346,6 @@ body{
   min-height: 0;
 }
 
-/* ✅ Portrait: a touch more column separation */
 @media (orientation: portrait){
   .statsRow{
     column-gap: clamp(28px, 6.4vmin, 58px);
@@ -406,7 +391,6 @@ body{
     0 0 26px rgba(255,255,255,.08);
 }
 
-/* ✅ LANDSCAPE: center-justify each stat within its cell */
 @media (orientation: landscape){
   .stat{
     align-items: center;
