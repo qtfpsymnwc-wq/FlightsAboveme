@@ -70,7 +70,7 @@ function enableKioskIfRequested(){
   try { window.__KIOSK_MODE__ = true; } catch {}
 }
 
-/* ✅ Portrait detection helper */
+/* Portrait detection helper */
 function isPortrait(){
   try {
     return window.matchMedia && window.matchMedia("(orientation: portrait)").matches;
@@ -163,25 +163,59 @@ async function fetchJSON(url, timeoutMs=9000){
   }
 }
 
-/* ✅ Portrait route formatting: show only airport codes in kiosk portrait */
-function routeCodesOnly(text){
-  const t = nm(text);
-  if (!t || t === "—") return t || "—";
+/* ✅ Portrait route formatting: show only airport codes in kiosk portrait
+   IMPORTANT: Never drop destination. If we can't extract BOTH codes, return original.
+*/
+function extractCodesFromSide(sideText){
+  const s = nm(sideText).toUpperCase();
+  if (!s) return [];
 
-  // Preferred: extract codes inside parentheses: "(DFW)" "(ORD)" etc
-  const parenCodes = [...t.matchAll(/\(([A-Z0-9]{3,4})\)/g)].map(m => m[1]);
+  // Prefer codes in parentheses
+  const paren = [...s.matchAll(/\(([A-Z0-9]{3,4})\)/g)].map(m => m[1]);
+  if (paren.length) return paren;
+
+  // Otherwise bare codes
+  return [...s.matchAll(/\b[A-Z0-9]{3,4}\b/g)].map(m => m[0]);
+}
+
+function routeCodesOnly(text){
+  const raw = nm(text);
+  if (!raw || raw === "—") return raw || "—";
+
+  // Normalize whitespace/newlines and arrow variants
+  const t = raw.replace(/\s+/g, " ").trim();
+  const arrowMatch = t.split(/\s*(?:→|->|→)\s*/);
+
+  // If it looks like "ORIG ... → DEST ..." parse sides
+  if (arrowMatch.length >= 2) {
+    const left = arrowMatch[0];
+    const right = arrowMatch.slice(1).join(" "); // in case there are extra arrows/noise
+
+    const leftCodes = extractCodesFromSide(left);
+    const rightCodes = extractCodesFromSide(right);
+
+    const o = leftCodes.length ? leftCodes[leftCodes.length - 1] : null;
+    const d = rightCodes.length ? rightCodes[rightCodes.length - 1] : null;
+
+    if (o && d && o !== d) return `${o} → ${d}`;
+    // If we can't get BOTH safely, do NOT degrade.
+    return raw;
+  }
+
+  // No arrow found: try global parentheses
+  const parenCodes = [...raw.toUpperCase().matchAll(/\(([A-Z0-9]{3,4})\)/g)].map(m => m[1]);
   if (parenCodes.length >= 2) return `${parenCodes[0]} → ${parenCodes[parenCodes.length - 1]}`;
 
-  // Fallback: look for standalone 3–4 char airport codes
-  const bareCodes = [...t.matchAll(/\b[A-Z0-9]{3,4}\b/g)].map(m => m[0]);
+  // Bare codes fallback
+  const bareCodes = [...raw.toUpperCase().matchAll(/\b[A-Z0-9]{3,4}\b/g)].map(m => m[0]);
   if (bareCodes.length >= 2) return `${bareCodes[0]} → ${bareCodes[bareCodes.length - 1]}`;
 
-  return t;
+  // Still not enough info: keep original (never drop destination)
+  return raw;
 }
 
 function formatRouteForDisplay(routeText){
   const t = nm(routeText) || "—";
-  // Only in kiosk + portrait: codes only
   if (isKiosk() && isPortrait()) return routeCodesOnly(t);
   return t;
 }
@@ -487,7 +521,7 @@ async function main(){
     }
   }
 
-  // ✅ Re-render on rotation so portrait shows codes-only instantly
+  // Re-render on rotation so portrait formatting updates instantly
   try {
     window.addEventListener("orientationchange", () => setTimeout(renderAll, 50));
     window.addEventListener("resize", () => setTimeout(renderAll, 50));
@@ -601,11 +635,8 @@ async function main(){
         return;
       }
 
-      // ✅ No “Radar error” UI. Keep status calm and keep last-known-good on screen.
+      // No “Radar error” UI. Keep status calm and keep last-known-good on screen.
       if (statusEl) statusEl.textContent = isKiosk() ? "Kiosk" : "Live";
-
-      // Optional: keep internal visibility without alarming UI
-      // console.warn("Radar fetch failed:", msg);
     } finally {
       inFlight = false;
     }
