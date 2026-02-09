@@ -168,7 +168,9 @@ body{
     grid-template-rows: auto auto;
     justify-items:center;
     align-items:start;
-    gap: clamp(10px, 1.6vmin, 16px);
+
+    /* ✅ LOGO FIX: more separation so the logo never overlaps airline name */
+    gap: clamp(16px, 2.8vmin, 26px);
   }
 }
 
@@ -179,6 +181,15 @@ body{
   align-items:flex-start;
   justify-content:flex-start;
   padding-top: clamp(4px, 0.9vmin, 8px);
+}
+
+@media (orientation: portrait){
+  .logoPane{
+    /* ✅ LOGO FIX: center it and remove the extra top push in portrait */
+    align-items:center;
+    justify-content:center;
+    padding-top: 0;
+  }
 }
 
 /* ✅ TRUE WHITE logo plate (no gray cast) */
@@ -306,7 +317,7 @@ body{
   display:grid;
   grid-template-columns: 1fr 1fr;
 
-  /* ✅ STATS: bigger horizontal separation to prevent "ft567" collisions */
+  /* ✅ STATS: bigger horizontal separation to prevent "ft565" collisions */
   column-gap: clamp(22px, 4.6vmin, 40px);
   row-gap: clamp(10px, 1.6vmin, 14px);
 
