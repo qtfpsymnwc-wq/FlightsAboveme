@@ -7,6 +7,10 @@
    - Remove divider lines that values were colliding with
    - Reduce dead space by preventing the top section from stretching
    - No ellipsis anywhere in kiosk text
+
+   v1.2.8 (candidate):
+   - REMOVE stat headers (ALT/SPD/TRK/DIST)
+   - Use reclaimed vertical space to make stat values taller
 */
 
 :root{
@@ -43,18 +47,18 @@
 
   --tiny:    clamp(16px, 2.2vmin, 28px);
 
-  /* Stats */
-  --statV:   clamp(56px, 8.6vmin, 138px);
+  /* Stats (⬆️ taller values; headers removed below) */
+  --statV:   clamp(76px, 11.8vmin, 186px);
   --statK:   clamp(16px, 2.2vmin, 26px);
 
   --topBar:  clamp(14px, 1.9vmin, 20px);
   --exitH:   clamp(42px, 5.4vmin, 60px);
 }
 
-/* Landscape tuning: slightly smaller stats so they never feel forced */
+/* Landscape tuning: keep stats powerful but not forced */
 @media (orientation: landscape){
   :root{
-    --statV: clamp(50px, 7.2vmin, 124px);
+    --statV: clamp(66px, 9.6vmin, 158px);
     --route: clamp(46px, 6.6vmin, 104px);
     --sub:   clamp(42px, 5.6vmin, 88px);
   }
@@ -168,8 +172,6 @@ body{
     grid-template-rows: auto auto;
     justify-items:center;
     align-items:start;
-
-    /* ✅ LOGO FIX: more separation so the logo never overlaps airline name */
     gap: clamp(16px, 2.8vmin, 26px);
   }
 }
@@ -185,7 +187,6 @@ body{
 
 @media (orientation: portrait){
   .logoPane{
-    /* ✅ LOGO FIX: center it and remove the extra top push in portrait */
     align-items:center;
     justify-content:center;
     padding-top: 0;
@@ -317,7 +318,7 @@ body{
   display:grid;
   grid-template-columns: 1fr 1fr;
 
-  /* ✅ STATS: bigger horizontal separation to prevent "ft565" collisions */
+  /* keep proven separation (prevents ft+digits collisions) */
   column-gap: clamp(22px, 4.6vmin, 40px);
   row-gap: clamp(10px, 1.6vmin, 14px);
 
@@ -331,31 +332,32 @@ body{
   background: transparent;
   box-shadow: none;
 
-  /* keep minimal breathing room without implying a tile */
-  padding: clamp(8px, 1.2vmin, 12px) 0;
+  /* slightly tighter now that headers are gone */
+  padding: clamp(6px, 1.0vmin, 10px) 0;
 
   display:flex;
   flex-direction:column;
   justify-content:center;
-  gap: clamp(6px, 1.0vmin, 10px);
+
+  /* tighter vertical rhythm */
+  gap: clamp(2px, 0.5vmin, 6px);
+
   min-width: 0;
 }
 
+/* 🚫 REMOVE STAT HEADERS (reclaim vertical space) */
 .stat .k{
-  font-size: var(--statK);
-  font-weight: 950;
-  color: rgba(255,255,255,.62);
-  letter-spacing: 1.2px;
-  text-transform: uppercase;
+  display:none;
 }
 
-/* ✅ Values: never wrap, never ellipsis, and NOT “blue” */
 .stat .v{
   font-size: var(--statV);
   font-weight: 950;
   color: rgba(255,255,255,.95);
-  line-height: 1.0;
-  letter-spacing: .35px;
+
+  /* slightly tighter so larger numbers fit comfortably */
+  line-height: .96;
+  letter-spacing: .25px;
 
   white-space: nowrap;
   overflow: visible;
@@ -370,14 +372,13 @@ body{
 }
 
 @media (orientation: portrait){
-  /* ✅ STATS: portrait-only extra separation */
   .statsRow{
     column-gap: clamp(26px, 6.0vmin, 54px);
   }
 }
 
 @media (orientation: landscape){
-  .stat .v{ letter-spacing: .25px; }
+  .stat .v{ letter-spacing: .20px; }
 }
 
 .statusLine{
