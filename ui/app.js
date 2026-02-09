@@ -79,6 +79,16 @@ function isPortrait(){
   }
 }
 
+/* ✅ iPhone-ish kiosk portrait: apply compact stat formatting to avoid clipping */
+function isIPhonePortraitKiosk(){
+  try {
+    const w = Math.min(window.innerWidth || 9999, window.innerHeight || 9999);
+    return isKiosk() && isPortrait() && w <= 430; // iPhone widths (incl Pro Max in portrait)
+  } catch {
+    return false;
+  }
+}
+
 /* ✅ TRK formatting: allow short (no degrees) for kiosk portrait to prevent TRK/DIST collisions */
 function headingToText(deg, opts={}){
   if (!Number.isFinite(deg)) return "—";
@@ -104,6 +114,27 @@ function fmtSpd(ms) {
 function fmtMi(mi) {
   if (!Number.isFinite(mi)) return "—";
   return mi.toFixed(mi < 10 ? 1 : 0) + " mi";
+}
+
+/* ✅ Compact units for kiosk iPhone portrait (kills clipping) */
+function fmtAltCompact(m){
+  if (!Number.isFinite(m)) return "—";
+  const ft = m * 3.28084;
+
+  // 10,000ft+ becomes kft (e.g., 23.0kft)
+  if (ft >= 10000) return (ft/1000).toFixed(1) + "kft";
+
+  // otherwise keep full feet but remove space (e.g., 9,500ft)
+  return Math.round(ft).toLocaleString() + "ft";
+}
+function fmtSpdCompact(ms){
+  if (!Number.isFinite(ms)) return "—";
+  const mph = ms * 2.236936292;
+  return Math.round(mph) + "mph";
+}
+function fmtMiCompact(mi){
+  if (!Number.isFinite(mi)) return "—";
+  return mi.toFixed(mi < 10 ? 1 : 0) + "mi";
 }
 
 function guessAirline(callsign){
@@ -184,7 +215,7 @@ function routeCodesOnly(text){
 
   // Normalize whitespace/newlines and arrow variants
   const t = raw.replace(/\s+/g, " ").trim();
-  const arrowMatch = t.split(/\s*(?:→|->|→)\s*/);
+  const arrowMatch = t.split(/\s*(?:→|->)\s*/);
 
   // If it looks like "ORIG ... → DEST ..." parse sides
   if (arrowMatch.length >= 2) {
@@ -239,9 +270,11 @@ function renderPrimary(f, radarMeta){
     img.classList.remove("hidden");
   }
 
-  if ($("alt")) $("alt").textContent = fmtAlt(f.baroAlt);
-  if ($("spd")) $("spd").textContent = fmtSpd(f.velocity);
-  if ($("dist")) $("dist").textContent = fmtMi(f.distanceMi);
+  const compact = isIPhonePortraitKiosk();
+
+  if ($("alt")) $("alt").textContent = compact ? fmtAltCompact(f.baroAlt) : fmtAlt(f.baroAlt);
+  if ($("spd")) $("spd").textContent = compact ? fmtSpdCompact(f.velocity) : fmtSpd(f.velocity);
+  if ($("dist")) $("dist").textContent = compact ? fmtMiCompact(f.distanceMi) : fmtMi(f.distanceMi);
 
   // ✅ Kiosk portrait: shorten TRK to cardinal only (prevents TRK/DIST collisions)
   if ($("dir")) $("dir").textContent = headingToText(
@@ -283,9 +316,11 @@ function renderSecondary(f){
   $("route2").textContent = formatRouteForDisplay(f.routeText || "—");
   $("model2").textContent = f.modelText || "—";
 
-  $("dist2").textContent = fmtMi(f.distanceMi);
-  $("alt2").textContent = fmtAlt(f.baroAlt);
-  $("spd2").textContent = fmtSpd(f.velocity);
+  const compact = isIPhonePortraitKiosk();
+
+  $("dist2").textContent = compact ? fmtMiCompact(f.distanceMi) : fmtMi(f.distanceMi);
+  $("alt2").textContent  = compact ? fmtAltCompact(f.baroAlt)   : fmtAlt(f.baroAlt);
+  $("spd2").textContent  = compact ? fmtSpdCompact(f.velocity)  : fmtSpd(f.velocity);
 
   // ✅ Kiosk portrait: shorten TRK to cardinal only (prevents TRK/DIST collisions)
   $("dir2").textContent = headingToText(
