@@ -11,7 +11,7 @@ const BACKOFF_429_MS = 60000;
 const ENRICH_TIMEOUT_MS = 4500;
 
 // Enrichment budgets (per “cycle”)
-// v1.2.9+: only enrich the closest flight (primary). Lists are cached-only.
+// v1.2.9+: only enrich the closest flight
 const LIST_AIRCRAFT_BUDGET = 0;
 const LIST_ROUTE_BUDGET = 0;
 
@@ -80,7 +80,7 @@ function isPortrait(){
   }
 }
 
-/* ✅ TRK formatting: allow short (no degrees) for kiosk portrait to prevent TRK/DIST collisions */
+/* TRK formatting: allow short (no degrees) for kiosk portrait */
 function headingToText(deg, opts={}){
   if (!Number.isFinite(deg)) return "—";
   const dirs = ["N","NE","E","SE","S","SW","W","NW"];
@@ -108,11 +108,10 @@ function fmtMi(mi) {
   return mi.toFixed(mi < 10 ? 1 : 0) + " mi";
 }
 
-/* ✅ Compact formatters for kiosk iPhone portrait (prevents clipping) */
+/* Compact formatters for kiosk iPhone portrait (prevents clipping) */
 function fmtAltCompact(m){
   if (!Number.isFinite(m)) return "—";
   const ft = m * 3.28084;
-  // Always compact in kiosk portrait: kft (even at low alt)
   const kft = ft / 1000;
   const decimals = (kft < 10) ? 2 : 1;
   return kft.toFixed(decimals) + "kft";
@@ -184,7 +183,7 @@ async function fetchJSON(url, timeoutMs=9000){
   }
 }
 
-/* ✅ Portrait route formatting: show only airport codes in kiosk portrait
+/* Portrait route formatting: show only airport codes in kiosk portrait
    IMPORTANT: Never drop destination. If we can't extract BOTH codes, return original.
 */
 function extractCodesFromSide(sideText){
@@ -203,14 +202,12 @@ function routeCodesOnly(text){
   const raw = nm(text);
   if (!raw || raw === "—") return raw || "—";
 
-  // Normalize whitespace/newlines and arrow variants
   const t = raw.replace(/\s+/g, " ").trim();
   const arrowMatch = t.split(/\s*(?:→|->|→)\s*/);
 
-  // If it looks like "ORIG ... → DEST ..." parse sides
   if (arrowMatch.length >= 2) {
     const left = arrowMatch[0];
-    const right = arrowMatch.slice(1).join(" "); // in case there are extra arrows/noise
+    const right = arrowMatch.slice(1).join(" ");
 
     const leftCodes = extractCodesFromSide(left);
     const rightCodes = extractCodesFromSide(right);
@@ -219,19 +216,15 @@ function routeCodesOnly(text){
     const d = rightCodes.length ? rightCodes[rightCodes.length - 1] : null;
 
     if (o && d && o !== d) return `${o} → ${d}`;
-    // If we can't get BOTH safely, do NOT degrade.
     return raw;
   }
 
-  // No arrow found: try global parentheses
   const parenCodes = [...raw.toUpperCase().matchAll(/\(([A-Z0-9]{3,4})\)/g)].map(m => m[1]);
   if (parenCodes.length >= 2) return `${parenCodes[0]} → ${parenCodes[parenCodes.length - 1]}`;
 
-  // Bare codes fallback
   const bareCodes = [...raw.toUpperCase().matchAll(/\b[A-Z0-9]{3,4}\b/g)].map(m => m[0]);
   if (bareCodes.length >= 2) return `${bareCodes[0]} → ${bareCodes[bareCodes.length - 1]}`;
 
-  // Still not enough info: keep original (never drop destination)
   return raw;
 }
 
@@ -266,7 +259,6 @@ function renderPrimary(f, radarMeta){
   if ($("spd")) $("spd").textContent = compactStats ? fmtSpdCompact(f.velocity) : fmtSpd(f.velocity);
   if ($("dist")) $("dist").textContent = compactStats ? fmtMiCompact(f.distanceMi) : fmtMi(f.distanceMi);
 
-  // ✅ Kiosk portrait: shorten TRK to cardinal only (prevents TRK/DIST collisions)
   if ($("dir")) $("dir").textContent = headingToText(
     f.trueTrack,
     { short: (isKiosk() && isPortrait()) }
@@ -275,7 +267,8 @@ function renderPrimary(f, radarMeta){
   if ($("route")) $("route").textContent = formatRouteForDisplay(f.routeText || "—");
   if ($("model")) $("model").textContent = f.modelText || "—";
 
-  if ($("radarLine")) $("radarLine").textContent = `Radar: ${radarMeta.count} flights • Showing: ${radarMeta.showing}`;
+  if ($("radarLine")) $("radarLine").textContent =
+    `Radar: ${radarMeta.count} flights • Showing: ${radarMeta.showing}`;
 }
 
 function renderSecondary(f){
@@ -312,30 +305,25 @@ function renderSecondary(f){
   $("alt2").textContent = compactStats ? fmtAltCompact(f.baroAlt) : fmtAlt(f.baroAlt);
   $("spd2").textContent = compactStats ? fmtSpdCompact(f.velocity) : fmtSpd(f.velocity);
 
-  // ✅ Kiosk portrait: shorten TRK to cardinal only (prevents TRK/DIST collisions)
   $("dir2").textContent = headingToText(
     f.trueTrack,
     { short: (isKiosk() && isPortrait()) }
   );
 }
 
+/* ✅ Nearby flights: ONLY callsign + altitude + distance (one clean line) */
 function renderList(list){
   const el = $("list");
   if (!el) return;
   el.innerHTML = "";
+
   list.forEach((f)=>{
     const row = document.createElement("div");
     row.className = "row";
     row.innerHTML = `
-      <div class="l">
-        <div class="cs">${f.callsign || "—"}</div>
-        <div class="rt">${f.routeText || "—"}</div>
-        <div class="m">${f.modelText || "—"}</div>
-      </div>
-      <div class="r">
-        <div class="d">${fmtMi(f.distanceMi)}</div>
-        <div class="a">${fmtAlt(f.baroAlt)}</div>
-      </div>
+      <div class="cs">${f.callsign || "—"}</div>
+      <div class="a">${fmtAlt(f.baroAlt)}</div>
+      <div class="d">${fmtMi(f.distanceMi)}</div>
     `;
     el.appendChild(row);
   });
@@ -432,12 +420,6 @@ async function enrichAircraft(f){
 // Queue helpers
 function queueEnrich(type, f){
   const k = cacheKeyForFlight(f);
-  const cached = enrichCache.get(k) || {};
-
-  // ✅ CHANGE: Don't enqueue enrichment if we already have the needed field (object OR cache).
-  if (type === "aircraft" && (f.modelText || cached.modelText)) return;
-  if (type === "route" && (f.routeText || cached.routeText)) return;
-
   const inflightKey = `${type}:${k}`;
   if (enrichInFlight.has(inflightKey)) return;
 
@@ -559,7 +541,7 @@ async function main(){
   } catch {}
 
   function queueTopEnrichment(top){
-    // Keep cached enrichment (free) but do not queue new work (budgets are 0)
+    // cached-only for list (budgets are 0)
     for (const f of top) applyCachedEnrichment(f);
 
     let aircraftBudget = LIST_AIRCRAFT_BUDGET;
@@ -650,11 +632,11 @@ async function main(){
       if (statusEl) statusEl.textContent = isKiosk() ? "Kiosk" : "Live";
       renderAll();
 
-      // ✅ Only enrich the closest flight (primary)
+      // Only enrich the closest flight (primary)
       queueEnrich("aircraft", lastPrimary);
       queueEnrich("route", lastPrimary);
 
-      // Keep list cached-only (budgets are 0, so this will not add jobs)
+      // List stays cached-only
       queueTopEnrichment(lastTop);
 
       pumpEnrichment(renderAll);
@@ -662,14 +644,12 @@ async function main(){
     } catch(e){
       const msg = String(e?.message || e);
 
-      // 429 backoff stays (quietly)
       if (/^HTTP 429:/i.test(msg) || /Too many requests/i.test(msg)) {
         nextAllowedAt = Date.now() + BACKOFF_429_MS;
         if (statusEl) statusEl.textContent = "Rate limited";
         return;
       }
 
-      // No “Radar error” UI. Keep status calm and keep last-known-good on screen.
       if (statusEl) statusEl.textContent = isKiosk() ? "Kiosk" : "Live";
     } finally {
       inFlight = false;
