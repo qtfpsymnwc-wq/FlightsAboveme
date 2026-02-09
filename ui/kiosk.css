@@ -379,6 +379,31 @@ body{
   .sub{ justify-content: center; }
 }
 
+/* iPhone portrait kiosk: split callsign and aircraft onto two lines (kiosk-only) */
+@media (max-width: 430px) and (orientation: portrait){
+  body.kiosk .sub{
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    flex-wrap: nowrap;
+  }
+  body.kiosk .sub .sep{ display:none; }
+  body.kiosk .sub .callsign,
+  body.kiosk .sub .model{
+    display:block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: clip;
+    max-width: 100%;
+  }
+  body.kiosk .sub .model{
+    font-size: 0.86em; /* shrink aircraft line only in this mode */
+    letter-spacing: .4px;
+  }
+}
+
+
 .callsign{ color: rgba(255,255,255,.98); }
 .model{ color: rgba(255,255,255,.90); }
 .sep{ color: rgba(255,255,255,.50); }
