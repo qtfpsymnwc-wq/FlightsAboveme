@@ -12,6 +12,7 @@
    - REMOVE stat headers (ALT/SPD/TRK/DIST)
    - Use reclaimed vertical space to make stat values taller
    - Landscape: center-justify stat values in their cells
+   - Portrait: reduce stat size + stabilize logo/text alignment
 */
 
 :root{
@@ -48,7 +49,7 @@
 
   --tiny:    clamp(16px, 2.2vmin, 28px);
 
-  /* Stats (⬆️ taller values; headers removed below) */
+  /* Stats (taller values; headers removed below) */
   --statV:   clamp(76px, 11.8vmin, 186px);
   --statK:   clamp(16px, 2.2vmin, 26px);
 
@@ -60,8 +61,17 @@
 @media (orientation: landscape){
   :root{
     --statV: clamp(66px, 9.6vmin, 158px);
-    --route: clamp(46px, 6.6vmin, 104px);
+    --route: clamp(46px, 6.6vmin, 104px
+    );
     --sub:   clamp(42px, 5.6vmin, 88px);
+  }
+}
+
+/* ✅ Portrait fix: prevent oversized stats + stabilize layout */
+@media (orientation: portrait){
+  :root{
+    /* Slightly smaller than global so “ft165 mph” doesn’t collide/crop */
+    --statV: clamp(64px, 9.8vmin, 152px);
   }
 }
 
@@ -173,7 +183,9 @@ body{
     grid-template-rows: auto auto;
     justify-items:center;
     align-items:start;
-    gap: clamp(16px, 2.8vmin, 26px);
+
+    /* ✅ Portrait logo/text spacing: a bit more room so nothing feels cramped */
+    gap: clamp(18px, 3.4vmin, 30px);
   }
 }
 
@@ -217,10 +229,11 @@ body{
   filter: drop-shadow(0 12px 18px rgba(0,0,0,.30));
 }
 
+/* ✅ Portrait logo size: slightly smaller so it never “crowds” the headline */
 @media (orientation: portrait){
   .logo{
-    width: clamp(130px, 18vmin, 220px);
-    height: clamp(130px, 18vmin, 220px);
+    width: clamp(118px, 16.5vmin, 190px);
+    height: clamp(118px, 16.5vmin, 190px);
   }
 }
 
@@ -230,11 +243,18 @@ body{
   flex-direction:column;
   justify-content:flex-start;
 
-  /* slightly tighter */
   gap: clamp(8px, 1.2vmin, 12px);
 
   min-width: 0;
   width: 100%;
+}
+
+/* ✅ Portrait: center the text stack so logo + text read as one unit */
+@media (orientation: portrait){
+  .mainText{
+    align-items: center;
+    text-align: center;
+  }
 }
 
 .line{
@@ -286,6 +306,13 @@ body{
   line-height: 1.10;
 }
 
+/* Keep sub line centered in portrait too */
+@media (orientation: portrait){
+  .sub{
+    justify-content: center;
+  }
+}
+
 .callsign{ color: rgba(255,255,255,.98); }
 .model{ color: rgba(255,255,255,.90); }
 .sep{ color: rgba(255,255,255,.50); }
@@ -309,7 +336,6 @@ body{
   flex-direction:column;
   gap: clamp(10px, 1.6vmin, 14px);
 
-  /* ✅ Remove the divider line entirely (it was colliding visually) */
   border-top: 0;
 
   background: linear-gradient(180deg, rgba(0,0,0,.08), rgba(0,0,0,.18));
@@ -321,6 +347,13 @@ body{
   column-gap: clamp(22px, 4.6vmin, 40px);
   row-gap: clamp(10px, 1.6vmin, 14px);
   min-height: 0;
+}
+
+/* ✅ Portrait: a touch more column separation */
+@media (orientation: portrait){
+  .statsRow{
+    column-gap: clamp(28px, 6.4vmin, 58px);
+  }
 }
 
 .stat{
@@ -360,12 +393,6 @@ body{
   text-shadow:
     0 0 10px rgba(255,255,255,.14),
     0 0 26px rgba(255,255,255,.08);
-}
-
-@media (orientation: portrait){
-  .statsRow{
-    column-gap: clamp(26px, 6.0vmin, 54px);
-  }
 }
 
 /* ✅ LANDSCAPE: center-justify each stat within its cell */
