@@ -11,7 +11,6 @@
   --k-led-dim: rgba(120, 210, 255, .86);
   --k-white: rgba(245, 248, 255, .99);
 
-
   --font-sans: system-ui,-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text",Segoe UI,Roboto,Helvetica,Arial,sans-serif;
   --font-mono: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
 }
@@ -318,32 +317,40 @@ body.kiosk .kioskOnly{
   gap:10px;
 }
 
+/* ✅ One clean line: CALLSIGN | ALT | DIST */
 .row{
   border:1px solid rgba(255,255,255,.10);
   border-radius:14px;
   padding:12px;
-  display:flex;
-  justify-content:space-between;
-  gap:12px;
+  display:grid;
+  grid-template-columns: 1fr auto auto;
+  align-items:center;
+  column-gap:12px;
   background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.01));
   box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
 }
-.row .l{min-width:0}
+
 .row .cs{
   font-family:var(--font-mono);
   font-size:15px;
   font-weight:950;
   letter-spacing:.6px;
   color:#eef3ff;
+  min-width:0;
 }
-.row .r{
-  text-align:right;
+
+.row .a{
+  color:rgba(234,240,255,.92);
+  font-weight:850;
   white-space:nowrap;
-  flex:0 0 auto;
+  text-align:right;
 }
+
 .row .d{
   font-weight:950;
   color:#eef3ff;
+  white-space:nowrap;
+  text-align:right;
 }
 
 /* Error box */
