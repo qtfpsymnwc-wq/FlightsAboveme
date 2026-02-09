@@ -1,5 +1,5 @@
 /**
- * FlightsAboveMe API Worker (v171)
+ * FlightsAboveMe API Worker (v172)
  *
  * Endpoints:
  *  - GET /health
@@ -22,14 +22,13 @@
  *  - Uses ADSB.lol (drop-in ADSBExchange-style API)
  *  - Env var (optional):
  *      ADSBLOL_BASE = "https://api.adsb.lol"
- *    If not set, defaults to https://api.adsb.lol
  *
  * Notes:
  *  - UI expects OpenSky-like "states" array-of-arrays. Fallback adapts ADSB.lol JSON into that shape.
  *  - Fallback is only used when OpenSky fails (network/timeout/5xx) or returns 429.
  */
 
-const WORKER_VERSION = "v171";
+const WORKER_VERSION = "v172";
 
 const OPENSKY_STATES_URL = "https://opensky-network.org/api/states/all";
 const OPENSKY_TOKEN_URL =
@@ -57,6 +56,15 @@ const ENRICH_DIST_OVERHEAD_MI = 8;
 
 const ENRICH_DELTA_APPROACH_DEG = 75;
 const ENRICH_DELTA_DEPART_DEG = 105;
+
+// ✅ NEW: warm-enrich throttle (prevents “2 calls every 8 seconds”)
+const WARM_ENRICH_MIN_INTERVAL_S = 60; // once per bbox bucket per minute
+
+// ✅ NEW: global cooldown if AeroDataBox 429 is detected (skip warm-enrich temporarily)
+const AERODATA_COOLDOWN_S = 120;
+
+// ✅ NEW: brief caching for 429 results so one hot key doesn't hammer you
+const AERODATA_429_CACHE_S = 30;
 
 // Common cargo operators (avoid burning credits for flights you won't show under airlines)
 const CARGO_PREFIX_BLOCKLIST = new Set([
@@ -159,6 +167,30 @@ function cacheKeyAircraft(origin, hex) {
   );
 }
 
+// ✅ NEW: coarse “bbox bucket” key to throttle warm enrich (quantize center to 0.05°)
+function quantize(n, step) {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return "na";
+  return (Math.round(x / step) * step).toFixed(2);
+}
+function warmLockKey(origin, lamin, lomin, lamax, lomax, mode) {
+  const cLat = (Number(lamin) + Number(lamax)) / 2;
+  const cLon = (Number(lomin) + Number(lomax)) / 2;
+  const qLat = quantize(cLat, 0.05);
+  const qLon = quantize(cLon, 0.05);
+  return new Request(
+    `${origin}/__cache/aerodata/v2/warm_lock/${qLat}/${qLon}?mode=${encodeURIComponent(
+      mode || "none"
+    )}`,
+    { method: "GET" }
+  );
+}
+
+// ✅ NEW: global cooldown key (set when 429 is hit)
+function aerodataCooldownKey(origin) {
+  return new Request(`${origin}/__cache/aerodata/v2/cooldown`, { method: "GET" });
+}
+
 async function cacheJson(cache, req, obj, ttlS) {
   await cache.put(
     req,
@@ -195,6 +227,10 @@ async function fetchAeroDataBoxJson(env, upstreamUrl) {
 // Uses bbox center as a proxy for observer location (UI remains unchanged).
 async function warmEnrichFromStates({ origin, env, cache, states, bboxCenter }) {
   if (!aerodataConfigured(env)) return;
+
+  // ✅ Respect global cooldown (usually triggered by 429)
+  const cd = await cache.match(aerodataCooldownKey(origin));
+  if (cd) return;
 
   const [cLat, cLon] = bboxCenter;
 
@@ -243,6 +279,13 @@ async function warmEnrichFromStates({ origin, env, cache, states, bboxCenter }) 
         c.icao24
       )}`;
       const out = await fetchAeroDataBoxJson(env, upstreamUrl);
+
+      // ✅ if 429, set cooldown and stop trying
+      if (!out.ok && out._status === 429) {
+        await cacheJson(cache, aerodataCooldownKey(origin), { ok: false, ts: Date.now(), reason: "429" }, AERODATA_COOLDOWN_S);
+        break;
+      }
+
       if (out.ok) {
         await cacheJson(cache, aKey, out.data, AERODATA_AIRCRAFT_TTL_S);
         budget--;
@@ -257,6 +300,13 @@ async function warmEnrichFromStates({ origin, env, cache, states, bboxCenter }) 
         c.callsign
       )}`;
       const out = await fetchAeroDataBoxJson(env, upstreamUrl);
+
+      // ✅ if 429, set cooldown and stop trying
+      if (!out.ok && out._status === 429) {
+        await cacheJson(cache, aerodataCooldownKey(origin), { ok: false, ts: Date.now(), reason: "429" }, AERODATA_COOLDOWN_S);
+        break;
+      }
+
       if (out.ok) {
         await cacheJson(cache, fKey, out.data, AERODATA_FLIGHT_TTL_S);
         budget--;
@@ -358,7 +408,8 @@ export default {
           headers: {
             ...cors,
             "Content-Type": "application/json; charset=utf-8",
-            "Cache-Control": "public, max-age=8, s-maxage=15, stale-while-revalidate=45",
+            "Cache-Control":
+              "public, max-age=8, s-maxage=15, stale-while-revalidate=45",
             ...headersExtra,
           },
         });
@@ -369,12 +420,23 @@ export default {
           (Number(lamin) + Number(lamax)) / 2,
           (Number(lomin) + Number(lomax)) / 2,
         ];
+
+        // ✅ NEW: throttle warm-enrich per bbox bucket
         ctx.waitUntil(
           (async () => {
             try {
+              if (!aerodataConfigured(env)) return;
+
+              const lockReq = warmLockKey(url.origin, lamin, lomin, lamax, lomax, mode);
+              const lockHit = await cache.match(lockReq);
+              if (lockHit) return;
+
+              // set lock first (best-effort)
+              await cacheJson(cache, lockReq, { ok: true, ts: Date.now() }, WARM_ENRICH_MIN_INTERVAL_S);
+
               const j = JSON.parse(text);
               const states = Array.isArray(j?.states) ? j.states : [];
-              if (states.length)
+              if (states.length) {
                 await warmEnrichFromStates({
                   origin: url.origin,
                   env,
@@ -382,6 +444,7 @@ export default {
                   states,
                   bboxCenter,
                 });
+              }
             } catch {}
           })()
         );
@@ -493,13 +556,27 @@ export default {
         });
 
         const text = await res.text();
-        if (res.status === 429)
-          return json(
-            { ok: false, callsign, error: "rate_limited", status: 429 },
-            429,
-            cors
+
+        // ✅ cache 429 briefly to prevent hammering
+        if (res.status === 429) {
+          const out = new Response(
+            JSON.stringify({ ok: false, callsign, error: "rate_limited", status: 429 }),
+            {
+              status: 429,
+              headers: {
+                ...cors,
+                "Content-Type": "application/json; charset=utf-8",
+                "Cache-Control": `public, max-age=${AERODATA_429_CACHE_S}, s-maxage=${AERODATA_429_CACHE_S}`,
+              },
+            }
           );
-        if (!res.ok)
+          ctx.waitUntil(cache.put(ck, out.clone()));
+          // set global cooldown (helps warm-enrich stop too)
+          ctx.waitUntil(cacheJson(cache, aerodataCooldownKey(url.origin), { ok: false, ts: Date.now(), reason: "429" }, AERODATA_COOLDOWN_S));
+          return out;
+        }
+
+        if (!res.ok) {
           return json(
             {
               ok: false,
@@ -511,6 +588,7 @@ export default {
             502,
             cors
           );
+        }
 
         let data;
         try {
@@ -616,6 +694,24 @@ export default {
           },
         });
 
+        // ✅ cache 429 briefly to prevent hammering
+        if (res.status === 429) {
+          const out = new Response(
+            JSON.stringify({ ok: false, icao24: hex, error: "rate_limited", status: 429 }),
+            {
+              status: 429,
+              headers: {
+                ...cors,
+                "Content-Type": "application/json; charset=utf-8",
+                "Cache-Control": `public, max-age=${AERODATA_429_CACHE_S}, s-maxage=${AERODATA_429_CACHE_S}`,
+              },
+            }
+          );
+          ctx.waitUntil(cache.put(ck, out.clone()));
+          ctx.waitUntil(cacheJson(cache, aerodataCooldownKey(url.origin), { ok: false, ts: Date.now(), reason: "429" }, AERODATA_COOLDOWN_S));
+          return out;
+        }
+
         if (res.status === 204) {
           const out = new Response(
             JSON.stringify({ ok: true, found: false, icao24: hex }),
@@ -633,12 +729,6 @@ export default {
         }
 
         const text = await res.text();
-        if (res.status === 429)
-          return json(
-            { ok: false, icao24: hex, error: "rate_limited", status: 429 },
-            429,
-            cors
-          );
         if (!res.ok)
           return json(
             {
@@ -735,29 +825,7 @@ async function handleOpenSkyFailure({
         });
         ctx.waitUntil(cache.put(cacheKey, out.clone()));
 
-        try {
-          const bboxCenter = [
-            (Number(bbox.lamin) + Number(bbox.lamax)) / 2,
-            (Number(bbox.lomin) + Number(bbox.lomax)) / 2,
-          ];
-          const origin = new URL(cacheKey.url).origin;
-          ctx.waitUntil(
-            (async () => {
-              try {
-                const states = Array.isArray(adapted?.states) ? adapted.states : [];
-                if (states.length)
-                  await warmEnrichFromStates({
-                    origin,
-                    env,
-                    cache,
-                    states,
-                    bboxCenter,
-                  });
-              } catch {}
-            })()
-          );
-        } catch {}
-
+        // NOTE: We do NOT warm-enrich on fallback here (saves AeroDataBox credits)
         return out;
       }
     } catch (e) {}
