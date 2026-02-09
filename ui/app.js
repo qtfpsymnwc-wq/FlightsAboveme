@@ -11,8 +11,9 @@ const BACKOFF_429_MS = 60000;
 const ENRICH_TIMEOUT_MS = 4500;
 
 // Enrichment budgets (per “cycle”)
-const LIST_AIRCRAFT_BUDGET = 0; // v1.2.9+: only enrich the closest flight
-const LIST_ROUTE_BUDGET = 0;    // v1.2.9+: only enrich the closest flight
+// v1.2.9+: only enrich the closest flight (primary). Lists are cached-only.
+const LIST_AIRCRAFT_BUDGET = 0;
+const LIST_ROUTE_BUDGET = 0;
 
 const enrichCache = new Map();       // key: `${hex}|${callsign}` -> {routeText, modelText, airlineName}
 const enrichInFlight = new Set();    // keys currently being enriched
@@ -431,6 +432,12 @@ async function enrichAircraft(f){
 // Queue helpers
 function queueEnrich(type, f){
   const k = cacheKeyForFlight(f);
+  const cached = enrichCache.get(k) || {};
+
+  // ✅ CHANGE: Don't enqueue enrichment if we already have the needed field (object OR cache).
+  if (type === "aircraft" && (f.modelText || cached.modelText)) return;
+  if (type === "route" && (f.routeText || cached.routeText)) return;
+
   const inflightKey = `${type}:${k}`;
   if (enrichInFlight.has(inflightKey)) return;
 
