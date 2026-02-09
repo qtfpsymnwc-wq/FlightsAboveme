@@ -15,7 +15,7 @@
    - Landscape: center-justify stat values in their cells
    - Portrait: reduce stat size + stabilize logo/text alignment
    - Portrait: enforce codes-on-one-line in route
-   - Portrait: prevent ANY stat overlap (hard safety)
+   - Compact iPhone (landscape short height): shrink typography + logo + stats to prevent collisions
 */
 
 :root{
@@ -47,12 +47,12 @@
   /* Route lines */
   --route:   clamp(50px, 7.6vmin, 118px);
 
-  /* Callsign + aircraft line (⬆️ bigger than before) */
+  /* Callsign + aircraft line */
   --sub:     clamp(44px, 6.2vmin, 96px);
 
   --tiny:    clamp(16px, 2.2vmin, 28px);
 
-  /* Stats (taller values; headers removed below) */
+  /* Stats */
   --statV:   clamp(76px, 11.8vmin, 186px);
   --statK:   clamp(16px, 2.2vmin, 26px);
 
@@ -69,15 +69,37 @@
   }
 }
 
-/* ✅ Portrait safety: prevent oversized stats + stabilize layout */
+/* Portrait safety: prevent oversized stats + stabilize layout */
 @media (orientation: portrait){
   :root{
-    /* Pull back a bit more than before to stop “bleed” in tight widths */
     --statV: clamp(56px, 8.8vmin, 128px);
-
-    /* Slightly tighten route/sub so stats don’t get squeezed */
     --route: clamp(44px, 6.6vmin, 98px);
     --sub:   clamp(38px, 5.2vmin, 82px);
+  }
+}
+
+/* ✅ iPhone COMPACT LANDSCAPE (short height): prevent the “everything overlaps” problem */
+@media (orientation: landscape) and (max-height: 460px){
+  :root{
+    --pad:   clamp(6px, 0.9vmin, 10px);
+
+    --airline: clamp(34px, 6.2vmin, 72px);
+    --route:   clamp(28px, 5.0vmin, 60px);
+    --sub:     clamp(24px, 4.2vmin, 52px);
+    --tiny:    clamp(12px, 1.8vmin, 18px);
+
+    --statV:   clamp(34px, 7.0vmin, 76px);
+
+    --topBar:  clamp(12px, 1.7vmin, 16px);
+    --exitH:   clamp(34px, 4.6vmin, 44px);
+  }
+}
+
+/* ✅ iPhone COMPACT PORTRAIT (narrow width): keep right column from looking “cropped” */
+@media (orientation: portrait) and (max-width: 420px){
+  :root{
+    --pad: clamp(6px, 1.0vmin, 10px);
+    --statV: clamp(48px, 8.0vmin, 112px);
   }
 }
 
@@ -107,6 +129,11 @@ body{
   display:flex;
   flex-direction:column;
   gap: clamp(8px, 1.2vmin, 12px);
+}
+
+/* Compact landscape: tighten the outer gap slightly */
+@media (orientation: landscape) and (max-height: 460px){
+  #app.kioskApp{ gap: clamp(6px, 0.9vmin, 10px); }
 }
 
 /* Top bar */
@@ -152,12 +179,10 @@ body{
   flex: 1;
   min-height: 0;
 
-  /* Full-screen feel */
   border-radius: 0;
   border: 0;
   overflow:hidden;
 
-  /* Dot matrix + subtle shading */
   background:
     radial-gradient(circle at 1px 1px, rgba(255,255,255,.085) 1px, transparent 1.6px) 0 0 / 8px 8px,
     linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.42)),
@@ -165,8 +190,6 @@ body{
     linear-gradient(180deg, #070a12, #04060b);
 
   display:grid;
-
-  /* ✅ Prevent top from stretching into dead space */
   grid-template-rows: auto 1fr;
 }
 
@@ -175,12 +198,17 @@ body{
   display:grid;
   grid-template-columns: auto 1fr;
   gap: clamp(10px, 1.4vmin, 16px);
-
-  /* slightly tighter than before to reduce dead space */
   padding: clamp(12px, 2.0vmin, 18px);
-
   align-items:center;
   min-height: 0;
+}
+
+/* Compact landscape: reduce padding/gap so the top doesn’t steal height */
+@media (orientation: landscape) and (max-height: 460px){
+  .topPane{
+    padding: clamp(8px, 1.4vmin, 12px);
+    gap: clamp(8px, 1.2vmin, 12px);
+  }
 }
 
 @media (orientation: portrait){
@@ -189,8 +217,6 @@ body{
     grid-template-rows: auto auto;
     justify-items:center;
     align-items:start;
-
-    /* Portrait logo/text spacing */
     gap: clamp(18px, 3.4vmin, 30px);
   }
 }
@@ -204,7 +230,6 @@ body{
   padding-top: clamp(4px, 0.9vmin, 8px);
 }
 
-/* ✅ Portrait logo stabilization */
 @media (orientation: portrait){
   .logoPane{
     height: auto;
@@ -214,7 +239,11 @@ body{
   }
 }
 
-/* ✅ TRUE WHITE logo plate (no gray cast) */
+/* Compact landscape: logo should never dominate */
+@media (orientation: landscape) and (max-height: 460px){
+  .logoPane{ padding-top: 0; align-items:center; }
+}
+
 .logo{
   width: clamp(150px, 22vmin, 270px);
   height: clamp(150px, 22vmin, 270px);
@@ -237,11 +266,19 @@ body{
   filter: drop-shadow(0 12px 18px rgba(0,0,0,.30));
 }
 
-/* Portrait logo size: slightly smaller so it never “crowds” */
 @media (orientation: portrait){
   .logo{
     width: clamp(118px, 16.5vmin, 190px);
     height: clamp(118px, 16.5vmin, 190px);
+  }
+}
+
+@media (orientation: landscape) and (max-height: 460px){
+  .logo{
+    width: clamp(96px, 16vmin, 140px);
+    height: clamp(96px, 16vmin, 140px);
+    border-radius: 18px;
+    padding: clamp(8px, 1.2vmin, 12px);
   }
 }
 
@@ -250,19 +287,21 @@ body{
   display:flex;
   flex-direction:column;
   justify-content:flex-start;
-
   gap: clamp(8px, 1.2vmin, 12px);
-
   min-width: 0;
   width: 100%;
 }
 
-/* Portrait: center the text stack so logo + text read as one unit */
 @media (orientation: portrait){
   .mainText{
     align-items: center;
     text-align: center;
   }
+}
+
+/* Compact landscape: tighten vertical rhythm */
+@media (orientation: landscape) and (max-height: 460px){
+  .mainText{ gap: clamp(6px, 0.9vmin, 10px); }
 }
 
 .line{
@@ -287,7 +326,6 @@ body{
   gap: clamp(6px, 1.0vmin, 10px);
 }
 
-/* No ellipsis anywhere */
 .route{
   font-size: var(--route);
   font-weight: 950;
@@ -307,8 +345,8 @@ body{
   body.kiosk .route{
     white-space: nowrap;
     word-break: keep-all;
-    overflow: hidden;      /* safety */
-    text-overflow: clip;   /* no ellipsis */
+    overflow: hidden;
+    text-overflow: clip;
   }
 }
 
@@ -324,11 +362,8 @@ body{
   line-height: 1.10;
 }
 
-/* Keep sub line centered in portrait too */
 @media (orientation: portrait){
-  .sub{
-    justify-content: center;
-  }
+  .sub{ justify-content: center; }
 }
 
 .callsign{ color: rgba(255,255,255,.98); }
@@ -358,22 +393,34 @@ body{
   background: linear-gradient(180deg, rgba(0,0,0,.08), rgba(0,0,0,.18));
 }
 
+/* Compact landscape: reduce padding so stats have room but don’t crush the top */
+@media (orientation: landscape) and (max-height: 460px){
+  .bottomPane{
+    padding: clamp(8px, 1.4vmin, 12px);
+    gap: clamp(8px, 1.2vmin, 10px);
+  }
+}
+
 .statsRow{
   display:grid;
   grid-template-columns: minmax(0,1fr) minmax(0,1fr);
-
-  /* More separation by default */
   column-gap: clamp(22px, 4.6vmin, 40px);
   row-gap: clamp(10px, 1.6vmin, 14px);
-
   min-height: 0;
 }
 
-/* ✅ Portrait: even more breathing room + stable grid */
 @media (orientation: portrait){
   .statsRow{
     column-gap: clamp(30px, 7.2vmin, 64px);
     row-gap: clamp(12px, 2.2vmin, 18px);
+  }
+}
+
+/* Compact landscape: tighten gaps to fit the short viewport cleanly */
+@media (orientation: landscape) and (max-height: 460px){
+  .statsRow{
+    column-gap: clamp(18px, 3.2vmin, 28px);
+    row-gap: clamp(8px, 1.2vmin, 10px);
   }
 }
 
@@ -393,12 +440,8 @@ body{
   min-width: 0;
 }
 
-/* headers removed */
-.stat .k{
-  display:none;
-}
+.stat .k{ display:none; }
 
-/* ✅ HARD SAFETY: values cannot “bleed” into the next column */
 .stat .v{
   font-size: var(--statV);
   font-weight: 950;
@@ -408,7 +451,6 @@ body{
 
   white-space: nowrap;
 
-  /* Critical: prevent overlap */
   max-width: 100%;
   overflow: hidden;
   text-overflow: clip;
@@ -421,7 +463,6 @@ body{
     0 0 26px rgba(255,255,255,.08);
 }
 
-/* Portrait: slightly tighter tracking to reduce width */
 @media (orientation: portrait){
   .stat .v{
     letter-spacing: .15px;
@@ -431,12 +472,8 @@ body{
 
 /* LANDSCAPE: center-justify each stat within its cell */
 @media (orientation: landscape){
-  .stat{
-    align-items: center;
-  }
-  .stat .v{
-    text-align: center;
-  }
+  .stat{ align-items: center; }
+  .stat .v{ text-align: center; }
 }
 
 .statusLine{
@@ -454,6 +491,13 @@ body{
 
   padding-top: clamp(8px, 1.4vmin, 12px);
   border-top: 0;
+}
+
+@media (orientation: landscape) and (max-height: 460px){
+  .statusLine{
+    font-size: clamp(12px, 1.6vmin, 16px);
+    padding-top: clamp(6px, 1.0vmin, 8px);
+  }
 }
 
 .dot{ color: rgba(255,255,255,.45); }
