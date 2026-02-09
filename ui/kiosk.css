@@ -16,7 +16,8 @@
    - Portrait: codes-only route
    - ✅ iPhone portrait: compact mode (smaller typography + logo + stats)
    - ✅ Portrait: prevent right-side stat clipping (gutters + right align right column)
-   - ✅ NEW: iPhone portrait stacks stats (no clipping, no overlap)
+   - ✅ iPhone portrait stacks stats (no clipping, no overlap)
+   - ✅ CHANGE: Center stats in iPhone portrait stacked mode
 */
 
 :root{
@@ -424,7 +425,7 @@ body{
   }
 }
 
-/* ✅ NEW: iPhone portrait stacks stats to eliminate clipping entirely */
+/* ✅ iPhone portrait: stack stats */
 @media (orientation: portrait) and (max-width: 430px){
   .bottomPane{
     padding: clamp(10px, 1.6vmin, 14px);
@@ -436,21 +437,7 @@ body{
     column-gap: 0;
     row-gap: clamp(10px, 2.0vmin, 16px);
     padding-inline: clamp(8px, 2.4vmin, 16px);
-  }
-
-  .stat{
-    flex-direction: row;
-    align-items: baseline;
-    justify-content: space-between;
-    padding: clamp(6px, 1.0vmin, 10px) 0;
-  }
-
-  .stat .v{
-    width: 100%;
-    text-align: left;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: clip;
+    justify-items: center; /* ✅ center each stat row */
   }
 }
 
@@ -478,7 +465,6 @@ body{
   color: rgba(255,255,255,.95);
   line-height: .96;
 
-  /* ✅ Tighter for phones */
   letter-spacing: .12px;
 
   white-space: nowrap;
@@ -510,15 +496,25 @@ body{
   }
 }
 
-/* But when stacked (iPhone portrait), don't force right align on 2/4 */
+/* ✅ CHANGE: When stacked (iPhone portrait), center the stat values */
 @media (orientation: portrait) and (max-width: 430px){
+  .stat{
+    align-items: center;
+    text-align: center;
+  }
+  .stat .v{
+    width: auto;
+    text-align: center;
+  }
+
+  /* override the nth-child right-align rules */
   .statsRow .stat:nth-child(2),
   .statsRow .stat:nth-child(4){
-    align-items: stretch;
+    align-items: center;
   }
   .statsRow .stat:nth-child(2) .v,
   .statsRow .stat:nth-child(4) .v{
-    text-align: left;
+    text-align: center;
   }
 }
 
