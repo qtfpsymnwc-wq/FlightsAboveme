@@ -404,6 +404,38 @@ body{
 }
 
 
+/* iPad portrait kiosk: split callsign/aircraft and allow aircraft to wrap to two rows */
+@media (orientation: portrait) and (min-width: 431px) and (max-width: 1024px){
+  body.kiosk .sub{
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    flex-wrap: nowrap;
+  }
+  body.kiosk .sub .sep{ display:none; }
+  body.kiosk .sub .callsign{
+    display:block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: clip;
+    max-width: 100%;
+  }
+  body.kiosk .sub .model{
+    display:block;
+    max-width: 100%;
+    white-space: normal;
+    word-break: break-word;
+    overflow: hidden;
+    text-overflow: clip;
+    line-height: 1.06;
+    max-height: calc(2 * 1.06em); /* two rows max */
+    font-size: 0.92em; /* slight shrink for balance */
+    letter-spacing: .3px;
+  }
+}
+
+
 .callsign{ color: rgba(255,255,255,.98); }
 .model{ color: rgba(255,255,255,.90); }
 .sep{ color: rgba(255,255,255,.50); }

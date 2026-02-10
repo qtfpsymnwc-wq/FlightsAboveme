@@ -282,8 +282,9 @@ function renderPrimary(f, radarMeta){
   }
 
   const compactStats = (isKiosk() && isPortrait() && window.innerWidth <= 430);
+  const compactAlt = (isKiosk() && isPortrait() && window.innerWidth <= 1024);
 
-  if ($("alt")) $("alt").textContent = compactStats ? fmtAltCompact(f.baroAlt) : fmtAlt(f.baroAlt);
+  if ($("alt")) $("alt").textContent = compactAlt ? fmtAltCompact(f.baroAlt) : fmtAlt(f.baroAlt);
   if ($("spd")) $("spd").textContent = compactStats ? fmtSpdCompact(f.velocity) : fmtSpd(f.velocity);
   if ($("dist")) $("dist").textContent = compactStats ? fmtMiCompact(f.distanceMi) : fmtMi(f.distanceMi);
 
@@ -328,9 +329,10 @@ function renderSecondary(f){
   $("model2").textContent = f.modelText || "—";
 
   const compactStats = (isKiosk() && isPortrait() && window.innerWidth <= 430);
+  const compactAlt = (isKiosk() && isPortrait() && window.innerWidth <= 1024);
 
   $("dist2").textContent = compactStats ? fmtMiCompact(f.distanceMi) : fmtMi(f.distanceMi);
-  $("alt2").textContent = compactStats ? fmtAltCompact(f.baroAlt) : fmtAlt(f.baroAlt);
+  $("alt2").textContent = compactAlt ? fmtAltCompact(f.baroAlt) : fmtAlt(f.baroAlt);
   $("spd2").textContent = compactStats ? fmtSpdCompact(f.velocity) : fmtSpd(f.velocity);
 
   $("dir2").textContent = headingToText(
