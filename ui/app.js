@@ -10,6 +10,13 @@ const BACKOFF_429_MS = 60000;
 // Enrichment timeouts (keep short so UI never “hangs” waiting on metadata)
 const ENRICH_TIMEOUT_MS = 4500;
 
+
+// Closest-flight stability gating for AeroData enrichment (v1.4.1):
+// Require the same primary callsign for 2 consecutive cycles before queuing /flight + /aircraft.
+let primaryStableCs = null;
+let primaryStableCount = 0;
+let lastEnrichQueuedKey = null;
+let lastEnrichQueuedAt = 0;
 // Performance tuning (v1.3.1): allow slower cellular fetches for states
 const STATES_TIMEOUT_MS = 16000;
 const GEO_TIMEOUT_MS = 12000;
@@ -282,9 +289,8 @@ function renderPrimary(f, radarMeta){
   }
 
   const compactStats = (isKiosk() && isPortrait() && window.innerWidth <= 430);
-  const compactAlt = (isKiosk() && isPortrait() && window.innerWidth <= 1024);
 
-  if ($("alt")) $("alt").textContent = compactAlt ? fmtAltCompact(f.baroAlt) : fmtAlt(f.baroAlt);
+  if ($("alt")) $("alt").textContent = compactStats ? fmtAltCompact(f.baroAlt) : fmtAlt(f.baroAlt);
   if ($("spd")) $("spd").textContent = compactStats ? fmtSpdCompact(f.velocity) : fmtSpd(f.velocity);
   if ($("dist")) $("dist").textContent = compactStats ? fmtMiCompact(f.distanceMi) : fmtMi(f.distanceMi);
 
@@ -329,10 +335,9 @@ function renderSecondary(f){
   $("model2").textContent = f.modelText || "—";
 
   const compactStats = (isKiosk() && isPortrait() && window.innerWidth <= 430);
-  const compactAlt = (isKiosk() && isPortrait() && window.innerWidth <= 1024);
 
   $("dist2").textContent = compactStats ? fmtMiCompact(f.distanceMi) : fmtMi(f.distanceMi);
-  $("alt2").textContent = compactAlt ? fmtAltCompact(f.baroAlt) : fmtAlt(f.baroAlt);
+  $("alt2").textContent = compactStats ? fmtAltCompact(f.baroAlt) : fmtAlt(f.baroAlt);
   $("spd2").textContent = compactStats ? fmtSpdCompact(f.velocity) : fmtSpd(f.velocity);
 
   $("dir2").textContent = headingToText(
@@ -671,9 +676,32 @@ async function main(){
       if (statusEl) statusEl.textContent = isKiosk() ? "Kiosk" : "Live";
       renderAll();
 
-      // Only enrich the closest flight (primary)
-      queueEnrich("aircraft", lastPrimary);
-      queueEnrich("route", lastPrimary);
+      // Only enrich the closest flight (primary) — stability-gated (2 cycles) to prevent churn
+      if (lastPrimary && lastPrimary.callsign) {
+        const cs = normalizeCallsign(lastPrimary.callsign);
+        if (cs) {
+          if (primaryStableCs === cs) primaryStableCount++;
+          else { primaryStableCs = cs; primaryStableCount = 1; }
+
+          const k = cacheKeyForFlight(lastPrimary);
+          const cached = enrichCache.get(k) || {};
+          const needAircraft = !lastPrimary.modelText && !cached.modelText;
+          const needRoute = !lastPrimary.routeText && !cached.routeText;
+
+          const stableEnough = primaryStableCount >= 2;
+          const nowMs = Date.now();
+          const sameAsLastQueue = lastEnrichQueuedKey === k;
+          const recentQueue = nowMs - lastEnrichQueuedAt < 60_000;
+
+          if (stableEnough && (needAircraft || needRoute) && !(sameAsLastQueue && recentQueue)) {
+            if (needAircraft) queueEnrich("aircraft", lastPrimary);
+            if (needRoute) queueEnrich("route", lastPrimary);
+
+            lastEnrichQueuedKey = k;
+            lastEnrichQueuedAt = nowMs;
+          }
+        }
+      }
 
       // List stays cached-only
       queueTopEnrichment(lastTop);
