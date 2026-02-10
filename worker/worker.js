@@ -162,6 +162,152 @@ function aerodataCooldownKey(origin) {
   return new Request(`${origin}/__cache/aerodata/v2/cooldown`, { method: "GET" });
 }
 
+// ---- AeroDataBox Safety Locks (v1.4.1) ----
+// Goals:
+//  - Fast initial enrichment for closest flight
+//  - Prevent credit burn when multiple users/devices refresh
+//  - Enforce hard caps + cooldowns + stampede lock
+//
+// Notes:
+//  - Uses Cache API for locks/counters so it works without KV bindings.
+//  - If you later add KV, these helpers can be upgraded to true atomic counters.
+
+function chicagoHour() {
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", { hour: "numeric", hour12: false, timeZone: "America/Chicago" })
+      .formatToParts(new Date());
+    const h = parts.find(p => p.type === "hour")?.value;
+    const n = Number(h);
+    return Number.isFinite(n) ? n : new Date().getUTCHours();
+  } catch {
+    return new Date().getUTCHours();
+  }
+}
+
+function isNightChicago() {
+  const h = chicagoHour();
+  return h >= 22 || h < 7; // 10pm–7am
+}
+
+function cacheKeyADB(origin, path) {
+  return new Request(`${origin}/__cache/aerodata/v3/${path}`, { method: "GET" });
+}
+
+async function cacheGetJson(cache, req) {
+  const hit = await cache.match(req);
+  if (!hit) return null;
+  try { return await hit.json(); } catch { return null; }
+}
+
+async function cachePutJson(cache, req, obj, ttlSeconds, cors) {
+  const body = JSON.stringify(obj);
+  const res = new Response(body, {
+    status: 200,
+    headers: {
+      ...(cors || {}),
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": `public, max-age=${ttlSeconds}, s-maxage=${ttlSeconds}`,
+    },
+  });
+  await cache.put(req, res);
+}
+
+function envBool(env, key, defVal = true) {
+  const v = env?.[key];
+  if (v === undefined || v === null || v === "") return defVal;
+  const s = String(v).trim().toLowerCase();
+  if (["0","false","no","off"].includes(s)) return false;
+  if (["1","true","yes","on"].includes(s)) return true;
+  return defVal;
+}
+
+function envInt(env, key, defVal) {
+  const v = env?.[key];
+  const n = parseInt(String(v ?? ""), 10);
+  return Number.isFinite(n) ? n : defVal;
+}
+
+async function adbBudgetCheckAndBump({ cache, origin, env, cors, kind }) {
+  // Budget units are counted per AeroDataBox call (not per response size).
+  // Defaults are conservative; adjust via env vars:
+  //  - ADBX_MAX_PER_DAY (default 250)
+  //  - ADBX_MAX_PER_HOUR (default 60)
+  //  - ADBX_NIGHT_MAX_PER_DAY (default 400)
+  //  - ADBX_NIGHT_MAX_PER_HOUR (default 120)
+  const night = isNightChicago();
+  const maxDay = night ? envInt(env, "ADBX_NIGHT_MAX_PER_DAY", 400) : envInt(env, "ADBX_MAX_PER_DAY", 250);
+  const maxHour = night ? envInt(env, "ADBX_NIGHT_MAX_PER_HOUR", 120) : envInt(env, "ADBX_MAX_PER_HOUR", 60);
+
+  const now = new Date();
+  const dayKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth()+1).padStart(2,"0")}-${String(now.getUTCDate()).padStart(2,"0")}`;
+  const hourKey = `${dayKey}-${String(now.getUTCHours()).padStart(2,"0")}`;
+
+  const dayReq = cacheKeyADB(origin, `budget/day/${dayKey}`);
+  const hourReq = cacheKeyADB(origin, `budget/hour/${hourKey}`);
+
+  const dayObj = (await cacheGetJson(cache, dayReq)) || { count: 0 };
+  const hourObj = (await cacheGetJson(cache, hourReq)) || { count: 0 };
+
+  if (dayObj.count >= maxDay) {
+    return { ok: false, reason: "day_cap", max: maxDay, count: dayObj.count, night };
+  }
+  if (hourObj.count >= maxHour) {
+    return { ok: false, reason: "hour_cap", max: maxHour, count: hourObj.count, night };
+  }
+
+  // Best-effort bump (not atomic). Still dramatically reduces runaway usage.
+  dayObj.count += 1;
+  hourObj.count += 1;
+
+  // TTL: day counter ~26h, hour counter ~2h
+  await cachePutJson(cache, dayReq, dayObj, 26 * 60 * 60, cors);
+  await cachePutJson(cache, hourReq, hourObj, 2 * 60 * 60, cors);
+
+  return { ok: true, night, day: dayObj.count, hour: hourObj.count, maxDay, maxHour };
+}
+
+async function adbShouldSkip({ cache, origin, env, cors, kind, id }) {
+  // Global enable switch
+  const enabled = envBool(env, "ADBX_ENABLED", true);
+  if (!enabled) return { skip: true, code: "disabled" };
+
+  // Respect existing 429 cooldown lockout if present
+  const cooldownHit = await cache.match(aerodataCooldownKey(origin));
+  if (cooldownHit) return { skip: true, code: "cooldown_429" };
+
+  // Stampede lock: only one inflight enrichment at a time across endpoints
+  const lockReq = cacheKeyADB(origin, "lock/inflight");
+  const lockHit = await cache.match(lockReq);
+  if (lockHit) return { skip: true, code: "locked" };
+
+  // Global spacing (helps when many users refresh)
+  const night = isNightChicago();
+  const globalMinS = night ? envInt(env, "ADBX_GLOBAL_MIN_S_NIGHT", 10) : envInt(env, "ADBX_GLOBAL_MIN_S_DAY", 30);
+  const globalReq = cacheKeyADB(origin, "lock/global-last");
+  const globalHit = await cache.match(globalReq);
+  if (globalHit) return { skip: true, code: "global_cooldown" };
+
+  // Per-entity cooldown (prevents repeat enrichment for same id)
+  const flightCdS = night ? envInt(env, "ADBX_FLIGHT_COOLDOWN_S_NIGHT", 10 * 60) : envInt(env, "ADBX_FLIGHT_COOLDOWN_S_DAY", 30 * 60);
+  const acCdS = night ? envInt(env, "ADBX_AIRCRAFT_COOLDOWN_S_NIGHT", 6 * 60 * 60) : envInt(env, "ADBX_AIRCRAFT_COOLDOWN_S_DAY", 12 * 60 * 60);
+  const cdS = kind === "aircraft" ? acCdS : flightCdS;
+
+  const perReq = cacheKeyADB(origin, `cooldown/${kind}/${encodeURIComponent(id)}`);
+  const perHit = await cache.match(perReq);
+  if (perHit) return { skip: true, code: "entity_cooldown" };
+
+  // Budget caps
+  const b = await adbBudgetCheckAndBump({ cache, origin, env, cors, kind });
+  if (!b.ok) return { skip: true, code: "budget", budget: b };
+
+  // Acquire locks (best effort)
+  await cachePutJson(cache, lockReq, { ts: Date.now(), kind, id }, 8, cors); // inflight lock
+  await cachePutJson(cache, globalReq, { ts: Date.now() }, globalMinS, cors); // global cooldown
+  await cachePutJson(cache, perReq, { ts: Date.now() }, cdS, cors); // entity cooldown
+
+  return { skip: false, night, budget: b, cdS, globalMinS };
+}
+
 async function cacheJson(cache, req, obj, ttlS) {
   await cache.put(
     req,
@@ -538,6 +684,12 @@ export default {
       const hit = await cache.match(ck);
       if (hit) return withCors(hit, cors, "HIT");
 
+
+      // Safety locks: throttle + budget + cooldown + stampede protection
+      const gate = await adbShouldSkip({ cache, origin: url.origin, env, cors, kind: "flight", id: callsign });
+      if (gate.skip) {
+        return json({ ok: false, callsign, error: "aerodata_throttled", reason: gate.code }, 200, cors);
+      }
       const upstreamUrl = `https://${env.AERODATA_HOST}/flights/callsign/${encodeURIComponent(callsign)}`;
 
       try {
@@ -640,6 +792,12 @@ export default {
       const hit = await cache.match(ck);
       if (hit) return withCors(hit, cors, "HIT");
 
+
+      // Safety locks: throttle + budget + cooldown + stampede protection
+      const gate = await adbShouldSkip({ cache, origin: url.origin, env, cors, kind: "aircraft", id: hex });
+      if (gate.skip) {
+        return json({ ok: false, icao24: hex, error: "aerodata_throttled", reason: gate.code }, 200, cors);
+      }
       const upstreamUrl = `https://${env.AERODATA_HOST}/aircrafts/icao24/${encodeURIComponent(hex)}`;
 
       try {
