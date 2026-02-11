@@ -138,6 +138,13 @@ function fmtMiCompact(mi){
   return mi.toFixed(mi < 10 ? 1 : 0) + "mi";
 }
 
+// Compact alt formatter for kiosk tablet / iPad (prevents stat overflow)
+function fmtAltKft(m){
+  if (!Number.isFinite(m)) return "—";
+  const ft = m * 3.28084;
+  return (ft/1000).toFixed(1) + "k ft";
+}
+
 function guessAirline(callsign){
   const c=(callsign||'').trim().toUpperCase();
   const p3=c.slice(0,3);
@@ -289,8 +296,9 @@ function renderPrimary(f, radarMeta){
   }
 
   const compactStats = (isKiosk() && isPortrait() && window.innerWidth <= 430);
+  const kioskTabletAlt = (isKiosk() && window.innerWidth >= 700);
 
-  if ($("alt")) $("alt").textContent = compactStats ? fmtAltCompact(f.baroAlt) : fmtAlt(f.baroAlt);
+  if ($("alt")) $("alt").textContent = compactStats ? fmtAltCompact(f.baroAlt) : (kioskTabletAlt ? fmtAltKft(f.baroAlt) : fmtAlt(f.baroAlt));
   if ($("spd")) $("spd").textContent = compactStats ? fmtSpdCompact(f.velocity) : fmtSpd(f.velocity);
   if ($("dist")) $("dist").textContent = compactStats ? fmtMiCompact(f.distanceMi) : fmtMi(f.distanceMi);
 
