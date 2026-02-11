@@ -667,3 +667,14 @@ body{
     text-overflow: clip; /* (no ellipsis in kiosk) */
   }
 }
+
+.kiosk-footer{
+  position: fixed;
+  bottom: 8px;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  font-size: 10px;
+  opacity: 0.35;
+  letter-spacing: 0.5px;
+}
