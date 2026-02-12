@@ -1,6 +1,6 @@
 // FlightsAboveMe UI
 const API_BASE = "https://flightsabove.t2hkmhgbwz.workers.dev";
-const UI_VERSION = "v190";
+const UI_VERSION = "v191";
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;
@@ -145,21 +145,16 @@ function fmtAltKft(m){
   return (ft/1000).toFixed(1) + "k ft";
 }
 
-// Vertical speed (m/s) → feet per minute, compact for small displays
+// Vertical speed (m/s) → simple flight phase label
+// OpenSky may return null; treat null/near-zero as cruising.
 function fmtVS(vr){
-  if (!Number.isFinite(vr)) return "—";
-  const fpm = vr * 196.850394;
-  const abs = Math.abs(fpm);
-  const sign = fpm > 20 ? "+" : (fpm < -20 ? "−" : "");
-  if (abs < 50) return "0 fpm";
+  // vr is meters/second (state[11])
+  if (!Number.isFinite(vr)) return "Cruising";
 
-  // Compact thousands
-  if (abs >= 1000){
-    const k = (abs/1000);
-    return `${sign}${k.toFixed(1)}k fpm`;
-  }
-  const rounded = Math.round(abs / 10) * 10;
-  return `${sign}${rounded.toLocaleString()} fpm`;
+  // Thresholds (m/s). ~0.5 m/s ≈ 100 fpm.
+  if (vr > 0.5) return "Climbing";
+  if (vr < -0.5) return "Descending";
+  return "Cruising";
 }
 
 function fmtSquawk(sq){
