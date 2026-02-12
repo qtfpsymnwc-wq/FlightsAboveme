@@ -816,3 +816,31 @@ body.kiosk .kioskSecondaryMini{ display:none; }
 .extraStats .k{ font-size: 10px; }
   .extraStats .v{ font-size: 12px; }
 }
+
+
+/* -------------------------------
+   Legal Footer
+-------------------------------- */
+.legal-footer{
+  margin-top: 40px;
+  padding: 16px 14px 22px;
+  border-top: 1px solid var(--line);
+  background: transparent;
+  text-align: center;
+}
+.legal-inner{
+  max-width: 900px;
+  margin: 0 auto;
+}
+.legal-footer p{
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--muted);
+  opacity: 0.85;
+  margin: 0;
+}
+.legal-copy{
+  margin-top: 6px;
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
