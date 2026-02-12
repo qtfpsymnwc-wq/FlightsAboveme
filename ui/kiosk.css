@@ -92,6 +92,18 @@
   }
 }
 
+/* ✅ iPad portrait: stack stats (match iPhone portrait behavior) */
+@media (orientation: portrait) and (min-width: 700px){
+  .statsRow{
+    grid-template-columns: 1fr;
+    column-gap: 0;
+    row-gap: clamp(12px, 2.0vmin, 18px);
+    justify-items: center;
+    padding-inline: clamp(10px, 2.2vmin, 18px);
+  }
+}
+
+
 /* ✅ iPhone compact landscape safety (short height) */
 @media (orientation: landscape) and (max-height: 460px){
   :root{
