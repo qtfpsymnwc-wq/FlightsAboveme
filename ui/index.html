@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>FlightsAboveMe</title>
-  <link rel="stylesheet" href="./style.css?v=184">
+  <link rel="stylesheet" href="./style.css?v=190">
 </head>
 <body>
   <div id="app">
@@ -55,6 +55,11 @@
           <div class="stat"><div class="k">DIR</div><div class="v" id="dir">—</div></div>
         </div>
 
+        <div class="extraStats" aria-label="Extra stats">
+          <div class="extra"><span class="k">V/S</span><span class="v" id="vs">—</span></div>
+          <div class="extra"><span class="k">SQUAWK</span><span class="v" id="squawk">—</span></div>
+        </div>
+
         <div class="footerLine">
           <span id="radarLine">Radar: —</span>
         </div>
@@ -70,18 +75,18 @@
     </main>
 
     <div id="errBox" class="errBox hidden"></div>
-
-    <footer class="fabm-footer">
-      <div>© 2026 FlightsAboveMe</div>
-      <div class="fabm-attrib">
-        Live flight data via OpenSky Network. Aircraft/route data may be enriched by third-party aviation APIs.
-      </div>
-    </footer>
   </div>
 
   <!-- (Legacy) Exit link for index.html kiosk mode; harmless to keep -->
   <a class="modeToggle kioskOnly" href="./index.html" aria-label="Exit kiosk mode">Exit</a>
 
-  <script src="./app.js?v=184"></script>
+  <script src="./app.js?v=190"></script>
 </body>
 </html>
+
+<footer class="fabm-footer">
+  <div>© 2026 FlightsAboveMe</div>
+  <div class="fabm-attrib">
+    Live flight data via OpenSky Network. Aircraft/route data may be enriched by third-party aviation APIs.
+  </div>
+</footer>

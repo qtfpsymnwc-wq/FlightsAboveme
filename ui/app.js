@@ -1,6 +1,6 @@
 // FlightsAboveMe UI
 const API_BASE = "https://flightsabove.t2hkmhgbwz.workers.dev";
-const UI_VERSION = "v184";
+const UI_VERSION = "v190";
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;
@@ -144,6 +144,29 @@ function fmtAltKft(m){
   const ft = m * 3.28084;
   return (ft/1000).toFixed(1) + "k ft";
 }
+
+// Vertical speed (m/s) → feet per minute, compact for small displays
+function fmtVS(vr){
+  if (!Number.isFinite(vr)) return "—";
+  const fpm = vr * 196.850394;
+  const abs = Math.abs(fpm);
+  const sign = fpm > 20 ? "+" : (fpm < -20 ? "−" : "");
+  if (abs < 50) return "0 fpm";
+
+  // Compact thousands
+  if (abs >= 1000){
+    const k = (abs/1000);
+    return `${sign}${k.toFixed(1)}k fpm`;
+  }
+  const rounded = Math.round(abs / 10) * 10;
+  return `${sign}${rounded.toLocaleString()} fpm`;
+}
+
+function fmtSquawk(sq){
+  const s = (sq ?? "").toString().trim();
+  return s ? s : "—";
+}
+
 
 function guessAirline(callsign){
   const c=(callsign||'').trim().toUpperCase();
@@ -302,6 +325,9 @@ function renderPrimary(f, radarMeta){
   if ($("spd")) $("spd").textContent = compactStats ? fmtSpdCompact(f.velocity) : fmtSpd(f.velocity);
   if ($("dist")) $("dist").textContent = compactStats ? fmtMiCompact(f.distanceMi) : fmtMi(f.distanceMi);
 
+  if ($("vs")) $("vs").textContent = fmtVS(f.verticalRate);
+  if ($("squawk")) $("squawk").textContent = fmtSquawk(f.squawk);
+
   if ($("dir")) $("dir").textContent = headingToText(
     f.trueTrack,
     { short: (isKiosk() && isPortrait()) }
@@ -347,6 +373,9 @@ function renderSecondary(f){
   $("dist2").textContent = compactStats ? fmtMiCompact(f.distanceMi) : fmtMi(f.distanceMi);
   $("alt2").textContent = compactStats ? fmtAltCompact(f.baroAlt) : fmtAlt(f.baroAlt);
   $("spd2").textContent = compactStats ? fmtSpdCompact(f.velocity) : fmtSpd(f.velocity);
+
+  if ($("vs2")) $("vs2").textContent = fmtVS(f.verticalRate);
+  if ($("squawk2")) $("squawk2").textContent = fmtSquawk(f.squawk);
 
   $("dir2").textContent = headingToText(
     f.trueTrack,
@@ -660,10 +689,12 @@ async function main(){
         const baroAlt = (typeof s[7] === "number") ? s[7] : NaN;
         const velocity = (typeof s[9] === "number") ? s[9] : NaN;
         const trueTrack = (typeof s[10] === "number") ? s[10] : NaN;
+        const verticalRate = (typeof s[11] === "number") ? s[11] : NaN;
+        const squawk = (s[14] != null) ? String(s[14]).trim() : "";
         const distanceMi = (Number.isFinite(lat2) && Number.isFinite(lon2)) ? haversineMi(lat, lon, lat2, lon2) : Infinity;
 
         return {
-          icao24, callsign, country, baroAlt, velocity, trueTrack, distanceMi,
+          icao24, callsign, country, baroAlt, velocity, trueTrack, verticalRate, squawk, distanceMi,
           routeText: undefined,
           modelText: undefined,
           airlineName: undefined,

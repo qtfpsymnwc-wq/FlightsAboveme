@@ -778,4 +778,47 @@ body.kiosk .kioskSecondaryMini{ display:none; }
     font-size: 10px;
     padding-bottom: 24px;
   }
+}}
+}}
+
+
+/* Extra stats (V/S + Squawk) — additive only */
+.extraStats{
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  color: var(--muted);
+  opacity: 0.9;
+  text-align: center;
+}
+
+.extraStats .extra{
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.extraStats .k{
+  font-size: 11px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+.extraStats .v{
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  opacity: 0.9;
+}
+
+@media (max-width: 480px){
+  .extraStats{
+    gap: 12px;
+    margin-top: 8px;
+  }
+  .extraStats .k{ font-size: 10px; }
+  .extraStats .v{ font-size: 12px; }
 }
