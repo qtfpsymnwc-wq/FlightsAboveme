@@ -1,6 +1,6 @@
 // FlightsAboveMe UI
 const API_BASE = "https://flightsabove.t2hkmhgbwz.workers.dev";
-const UI_VERSION = "v191";
+const UI_VERSION = "v192";
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;

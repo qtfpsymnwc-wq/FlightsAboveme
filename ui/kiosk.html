@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>FlightsAboveMe — Kiosk</title>
-  <link rel="stylesheet" href="./kiosk.css?v=190">
+  <link rel="stylesheet" href="./kiosk.css?v=192">
 </head>
 
 <body class="kiosk">
@@ -70,10 +70,10 @@
           </div>
         </div>
 
-        <div class="kioskExtras" aria-label="Extra stats">
-          <div class="x"><span class="k">V/S</span><span class="v" id="vs">—</span></div>
-          <div class="dot">•</div>
-          <div class="x"><span class="k">SQUAWK</span><span class="v" id="squawk">—</span></div>
+        <div class="kioskExtras" aria-label="Phase and squawk">
+          <span id="vs" class="xv">—</span>
+          <span class="xDot">•</span>
+          <span id="squawk" class="xv">—</span>
         </div>
 
         <div class="statusLine">
@@ -104,6 +104,10 @@
     </main>
 
     <div id="errBox" class="errBox hidden"></div>
+
+    <footer class="kiosk-footer">
+  © 2026 FlightsAboveMe
+</footer>
   </div>
 
   <script>
@@ -164,10 +168,6 @@
     })();
   </script>
 
-  <script src="./app.js?v=191"></script>
+  <script src="./app.js?v=192"></script>
 </body>
 </html>
-
-<footer class="kiosk-footer">
-  © 2026 FlightsAboveMe
-</footer>

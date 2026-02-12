@@ -680,17 +680,31 @@ body{
 }
 
 
-/* Extra stats line (V/S + Squawk) — additive only */
+/* Extra stats line (Phase + Squawk) — additive only */
 .kioskExtras{
   display:flex;
   align-items:center;
   justify-content:center;
-  gap: 10px;
-  margin-top: clamp(6px, 1.2vmin, 10px);
-  font-size: clamp(12px, 1.8vmin, 16px);
-  color: rgba(255,255,255,.72);
-  letter-spacing: .04em;
+  gap: 14px;
+  margin-top: clamp(8px, 1.6vmin, 14px);
+  text-align: center;
+}
+
+.kioskExtras .xv{
+  font-size: clamp(18px, 3.0vmin, 32px);
+  font-weight: 950;
+  color: var(--k-white);
+  letter-spacing: .02em;
+  line-height: 1.05;
+  white-space: nowrap;
+}
+
+.kioskExtras .xDot{
+  font-size: clamp(18px, 3.0vmin, 32px);
+  font-weight: 950;
+  color: rgba(255,255,255,.60);
   opacity: .85;
+  line-height: 1;
 }
 
 .kioskExtras .x{

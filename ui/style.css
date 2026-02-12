@@ -778,47 +778,41 @@ body.kiosk .kioskSecondaryMini{ display:none; }
     font-size: 10px;
     padding-bottom: 24px;
   }
-}}
-}}
+}
 
 
-/* Extra stats (V/S + Squawk) — additive only */
+/* Extra stats (Phase + Squawk) — additive only */
 .extraStats{
-  margin-top: 10px;
+  margin-top: 12px;
   display: flex;
   justify-content: center;
-  gap: 16px;
+  align-items: center;
+  gap: 12px;
   flex-wrap: wrap;
-  color: var(--muted);
-  opacity: 0.9;
   text-align: center;
 }
 
-.extraStats .extra{
-  display: inline-flex;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.extraStats .k{
-  font-size: 11px;
-  letter-spacing: .12em;
-  text-transform: uppercase;
-  opacity: 0.8;
-}
-
-.extraStats .v{
-  font-size: 13px;
-  font-weight: 700;
+.extraStats .extraVal{
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: .2px;
   color: var(--text);
-  opacity: 0.9;
+  opacity: 0.95;
+}
+
+.extraStats .extraDot{
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--muted);
+  opacity: 0.7;
+  line-height: 1;
 }
 
 @media (max-width: 480px){
-  .extraStats{
-    gap: 12px;
-    margin-top: 8px;
-  }
-  .extraStats .k{ font-size: 10px; }
+  .extraStats{ margin-top: 10px; gap: 10px; }
+  .extraStats .extraVal{ font-size: 15px; }
+  .extraStats .extraDot{ font-size: 15px; }
+}
+.extraStats .k{ font-size: 10px; }
   .extraStats .v{ font-size: 12px; }
 }
