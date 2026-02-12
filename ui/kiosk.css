@@ -92,17 +92,6 @@
   }
 }
 
-/* ✅ iPad portrait: stack stats (match iPhone portrait behavior) */
-@media (orientation: portrait) and (min-width: 700px){
-  .statsRow{
-    grid-template-columns: 1fr;
-    column-gap: 0;
-    row-gap: clamp(12px, 2.2vmin, 18px);
-    padding-inline: clamp(10px, 2.8vmin, 18px);
-    justify-items: center;
-  }
-}
-
 /* ✅ iPhone compact landscape safety (short height) */
 @media (orientation: landscape) and (max-height: 460px){
   :root{
@@ -566,6 +555,35 @@ body{
 
 /* ✅ CHANGE: When stacked (iPhone portrait), center the stat values */
 @media (orientation: portrait) and (max-width: 430px){
+  .stat{
+    align-items: center;
+    text-align: center;
+  }
+  .stat .v{
+    width: auto;
+    text-align: center;
+  }
+
+  /* override the nth-child right-align rules */
+  .statsRow .stat:nth-child(2),
+  .statsRow .stat:nth-child(4){
+    align-items: center;
+  }
+  .statsRow .stat:nth-child(2) .v,
+  .statsRow .stat:nth-child(4) .v{
+    text-align: center;
+  }
+}
+
+/* ✅ iPad portrait: stack stats (match iPhone portrait behavior) */
+@media (orientation: portrait) and (min-width: 700px){
+  .statsRow{
+    grid-template-columns: 1fr;
+    column-gap: 0;
+    justify-items: center;
+  }
+
+  /* center values when stacked */
   .stat{
     align-items: center;
     text-align: center;
