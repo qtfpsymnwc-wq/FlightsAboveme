@@ -760,6 +760,7 @@ body.kiosk .kioskSecondaryMini{ display:none; }
 .fabm-footer{
   margin-top: 40px;
   padding: 18px 12px 28px;
+  border-top: 1px solid var(--line);
   text-align: center;
   font-size: 11px;
   color: var(--muted);
@@ -767,10 +768,23 @@ body.kiosk .kioskSecondaryMini{ display:none; }
   line-height: 1.5;
 }
 
+.fabm-footer .fabm-legal{
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.fabm-footer .fabm-legal + .fabm-legal{ margin-top: 4px; }
+
 .fabm-footer .fabm-attrib{
   margin-top: 4px;
   font-size: 10px;
   opacity: 0.8;
+}
+
+.fabm-footer .fabm-copy{
+  margin-top: 6px;
+  font-size: 10px;
+  opacity: 0.75;
 }
 
 @media (max-width: 480px){

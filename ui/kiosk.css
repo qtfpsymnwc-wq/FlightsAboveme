@@ -677,6 +677,24 @@ body{
   font-size: 10px;
   opacity: 0.35;
   letter-spacing: 0.5px;
+  padding: 0 10px;
+  line-height: 1.35;
+}
+
+.kiosk-footer .kf-line{
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.kiosk-footer .kf-line + .kf-line{ margin-top: 2px; }
+
+.kiosk-footer .kf-copy{
+  margin-top: 4px;
+  opacity: 0.85;
+}
+
+@media (max-width: 520px){
+  .kiosk-footer{ font-size: 9px; opacity: 0.32; }
 }
 
 
