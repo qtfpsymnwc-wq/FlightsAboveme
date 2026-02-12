@@ -1,6 +1,6 @@
 // FlightsAboveMe UI
 const API_BASE = "https://flightsabove.t2hkmhgbwz.workers.dev";
-const UI_VERSION = "v192";
+const UI_VERSION = "v193";
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;
@@ -157,9 +157,40 @@ function fmtVS(vr){
   return "Cruising";
 }
 
-function fmtSquawk(sq){
+// Squawk (transponder) definitions.
+// OpenSky may return "" / null / "0000"; treat as not set.
+// Replace code with a definition (no raw code shown).
+function fmtSquawkMeaning(sq){
   const s = (sq ?? "").toString().trim();
-  return s ? s : "—";
+  if (!s || s === "0000") return null;
+
+  // Emergency squawks
+  if (s === "7500") return "Hijacking";
+  if (s === "7600") return "Radio Failure";
+  if (s === "7700") return "Emergency";
+
+  // Common VFR codes (region-dependent, but useful as a friendly label)
+  if (s === "1200" || s === "7000") return "VFR";
+
+  return "ATC Assigned";
+}
+
+function setSquawkUI(sq, squawkId, sepId){
+  const squawkEl = $(squawkId);
+  if (!squawkEl) return;
+  const sepEl = sepId ? $(sepId) : null;
+
+  const meaning = fmtSquawkMeaning(sq);
+  if (!meaning) {
+    squawkEl.textContent = "";
+    squawkEl.style.display = "none";
+    if (sepEl) sepEl.style.display = "none";
+    return;
+  }
+
+  squawkEl.textContent = meaning;
+  squawkEl.style.display = "";
+  if (sepEl) sepEl.style.display = "";
 }
 
 
@@ -321,7 +352,7 @@ function renderPrimary(f, radarMeta){
   if ($("dist")) $("dist").textContent = compactStats ? fmtMiCompact(f.distanceMi) : fmtMi(f.distanceMi);
 
   if ($("vs")) $("vs").textContent = fmtVS(f.verticalRate);
-  if ($("squawk")) $("squawk").textContent = fmtSquawk(f.squawk);
+  setSquawkUI(f.squawk, "squawk", "sqSep");
 
   if ($("dir")) $("dir").textContent = headingToText(
     f.trueTrack,
@@ -370,7 +401,7 @@ function renderSecondary(f){
   $("spd2").textContent = compactStats ? fmtSpdCompact(f.velocity) : fmtSpd(f.velocity);
 
   if ($("vs2")) $("vs2").textContent = fmtVS(f.verticalRate);
-  if ($("squawk2")) $("squawk2").textContent = fmtSquawk(f.squawk);
+  setSquawkUI(f.squawk, "squawk2", "sqSep2");
 
   $("dir2").textContent = headingToText(
     f.trueTrack,
