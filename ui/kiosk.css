@@ -53,6 +53,9 @@
 
   --topBar:  clamp(14px, 1.9vmin, 20px);
   --exitH:   clamp(42px, 5.4vmin, 60px);
+
+  /* Reserve space for the fixed legal footer so it never overlaps content */
+  --kFooterH: 56px;
 }
 
 /* Landscape tuning */
@@ -130,7 +133,7 @@ body{
   padding:
     calc(var(--safeTop) + var(--pad))
     calc(var(--safeRight) + var(--pad))
-    calc(var(--safeBottom) + var(--pad))
+    calc(var(--safeBottom) + var(--pad) + var(--kFooterH))
     calc(var(--safeLeft) + var(--pad));
   display:flex;
   flex-direction:column;
@@ -598,6 +601,12 @@ body{
   border-top: 0;
 }
 
+/* Hide Radar/Showing status line on iPhone + iPad portrait so the legal footer
+   has clear space and nothing overlaps in small/medium displays. */
+@media (orientation: portrait) and (max-width: 1024px){
+  .statusLine{ display:none; }
+}
+
 .dot{ color: rgba(255,255,255,.45); }
 
 .errBox{
@@ -694,6 +703,7 @@ body{
 }
 
 @media (max-width: 520px){
+  :root{ --kFooterH: 64px; }
   .kiosk-footer{ font-size: 9px; opacity: 0.32; }
 }
 
@@ -762,3 +772,7 @@ body{
     text-align: center;
   }
 }
+
+
+/* Force remove Radar / Showing status line in kiosk */
+.status-line { display: none !important; }
