@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>FlightsAboveMe</title>
   <link rel="stylesheet" href="./style.css?v=211">
 </head>
-<body class="page-main">
+<body>
   <div id="app">
     <header class="topbar">
       <div class="brand"><img src="flightsaboveme-logo-tight.png" alt="FlightsAboveMe" class="siteLogo"></div>
@@ -26,85 +26,66 @@
       </div>
     </header>
 
-    <main class="wrap">
-      <section class="card mainCard" id="mainCard">
-        <div class="cardTop">
-          <div class="airlineBlock">
-            <div class="airlineLogoWrap"><img id="airlineLogo" alt="" /></div>
-            <div class="airlineName" id="airlineName">—</div>
+    <main class="layout">
+      <section class="primary card">
+        <div class="primaryHeader">
+          <div class="airlineHeader">
+            <img id="airlineLogo" class="airlineLogo hidden" alt="Airline logo" loading="lazy" />
+            <div class="airlineName" id="airline">—</div>
           </div>
 
-          <div class="callsign" id="callsign">—</div>
-
-          <div class="sep">—</div>
-
-          <div class="squawkLine" id="squawkLine">
-            <span class="label">Squawk</span>
-            <span class="value" id="squawkText">—</span>
-          </div>
-
-          <div class="icaoLine" id="icaoLine">
-            <span class="label">ICAO24</span>
-            <span class="value" id="icao24">—</span>
+          <div class="aircraftBlock">
+            <div class="callsign" id="callsign">—</div>
+            <div class="route" id="route">—</div>
+            <div class="model" id="model">—</div>
+            <div class="icaoLine"><span class="icaoLabel">ICAO24</span><span class="icaoValue" id="icao24">—</span></div>
           </div>
         </div>
 
-        <div class="tiles">
-          <div class="tile">
-            <div class="tLabel">ALT</div>
-            <div class="tValue" id="alt">—</div>
-            <div class="tUnit">ft</div>
-          </div>
-          <div class="tile">
-            <div class="tLabel">SPD</div>
-            <div class="tValue" id="spd">—</div>
-            <div class="tUnit">mph</div>
-          </div>
-          <div class="tile">
-            <div class="tLabel">DIST</div>
-            <div class="tValue" id="dist">—</div>
-            <div class="tUnit">mi</div>
-          </div>
-          <div class="tile">
-            <div class="tLabel">DIR</div>
-            <div class="tValue" id="dir">—</div>
-            <div class="tUnit" id="trk">—</div>
-          </div>
+        <div class="stats">
+          <div class="stat"><div class="k">ALT</div><div class="v" id="alt">—</div></div>
+          <div class="stat"><div class="k">SPD</div><div class="v" id="spd">—</div></div>
+          <div class="stat"><div class="k">DIST</div><div class="v" id="dist">—</div></div>
+          <div class="stat"><div class="k">DIR</div><div class="v" id="dir">—</div></div>
         </div>
 
-        <div class="phaseRow">
-          <span class="phase" id="phase">—</span>
-          <span class="dot">•</span>
-          <span class="squawkDef" id="squawkDef">—</span>
+        <div class="extraStats" aria-label="Phase and squawk">
+          <span id="vs" class="extraVal">—</span>
+          <span id="sqSep" class="extraDot">•</span>
+          <span id="squawk" class="extraVal">—</span>
         </div>
 
-        <div class="radarRow">
-          <span id="radarCount">Radar: — flights</span>
-          <span class="dot">•</span>
-          <span id="showingCount">Showing: —</span>
+        <div class="footerLine">
+          <span id="radarLine">Radar: —</span>
         </div>
       </section>
 
-      <section class="card listCard">
+      <section class="list card">
         <div class="listHeader">
-          <div class="title">Nearby flights</div>
-          <div class="sub">Top 5 closest</div>
+          <div class="listTitle">Nearby flights</div>
+          <div class="listHint">Top 5 closest</div>
         </div>
-        <div class="list" id="nearbyList">
-          <!-- populated by JS -->
-        </div>
+        <div id="list"></div>
       </section>
-
-      <footer class="footer">
-        <div class="copy">© 2026 FlightsAboveMe</div>
-        <div class="fabm-legal">
-          Airline names and logos are trademarks of their respective owners.<br/>
-          Flight data is provided for informational purposes only and may be delayed, incomplete, or inaccurate. Not for operational or navigation use.<br/>
-          Live flight data via OpenSky Network. Aircraft/route data may be enriched by third-party aviation APIs.
-        </div>
-      </footer>
     </main>
+
+    <div id="errBox" class="errBox hidden"></div>
+
+    <footer class="fabm-footer">
+  <div>© 2026 FlightsAboveMe</div>
+    <div class="fabm-legal">
+      <div>Airline names and logos are trademarks of their respective owners.</div>
+      <div>Flight data is provided for informational purposes only and may be delayed, incomplete, or inaccurate. Not for operational or navigation use.</div>
+    </div>
+
+  <div class="fabm-attrib">
+    Live flight data via OpenSky Network. Aircraft/route data may be enriched by third-party aviation APIs.
   </div>
+</footer>
+  </div>
+
+  <!-- (Legacy) Exit link for index.html kiosk mode; harmless to keep -->
+  <a class="modeToggle kioskOnly" href="./index.html" aria-label="Exit kiosk mode">Exit</a>
 
   <script src="./app.js?v=211"></script>
 </body>
