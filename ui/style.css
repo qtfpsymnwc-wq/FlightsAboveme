@@ -814,41 +814,55 @@ body.kiosk .kioskSecondaryMini{ display:none; }
   .extraStats .extraDot{ font-size: 15px; }
 }
 .extraStats .k{ font-size: 10px; }
-  .extraStats .v{ font-size: 12px; }
-}
-
+.extraStats .v{ font-size: 12px; }
 
 /* -------------------------------
-   Header Logo
+   Header (main layout only)
+   - Single controlled layout
+   - Left-aligned logo
+   - No media-query overrides for logo sizing
+   - Header height locked (<= 72px)
 -------------------------------- */
-.siteLogo{
-  height: 34px;
+.topbar{
+  height: 72px;
+  max-height: 72px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  overflow: hidden;
+}
+
+.topbar .brand{
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+/* Hide any legacy brand text/dot if present (safe no-op for current HTML) */
+.topbar .brand .dot,
+.topbar .brand .brandText{
+  display: none !important;
+}
+
+/* ONE logo rule */
+.topbar .siteLogo{
+  height: clamp(28px, 5vw, 56px);
   width: auto;
   display: block;
+  max-width: min(360px, 70vw);
 }
 
-@media (min-width: 900px){
-  .siteLogo{
-    height: 40px;
-  }
-}
-
-
-/* -------------------------------
-   Header: replace brand text with logo image
--------------------------------- */
-.topbar .brand{ display:flex; align-items:center; }
-.topbar .brand .dot,
-.topbar .brand .brandText{ display:none !important; }
-
-.siteLogo{
-  height: 48px;
-  width: auto;
-  max-width: min(360px, 72vw);
-  display:block;
-}
-@media (max-width: 430px){
-  .siteLogo{ height: 42px; max-width: min(320px, 78vw); }
+/* Keep the right side from forcing the header taller */
+.topbar .right{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 /* -------------------------------
@@ -862,26 +876,3 @@ body.kiosk .kioskSecondaryMini{ display:none; }
   text-align: center;
 }
 
-
-/* -------------------------------
-   Header logo sizing (v6)
-   Keep header compact; logo readable.
--------------------------------- */
-.topbar{ min-height: 0; }
-.topbar .brand{
-  display:flex;
-  align-items:center;
-  flex: 0 0 auto;
-}
-.topbar .siteLogo{
-  height: 34px;
-  width: auto;
-  max-width: min(220px, 45vw);
-  display:block;
-}
-@media (max-width: 430px){
-  .topbar .siteLogo{ height: 30px; max-width: min(200px, 52vw); }
-}
-@media (min-width: 900px){
-  .topbar .siteLogo{ height: 38px; max-width: 260px; }
-}
