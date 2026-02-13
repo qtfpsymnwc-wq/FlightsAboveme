@@ -748,224 +748,100 @@ body{
 
 /* -------------------------------
    Legal Footer (Kiosk)
+   Fixed, non-overlapping
 -------------------------------- */
-.fabm-footer{
+.legal-footer{
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 8px 12px 12px;
+  padding: 10px 12px 12px;
   border-top: 1px solid rgba(255,255,255,.08);
-  background: linear-gradient(to top, rgba(0,0,0,.55), rgba(0,0,0,0));
+  background: linear-gradient(to top, rgba(0,0,0,.60), rgba(0,0,0,0));
   text-align: center;
   z-index: 50;
   pointer-events: none;
 }
-.fabm-footer .fabm-legal{
-  font-size: 10px;
-  line-height: 1.3;
-  opacity: .55;
+.legal-footer p{
+  margin: 0;
+  font-size: 0.62rem;
+  line-height: 1.35;
+  opacity: 0.55;
+}
+.legal-copy{
+  margin-top: 6px;
+  font-size: 0.62rem;
+  opacity: 0.50;
 }
 
-/* Reserve space so footer never overlaps content */
-.board{ padding-bottom: 64px; }
+/* Reserve space so footer never overlaps the board */
+.kioskApp{
+  padding-bottom: 86px;
+}
 
-
-/* Force remove Radar / Showing status line in kiosk (all orientations) */
+/* Remove kiosk status line everywhere (kept in DOM for JS compatibility) */
 .statusLine{ display:none !important; }
 #radarLine, #statusText{ display:none !important; }
 
+/* -------------------------------
+   BOLD READABILITY SCALE (KIOSK)
+   Safe: adjusts only target lines,
+   preserves baseline layout.
+-------------------------------- */
+:root{
+  --k-sub-size: clamp(30px, 3.2vw, 54px);     /* callsign + aircraft */
+  --k-sub-weight: 900;
 
+  --k-extras-size: clamp(34px, 3.6vw, 64px);  /* phase + squawk */
+  --k-extras-weight: 900;
 
-/* ===============================
-   BOLD DISPLAY SCALE (KIOSK)
-   Large-format signage styling
-================================ */
-
-/* Airline title slightly larger */
-.line.airline {
-  font-size: clamp(42px, 5vw, 88px);
-  font-weight: 800;
-  letter-spacing: 0.02em;
-}
-
-/* Callsign + aircraft line */
-.line.sub {
-  font-size: clamp(34px, 4vw, 64px);
-  font-weight: 800;
-  letter-spacing: 0.04em;
-}
-
-.callsign {
-  font-size: 1.08em;
-  font-weight: 900;
-}
-
-.model {
-  font-size: 1em;
-  opacity: 0.95;
-  font-weight: 700;
-}
-
-/* ICAO stays small but clearer */
-.line.tiny {
-  font-size: clamp(16px, 1.4vw, 22px);
-  opacity: 0.8;
-}
-
-/* VS + Squawk (Phase + Code) */
-.kioskExtras {
-  margin-top: 36px;
-  font-size: clamp(38px, 4.2vw, 72px);
-  font-weight: 900;
-  letter-spacing: 0.05em;
-}
-
-.xDot {
-  margin: 0 22px;
-  opacity: 0.5;
-}
-
-/* Extra bottom breathing room */
-.board {
-  padding-bottom: 150px;
-}
-
-
-
-
-/* ===============================
-   EXTRA BIG DISPLAY SCALE (KIOSK)
-   Overrides "BOLD DISPLAY SCALE"
-   Last-in-file so it wins.
-================================ */
-
-/* Airline title */
-.line.airline{
-  font-size: clamp(52px, 6.4vw, 112px);
-  font-weight: 900;
-  letter-spacing: 0.02em;
+  --k-icao-size: clamp(16px, 1.4vw, 22px);    /* ICAO line */
 }
 
 /* Callsign + aircraft line */
 .line.sub{
-  font-size: clamp(44px, 5.4vw, 86px);
-  font-weight: 900;
+  font-size: var(--k-sub-size);
+  font-weight: var(--k-sub-weight);
+  letter-spacing: 0.04em;
+}
+
+/* Phase + Squawk — actual size is on .xv and .xDot */
+.kioskExtras .xv{
+  font-size: var(--k-extras-size);
+  font-weight: var(--k-extras-weight);
   letter-spacing: 0.05em;
 }
-
-.callsign{
-  font-size: 1.12em;
-  font-weight: 950;
-}
-
-.model{
-  font-size: 1.00em;
-  font-weight: 800;
-  opacity: 0.97;
-}
-
-/* VS + Squawk row */
-.kioskExtras{
-  margin-top: 44px;
-  font-size: clamp(54px, 6.2vw, 110px);
-  font-weight: 950;
-  letter-spacing: 0.06em;
-}
-
-.xDot{
-  margin: 0 26px;
-  opacity: 0.52;
-}
-
-/* Keep ICAO readable but still secondary */
-.line.tiny{
-  font-size: clamp(18px, 1.8vw, 26px);
-  opacity: 0.82;
-}
-
-/* Give the board more breathing room for the larger type */
-.board{
-  padding-bottom: 170px;
-}
-
-/* Landscape: push even bigger for TV / iPad landscape */
-@media (orientation: landscape) and (min-width: 900px){
-  .line.airline{ font-size: clamp(64px, 5.6vw, 140px); }
-  .line.sub{ font-size: clamp(54px, 4.8vw, 110px); }
-  .kioskExtras{ font-size: clamp(64px, 5.2vw, 140px); }
-}
-
-
-
-
-/* ===============================
-   PHASE + SQUAWK BIGGER (KIOSK)
-   Override inner span sizes (.xv/.xDot define actual font-size)
-================================ */
-.kioskExtras .xv{
-  font-size: clamp(44px, 5.4vw, 92px) !important;
-  font-weight: 950 !important;
-  letter-spacing: 0.06em !important;
-}
 .kioskExtras .xDot{
-  font-size: clamp(44px, 5.4vw, 92px) !important;
-  margin: 0 26px !important;
-  opacity: 0.55 !important;
+  font-size: var(--k-extras-size);
+  font-weight: var(--k-extras-weight);
+  margin: 0 22px;
+  opacity: 0.55;
 }
 
-/* ICAO moved below Phase/Squawk */
+/* ICAO centered with the board */
 .line.tiny{
-  margin-top: 18px;
+  font-size: var(--k-icao-size);
+  width: 100%;
   text-align: center;
-  font-size: clamp(18px, 1.8vw, 28px);
   opacity: 0.78;
 }
+.line.tiny .tinyLabel,
+.line.tiny .tinyValue{
+  display: inline-block;
+}
 
-/* Landscape: even larger for TV/iPad */
+/* Landscape boost for big screens (iPad/TV) */
 @media (orientation: landscape) and (min-width: 900px){
-  .kioskExtras .xv{ font-size: clamp(56px, 4.8vw, 120px) !important; }
-  .kioskExtras .xDot{ font-size: clamp(56px, 4.8vw, 120px) !important; }
-  .line.tiny{ font-size: clamp(20px, 1.2vw, 30px); }
-}
-
-
-
-
-/* ===============================
-   PORTRAIT SAFETY LAYOUT
-   Prevent top/bottom overlap after big type scaling
-================================ */
-@media (orientation: portrait){
-  .board{
-    row-gap: clamp(18px, 3.0vmin, 32px);
-  }
-  .topPane{
-    padding-bottom: clamp(18px, 3.2vmin, 34px);
-  }
-  .mainText{
-    padding-bottom: clamp(10px, 2.0vmin, 18px);
-  }
-  .line.sub{
-    margin-top: clamp(8px, 1.6vmin, 14px);
-    margin-bottom: clamp(14px, 2.6vmin, 22px);
-  }
-  .bottomPane{
-    padding-top: clamp(22px, 3.6vmin, 42px) !important;
-  }
-  .statsRow{
-    margin-top: clamp(10px, 2.0vmin, 18px);
-  }
-
-  /* Center ICAO with the rest of the board */
-  .line.tiny{
-    width: 100%;
-    text-align: center;
-  }
-  .line.tiny .tinyLabel,
-  .line.tiny .tinyValue{
-    display: inline-block;
-    text-align: center;
+  :root{
+    --k-sub-size: clamp(42px, 3.6vw, 72px);
+    --k-extras-size: clamp(44px, 3.8vw, 78px);
   }
 }
 
+/* Small screens (iPhone landscape/short height): prevent collisions */
+@media (max-height: 520px){
+  :root{
+    --k-sub-size: clamp(26px, 3.0vw, 44px);
+    --k-extras-size: clamp(28px, 3.2vw, 50px);
+  }
+}

@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>FlightsAboveMe — Kiosk</title>
-  <link rel="stylesheet" href="./kiosk.css?v=199">
+  <link rel="stylesheet" href="./kiosk.css?v=195">
 </head>
 
 <body class="kiosk">
@@ -39,7 +39,12 @@
             <span class="sep">•</span>
             <span id="model" class="model">—</span>
           </div>
-</div>
+
+          <div class="line tiny">
+            <span class="tinyLabel">ICAO24</span>
+            <span id="icao24" class="tinyValue">—</span>
+          </div>
+        </div>
       </section>
 
       <section class="bottomPane">
@@ -71,15 +76,7 @@
           <span id="squawk" class="xv">—</span>
         </div>
 
-
-          <div class="line tiny">
-            <span class="tinyLabel">ICAO24</span>
-            <span id="icao24" class="tinyValue">—</span>
-          </div>
-        
-
-
-        <div class="statusLine" style="display:none">
+        <div class="statusLine">
           <span id="radarLine">Radar: —</span>
           <span class="dot">•</span>
           <span id="statusText">Booting…</span>
@@ -109,7 +106,7 @@
     <div id="errBox" class="errBox hidden"></div>
 
     <footer class="kiosk-footer">
-  © 2026 FlightsAboveMe
+
 </footer>
   </div>
 
@@ -171,17 +168,17 @@
     })();
   </script>
 
-  <script src="./app.js?v=199"></script>
+  <script src="./app.js?v=195"></script>
+<footer class="legal-footer" aria-label="Legal notice">
+  <div class="legal-inner">
+    <p>
+      Airline names and logos are trademarks of their respective owners.
+      Flight data is provided for informational purposes only and may be delayed,
+      incomplete, or inaccurate. Not for operational or navigation use.
+    </p>
+    <p class="legal-copy">© 2026 FlightsAboveMe</p>
+  </div>
+</footer>
 
-    <footer class="fabm-footer" aria-label="Legal notice">
-      <div class="fabm-legal">
-        Airline names and logos are trademarks of their respective owners.
-      </div>
-      <div class="fabm-legal">
-        Flight data is provided for informational purposes only and may be delayed, incomplete, or inaccurate.
-        Not for operational or navigation use.
-      </div>
-    </footer>
-
-  </body>
+</body>
 </html>
