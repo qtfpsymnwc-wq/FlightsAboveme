@@ -746,62 +746,71 @@ body{
 }
 
 
-/* -------------------------------
-   Legal Footer (Kiosk)
-   STATIC (no overlay) + safe-area
--------------------------------- */
+/* ===============================
+   Kiosk Footer: STATIC (no overlap)
+================================ */
 .kioskApp{
-  /* Make footer take real space instead of overlaying content */
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
-
-.board{
-  flex: 1 1 auto;
-}
+.board{ flex: 1 1 auto; }
 
 .legal-footer{
   position: static;
-  margin-top: 0;
-  padding: 10px 12px 12px;
+  margin: 0;
+  padding: 8px 12px 10px;
   border-top: 1px solid rgba(255,255,255,.08);
-  background: linear-gradient(to top, rgba(0,0,0,.60), rgba(0,0,0,.20));
+  background: linear-gradient(to top, rgba(0,0,0,.55), rgba(0,0,0,.22));
   text-align: center;
 }
+.legal-inner{ max-width: 980px; margin: 0 auto; }
 .legal-footer p{
   margin: 0;
-  font-size: 0.62rem;
-  line-height: 1.35;
+  font-size: 0.58rem;
+  line-height: 1.25;
   opacity: 0.55;
 }
 .legal-copy{
-  margin-top: 6px;
-  font-size: 0.62rem;
-  opacity: 0.50;
+  margin-top: 4px;
+  font-size: 0.58rem;
+  opacity: 0.48;
 }
 
-/* Remove kiosk status line everywhere (kept in DOM for JS compatibility) */
+/* Remove Radar/Showing/Kiosk status line */
 .statusLine{ display:none !important; }
 #radarLine, #statusText{ display:none !important; }
 
-/* -------------------------------
-   Kiosk Type Scale (Safe + Bold)
--------------------------------- */
+/* ===============================
+   ICAO: centered, consistent (all modes)
+================================ */
+.line.tiny{
+  width: 100%;
+  text-align: center;
+  margin: clamp(10px, 1.6vmin, 16px) 0 clamp(8px, 1.2vmin, 12px);
+  opacity: 0.72;
+}
+.line.tiny .tinyLabel,
+.line.tiny .tinyValue{
+  display: inline-block;
+}
+
+/* ===============================
+   Bold readability bump (SAFE)
+   (doesn't change layout structure)
+================================ */
 :root{
   --k-sub-size: clamp(30px, 3.2vw, 54px);
   --k-extras-size: clamp(34px, 3.6vw, 64px);
 }
 
-/* Callsign + aircraft line */
 .line.sub{
   font-size: var(--k-sub-size);
   font-weight: 900;
   letter-spacing: 0.04em;
 }
 
-/* Phase + squawk (actual size) */
 .kioskExtras .xv{
   font-size: var(--k-extras-size);
   font-weight: 900;
@@ -814,27 +823,15 @@ body{
   opacity: 0.55;
 }
 
-/* ICAO centered under callsign/model in BOTH portrait + landscape */
-.line.tiny{
-  width: 100%;
-  text-align: center;
-  margin-top: clamp(10px, 1.6vmin, 16px);
-  opacity: 0.78;
-}
-.line.tiny .tinyLabel,
-.line.tiny .tinyValue{
-  display: inline-block;
-}
-
-/* Landscape: slightly larger */
+/* Landscape: a touch bigger on big screens */
 @media (orientation: landscape) and (min-width: 900px){
   :root{
-    --k-sub-size: clamp(40px, 3.4vw, 70px);
-    --k-extras-size: clamp(44px, 3.6vw, 76px);
+    --k-sub-size: clamp(38px, 3.2vw, 66px);
+    --k-extras-size: clamp(42px, 3.4vw, 74px);
   }
 }
 
-/* iPhone small screens: keep footer readable */
+/* iPhone constraints: keep footer compact */
 @media (max-width: 430px){
-  .legal-footer p{ font-size: 0.58rem; line-height: 1.25; }
+  .legal-footer p{ font-size: 0.54rem; line-height: 1.2; }
 }
