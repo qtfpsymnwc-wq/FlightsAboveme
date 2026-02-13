@@ -831,3 +831,68 @@ body{
   padding-bottom: 150px;
 }
 
+
+
+
+/* ===============================
+   EXTRA BIG DISPLAY SCALE (KIOSK)
+   Overrides "BOLD DISPLAY SCALE"
+   Last-in-file so it wins.
+================================ */
+
+/* Airline title */
+.line.airline{
+  font-size: clamp(52px, 6.4vw, 112px);
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+
+/* Callsign + aircraft line */
+.line.sub{
+  font-size: clamp(44px, 5.4vw, 86px);
+  font-weight: 900;
+  letter-spacing: 0.05em;
+}
+
+.callsign{
+  font-size: 1.12em;
+  font-weight: 950;
+}
+
+.model{
+  font-size: 1.00em;
+  font-weight: 800;
+  opacity: 0.97;
+}
+
+/* VS + Squawk row */
+.kioskExtras{
+  margin-top: 44px;
+  font-size: clamp(54px, 6.2vw, 110px);
+  font-weight: 950;
+  letter-spacing: 0.06em;
+}
+
+.xDot{
+  margin: 0 26px;
+  opacity: 0.52;
+}
+
+/* Keep ICAO readable but still secondary */
+.line.tiny{
+  font-size: clamp(18px, 1.8vw, 26px);
+  opacity: 0.82;
+}
+
+/* Give the board more breathing room for the larger type */
+.board{
+  padding-bottom: 170px;
+}
+
+/* Landscape: push even bigger for TV / iPad landscape */
+@media (orientation: landscape) and (min-width: 900px){
+  .line.airline{ font-size: clamp(64px, 5.6vw, 140px); }
+  .line.sub{ font-size: clamp(54px, 4.8vw, 110px); }
+  .kioskExtras{ font-size: clamp(64px, 5.2vw, 140px); }
+}
+
