@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>FlightsAboveMe — Kiosk</title>
+  <link rel="stylesheet" href="./kiosk.css?v=200">
+</head>
+
+<body class="kiosk">
+  <div id="app" class="kioskApp">
+
+    <header class="topBar">
+      <div class="appName">FlightsAboveMe</div>
+      <a class="exitBtn" href="./index.html" aria-label="Exit kiosk mode">Exit</a>
+    </header>
+
+    <main class="board" aria-label="Flight kiosk display">
+
+      <section class="topPane">
+        <div class="logoPane">
+          <img id="airlineLogo" class="logo hidden" alt="Airline logo" loading="lazy" />
+        </div>
+
+        <div class="mainText">
+          <div id="airline" class="line airline">—</div>
+
+          <!-- Route forced to 2 lines:
+               Line 1: ORIGIN →     Line 2: DESTINATION
+               (We do this with tiny UI-only JS below.)
+          -->
+          <div class="routeBlock">
+            <div id="routeLine1" class="line route route1">—</div>
+            <div id="routeLine2" class="line route route2">—</div>
+          </div>
+
+          <div class="line sub">
+            <span id="callsign" class="callsign">—</span>
+            <span class="sep">•</span>
+            <span id="model" class="model">—</span>
+          </div>
+</div>
+      </section>
+
+      <section class="bottomPane">
+        <div class="statsRow">
+          <div class="stat">
+            <div class="k">ALT</div>
+            <div class="v" id="alt">—</div>
+          </div>
+          <div class="stat">
+            <div class="k">SPD</div>
+            <div class="v" id="spd">—</div>
+          </div>
+        </div>
+
+        <div class="statsRow">
+          <div class="stat">
+            <div class="k">TRK</div>
+            <div class="v" id="dir">—</div>
+          </div>
+          <div class="stat">
+            <div class="k">DIST</div>
+            <div class="v" id="dist">—</div>
+          </div>
+        </div>
+
+        <div class="kioskExtras" aria-label="Phase and squawk">
+          <span id="vs" class="xv">—</span>
+          <span id="sqSep" class="xDot">•</span>
+          <span id="squawk" class="xv">—</span>
+        </div>
+
+
+          <div class="line tiny">
+            <span class="tinyLabel">ICAO24</span>
+            <span id="icao24" class="tinyValue">—</span>
+          </div>
+        
+
+
+        <div class="statusLine" style="display:none">
+          <span id="radarLine">Radar: —</span>
+          <span class="dot">•</span>
+          <span id="statusText">Booting…</span>
+        </div>
+      </section>
+
+      <!-- Compatibility nodes kept for existing JS expectations -->
+      <section class="compatHidden" aria-hidden="true">
+        <div id="route">—</div>
+
+        <img id="airlineLogo2" class="hidden" alt="" />
+        <div id="airline2">—</div>
+        <div id="callsign2">—</div>
+        <div id="route2">—</div>
+        <div id="model2">—</div>
+        <div id="icao242">—</div>
+        <div id="alt2">—</div>
+        <div id="spd2">—</div>
+        <div id="dir2">—</div>
+        <div id="dist2">—</div>
+        <div id="vs2">—</div>
+        <div id="squawk2">—</div>
+      </section>
+
+    </main>
+
+    <div id="errBox" class="errBox hidden"></div>
+
+    <footer class="kiosk-footer">
+  © 2026 FlightsAboveMe
+</footer>
+  </div>
+
+  <script>
+    // Flag kiosk mode without changing Worker/polling behavior.
+    window.__KIOSK_MODE__ = true;
+
+    // UI-only: force route into two consistent lines (Origin → / Destination)
+    (function() {
+      const src = document.getElementById('route');
+      const l1 = document.getElementById('routeLine1');
+      const l2 = document.getElementById('routeLine2');
+
+      if (!src || !l1 || !l2) return;
+
+      const splitRoute = () => {
+        const raw = (src.textContent || '').trim();
+        if (!raw || raw === '—') { l1.textContent = '—'; l2.textContent = ''; return; }
+
+        // Code-only route (e.g. "ORD → LAX"): render on ONE line.
+        // IMPORTANT: check this FIRST so kiosk portrait (which hides line 2)
+        // never drops the destination.
+        const m = raw.match(/^\s*([A-Z0-9]{2,4})\s*(?:→|->|-|–|—|to)\s*([A-Z0-9]{2,4})\s*$/i);
+        if (m) {
+          l1.textContent = `${m[1].toUpperCase()} \u2192 ${m[2].toUpperCase()}`;
+          l2.textContent = '';
+          return;
+        }
+
+        // Preferred: split on a route separator if present.
+        // Works for both short codes ("ORD → LAX") and long airport strings
+        // ("New York (LGA) → Fayetteville (XNA)")
+        const sepMatch = raw.match(/\s*(→|->|\s-\s|\s–\s|\s—\s|\sto\s)\s*/i);
+        if (sepMatch) {
+          const sep = sepMatch[1];
+          const parts = raw.split(new RegExp(`\\s*${sep.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\s*`, 'i'));
+          if (parts.length >= 2) {
+            const left = (parts[0] || '').trim();
+            const right = parts.slice(1).join(' ').trim();
+            // Always render arrow at the end of line 1
+            l1.textContent = left ? `${left} \u2192` : '\u2192';
+            l2.textContent = right;
+            return;
+          }
+        }
+
+        // Fallback: split near the middle, but prefer splitting at the nearest space.
+        const mid = Math.max(1, Math.floor(raw.length / 2));
+        let cut = raw.lastIndexOf(' ', mid);
+        if (cut < 0) cut = mid;
+        l1.textContent = raw.slice(0, cut).trim();
+        l2.textContent = raw.slice(cut).trim();
+      };
+
+      // Initial + observe changes from app.js updates
+      splitRoute();
+      const obs = new MutationObserver(splitRoute);
+      obs.observe(src, { childList: true, characterData: true, subtree: true });
+    })();
+  </script>
+
+  <script src="./app.js?v=200"></script>
+
+    <footer class="fabm-footer" aria-label="Legal notice">
+      <div class="fabm-legal">
+        Airline names and logos are trademarks of their respective owners.
+      </div>
+      <div class="fabm-legal">
+        Flight data is provided for informational purposes only and may be delayed, incomplete, or inaccurate.
+        Not for operational or navigation use.
+      </div>
+    </footer>
+
+  </body>
+</html>
