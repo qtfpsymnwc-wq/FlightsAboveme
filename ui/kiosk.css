@@ -929,3 +929,43 @@ body{
   .line.tiny{ font-size: clamp(20px, 1.2vw, 30px); }
 }
 
+
+
+
+/* ===============================
+   PORTRAIT SAFETY LAYOUT
+   Prevent top/bottom overlap after big type scaling
+================================ */
+@media (orientation: portrait){
+  .board{
+    row-gap: clamp(18px, 3.0vmin, 32px);
+  }
+  .topPane{
+    padding-bottom: clamp(18px, 3.2vmin, 34px);
+  }
+  .mainText{
+    padding-bottom: clamp(10px, 2.0vmin, 18px);
+  }
+  .line.sub{
+    margin-top: clamp(8px, 1.6vmin, 14px);
+    margin-bottom: clamp(14px, 2.6vmin, 22px);
+  }
+  .bottomPane{
+    padding-top: clamp(22px, 3.6vmin, 42px) !important;
+  }
+  .statsRow{
+    margin-top: clamp(10px, 2.0vmin, 18px);
+  }
+
+  /* Center ICAO with the rest of the board */
+  .line.tiny{
+    width: 100%;
+    text-align: center;
+  }
+  .line.tiny .tinyLabel,
+  .line.tiny .tinyValue{
+    display: inline-block;
+    text-align: center;
+  }
+}
+
