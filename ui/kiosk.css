@@ -845,3 +845,54 @@ body{
     --k-extras-size: clamp(28px, 3.2vw, 50px);
   }
 }
+
+
+
+/* ===============================
+   iPHONE + SAFE-AREA FIXES (KIOSK)
+   - Prevent footer overlap (Safari bottom chrome)
+   - Place ICAO centered under callsign/model
+================================ */
+
+/* ICAO centered directly under callsign/model */
+.line.tiny{
+  width: 100% !important;
+  text-align: center !important;
+  margin-top: clamp(10px, 1.6vmin, 16px);
+  margin-bottom: clamp(6px, 1.2vmin, 10px);
+  opacity: 0.78;
+}
+.line.tiny .tinyLabel,
+.line.tiny .tinyValue{
+  display: inline-block;
+  text-align: center;
+}
+
+/* Footer: keep fixed, but reserve enough room for it + safe-area */
+.kioskApp{
+  padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px));
+}
+
+/* Small screens need more breathing room (iPhone portrait/landscape) */
+@media (max-width: 430px){
+  .kioskApp{
+    padding-bottom: calc(190px + env(safe-area-inset-bottom, 0px));
+  }
+  .legal-footer p{
+    font-size: 0.58rem;
+    line-height: 1.25;
+  }
+}
+
+/* Short-height screens (iPhone landscape) */
+@media (max-height: 520px){
+  .kioskApp{
+    padding-bottom: calc(170px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Ensure the extras row never sits inside the footer area */
+.bottomPane{
+  padding-bottom: clamp(14px, 2.0vmin, 22px);
+}
+
