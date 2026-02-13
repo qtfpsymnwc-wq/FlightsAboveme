@@ -816,23 +816,20 @@ body.kiosk .kioskSecondaryMini{ display:none; }
 .extraStats .k{ font-size: 10px; }
 .extraStats .v{ font-size: 12px; }
 
+
 /* -------------------------------
    Header (main layout only)
    - Single controlled layout
-   - Left-aligned logo
-   - No media-query overrides for logo sizing
+   - Left-aligned logo only (no text)
+   - ONE logo rule (no media-query overrides)
    - Header height locked (<= 72px)
 -------------------------------- */
 .topbar{
   height: 72px;
   max-height: 72px;
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 12px;
+  padding: 8px 12px;
   overflow: hidden;
+  gap: 12px;
 }
 
 .topbar .brand{
@@ -842,7 +839,7 @@ body.kiosk .kioskSecondaryMini{ display:none; }
   min-width: 0;
 }
 
-/* Hide any legacy brand text/dot if present (safe no-op for current HTML) */
+/* Hide any legacy brand text/dot if present */
 .topbar .brand .dot,
 .topbar .brand .brandText{
   display: none !important;
@@ -850,14 +847,12 @@ body.kiosk .kioskSecondaryMini{ display:none; }
 
 /* ONE logo rule */
 .topbar .siteLogo{
-  /* Slightly larger minimum so the brand doesn't feel like a favicon on iPhone portrait */
-  height: clamp(36px, 6vw, 56px);
+  height: clamp(44px, 8vw, 56px);
   width: auto;
   display: block;
-  max-width: min(360px, 70vw);
+  max-width: min(420px, 70vw);
 }
 
-/* Keep the right side from forcing the header taller */
 .topbar .right{
   display: flex;
   align-items: center;
