@@ -832,3 +832,23 @@ body.kiosk .kioskSecondaryMini{ display:none; }
     height: 40px;
   }
 }
+
+
+/* -------------------------------
+   Header Logo (tight-cropped)
+-------------------------------- */
+.brand{
+  display: flex;
+  align-items: center;
+}
+
+.siteLogo{
+  height: 34px;
+  width: auto;
+  max-width: min(240px, 60vw);
+  display: block;
+}
+
+@media (min-width: 900px){
+  .siteLogo{ height: 40px; max-width: 320px; }
+}
