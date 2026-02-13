@@ -4,14 +4,14 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>FlightsAboveMe — Kiosk</title>
-  <link rel="stylesheet" href="./kiosk.css?v=206">
+  <link rel="stylesheet" href="./kiosk.css?v=207">
 </head>
 
 <body class="kiosk">
   <div id="app" class="kioskApp">
 
     <header class="topBar">
-      <div class="appName">FlightsAboveMe</div>
+      <div class="appName"><img src="flightsaboveme-logo-tight.png" alt="FlightsAboveMe" class="siteLogo"></div>
       <a class="exitBtn" href="./index.html" aria-label="Exit kiosk mode">Exit</a>
     </header>
 
@@ -106,7 +106,9 @@
     <div id="errBox" class="errBox hidden"></div>
 
     <footer class="kiosk-footer">
-  © 2026 FlightsAboveMe
+  <div class="kiosk-legal">Airline names and logos are trademarks of their respective owners.</div>
+  <div class="kiosk-legal">Flight data is informational and may be delayed, incomplete, or inaccurate. Not for operational or navigation use.</div>
+  <div class="kiosk-copy">© 2026 FlightsAboveMe</div>
 </footer>
   </div>
 
@@ -168,6 +170,6 @@
     })();
   </script>
 
-  <script src="./app.js?v=206"></script>
+  <script src="./app.js?v=207"></script>
 </body>
 </html>
