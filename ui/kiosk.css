@@ -774,3 +774,60 @@ body{
 /* Force remove Radar / Showing status line in kiosk (all orientations) */
 .statusLine{ display:none !important; }
 #radarLine, #statusText{ display:none !important; }
+
+
+
+/* ===============================
+   BOLD DISPLAY SCALE (KIOSK)
+   Large-format signage styling
+================================ */
+
+/* Airline title slightly larger */
+.line.airline {
+  font-size: clamp(42px, 5vw, 88px);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+/* Callsign + aircraft line */
+.line.sub {
+  font-size: clamp(34px, 4vw, 64px);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.callsign {
+  font-size: 1.08em;
+  font-weight: 900;
+}
+
+.model {
+  font-size: 1em;
+  opacity: 0.95;
+  font-weight: 700;
+}
+
+/* ICAO stays small but clearer */
+.line.tiny {
+  font-size: clamp(16px, 1.4vw, 22px);
+  opacity: 0.8;
+}
+
+/* VS + Squawk (Phase + Code) */
+.kioskExtras {
+  margin-top: 36px;
+  font-size: clamp(38px, 4.2vw, 72px);
+  font-weight: 900;
+  letter-spacing: 0.05em;
+}
+
+.xDot {
+  margin: 0 22px;
+  opacity: 0.5;
+}
+
+/* Extra bottom breathing room */
+.board {
+  padding-bottom: 150px;
+}
+
