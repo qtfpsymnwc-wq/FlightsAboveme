@@ -804,20 +804,25 @@ body{
 
 
 /* -------------------------------
-   Header Logo (tight-cropped)
+   Header: logo-only brand (icon+text baked into image)
 -------------------------------- */
-.brand{
-  display: flex;
-  align-items: center;
+.topbar .brand{
+  display:flex;
+  align-items:center;
+  gap: 0;
 }
 
 .siteLogo{
-  height: 34px;
+  height: 36px;
   width: auto;
-  max-width: min(240px, 60vw);
-  display: block;
+  max-width: min(260px, 65vw);
+  display:block;
+}
+
+@media (max-width: 430px){
+  .siteLogo{ height: 32px; max-width: min(240px, 70vw); }
 }
 
 @media (min-width: 900px){
-  .siteLogo{ height: 40px; max-width: 320px; }
+  .siteLogo{ height: 42px; max-width: 360px; }
 }
