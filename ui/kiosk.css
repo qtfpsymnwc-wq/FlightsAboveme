@@ -896,3 +896,36 @@ body{
   .kioskExtras{ font-size: clamp(64px, 5.2vw, 140px); }
 }
 
+
+
+
+/* ===============================
+   PHASE + SQUAWK BIGGER (KIOSK)
+   Override inner span sizes (.xv/.xDot define actual font-size)
+================================ */
+.kioskExtras .xv{
+  font-size: clamp(44px, 5.4vw, 92px) !important;
+  font-weight: 950 !important;
+  letter-spacing: 0.06em !important;
+}
+.kioskExtras .xDot{
+  font-size: clamp(44px, 5.4vw, 92px) !important;
+  margin: 0 26px !important;
+  opacity: 0.55 !important;
+}
+
+/* ICAO moved below Phase/Squawk */
+.line.tiny{
+  margin-top: 18px;
+  text-align: center;
+  font-size: clamp(18px, 1.8vw, 28px);
+  opacity: 0.78;
+}
+
+/* Landscape: even larger for TV/iPad */
+@media (orientation: landscape) and (min-width: 900px){
+  .kioskExtras .xv{ font-size: clamp(56px, 4.8vw, 120px) !important; }
+  .kioskExtras .xDot{ font-size: clamp(56px, 4.8vw, 120px) !important; }
+  .line.tiny{ font-size: clamp(20px, 1.2vw, 30px); }
+}
+
