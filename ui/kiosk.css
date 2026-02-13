@@ -748,19 +748,27 @@ body{
 
 /* -------------------------------
    Legal Footer (Kiosk)
-   Fixed, non-overlapping
+   STATIC (no overlay) + safe-area
 -------------------------------- */
+.kioskApp{
+  /* Make footer take real space instead of overlaying content */
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.board{
+  flex: 1 1 auto;
+}
+
 .legal-footer{
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  position: static;
+  margin-top: 0;
   padding: 10px 12px 12px;
   border-top: 1px solid rgba(255,255,255,.08);
-  background: linear-gradient(to top, rgba(0,0,0,.60), rgba(0,0,0,0));
+  background: linear-gradient(to top, rgba(0,0,0,.60), rgba(0,0,0,.20));
   text-align: center;
-  z-index: 50;
-  pointer-events: none;
 }
 .legal-footer p{
   margin: 0;
@@ -774,55 +782,43 @@ body{
   opacity: 0.50;
 }
 
-/* Reserve space so footer never overlaps the board */
-.kioskApp{
-  padding-bottom: 86px;
-}
-
 /* Remove kiosk status line everywhere (kept in DOM for JS compatibility) */
 .statusLine{ display:none !important; }
 #radarLine, #statusText{ display:none !important; }
 
 /* -------------------------------
-   BOLD READABILITY SCALE (KIOSK)
-   Safe: adjusts only target lines,
-   preserves baseline layout.
+   Kiosk Type Scale (Safe + Bold)
 -------------------------------- */
 :root{
-  --k-sub-size: clamp(30px, 3.2vw, 54px);     /* callsign + aircraft */
-  --k-sub-weight: 900;
-
-  --k-extras-size: clamp(34px, 3.6vw, 64px);  /* phase + squawk */
-  --k-extras-weight: 900;
-
-  --k-icao-size: clamp(16px, 1.4vw, 22px);    /* ICAO line */
+  --k-sub-size: clamp(30px, 3.2vw, 54px);
+  --k-extras-size: clamp(34px, 3.6vw, 64px);
 }
 
 /* Callsign + aircraft line */
 .line.sub{
   font-size: var(--k-sub-size);
-  font-weight: var(--k-sub-weight);
+  font-weight: 900;
   letter-spacing: 0.04em;
 }
 
-/* Phase + Squawk — actual size is on .xv and .xDot */
+/* Phase + squawk (actual size) */
 .kioskExtras .xv{
   font-size: var(--k-extras-size);
-  font-weight: var(--k-extras-weight);
+  font-weight: 900;
   letter-spacing: 0.05em;
 }
 .kioskExtras .xDot{
   font-size: var(--k-extras-size);
-  font-weight: var(--k-extras-weight);
+  font-weight: 900;
   margin: 0 22px;
   opacity: 0.55;
 }
 
-/* ICAO centered with the board */
+/* ICAO centered under callsign/model in BOTH portrait + landscape */
 .line.tiny{
-  font-size: var(--k-icao-size);
   width: 100%;
   text-align: center;
+  margin-top: clamp(10px, 1.6vmin, 16px);
   opacity: 0.78;
 }
 .line.tiny .tinyLabel,
@@ -830,55 +826,15 @@ body{
   display: inline-block;
 }
 
-/* Landscape boost for big screens (iPad/TV) */
+/* Landscape: slightly larger */
 @media (orientation: landscape) and (min-width: 900px){
   :root{
-    --k-sub-size: clamp(42px, 3.6vw, 72px);
-    --k-extras-size: clamp(44px, 3.8vw, 78px);
+    --k-sub-size: clamp(40px, 3.4vw, 70px);
+    --k-extras-size: clamp(44px, 3.6vw, 76px);
   }
 }
 
-/* Small screens (iPhone landscape/short height): prevent collisions */
-@media (max-height: 520px){
-  :root{
-    --k-sub-size: clamp(26px, 3.0vw, 44px);
-    --k-extras-size: clamp(28px, 3.2vw, 50px);
-  }
-}
-
-
-/* ===============================
-   iPhone/iPad Safari Safe-Area
-   Prevent footer overlay + center ICAO
-================================ */
-.line.tiny{
-  width: 100% !important;
-  text-align: center !important;
-  margin-top: clamp(10px, 1.6vmin, 16px);
-  margin-bottom: clamp(6px, 1.2vmin, 10px);
-}
-.line.tiny .tinyLabel,
-.line.tiny .tinyValue{
-  display: inline-block;
-}
-
-/* Reserve space for fixed footer + Safari bottom chrome */
-.kioskApp{
-  padding-bottom: calc(160px + env(safe-area-inset-bottom, 0px));
-}
-
+/* iPhone small screens: keep footer readable */
 @media (max-width: 430px){
-  .kioskApp{
-    padding-bottom: calc(210px + env(safe-area-inset-bottom, 0px));
-  }
-  .legal-footer p{
-    font-size: 0.58rem;
-    line-height: 1.25;
-  }
-}
-
-@media (max-height: 520px){
-  .kioskApp{
-    padding-bottom: calc(190px + env(safe-area-inset-bottom, 0px));
-  }
+  .legal-footer p{ font-size: 0.58rem; line-height: 1.25; }
 }
