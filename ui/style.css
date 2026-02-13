@@ -879,3 +879,29 @@ body.kiosk .kioskSecondaryMini{ display:none; }
 @media (min-width: 900px){
   .siteLogo{ height: 60px !important; max-width: 520px !important; }
 }
+
+
+/* -------------------------------
+   Header Logo sizing override (v5 bigger + no flex shrink)
+-------------------------------- */
+.topbar, .topBar{
+  min-height: 78px;
+}
+
+.topbar .brand, .topBar .appName{
+  flex: 0 0 auto;
+}
+
+.siteLogo{
+  height: 70px !important;
+  max-width: min(520px, 88vw) !important;
+  width: auto !important;
+}
+
+@media (max-width: 430px){
+  .siteLogo{ height: 60px !important; max-width: min(420px, 92vw) !important; }
+}
+
+@media (min-width: 900px){
+  .siteLogo{ height: 78px !important; max-width: 640px !important; }
+}
