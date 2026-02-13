@@ -850,7 +850,8 @@ body.kiosk .kioskSecondaryMini{ display:none; }
 
 /* ONE logo rule */
 .topbar .siteLogo{
-  height: clamp(28px, 5vw, 56px);
+  /* Slightly larger minimum so the brand doesn't feel like a favicon on iPhone portrait */
+  height: clamp(36px, 6vw, 56px);
   width: auto;
   display: block;
   max-width: min(360px, 70vw);
