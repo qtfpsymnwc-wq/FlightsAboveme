@@ -32,7 +32,7 @@ body{
   display:flex;
   align-items:center;
   justify-content:space-between;
-  /* v1.4.8.1: constrain header height; keep logo proportionate */
+  /* v1.4.8.2: constrain header height; scale logo without layout ripple */
   height:72px;
   max-height:72px;
   padding:0 14px;
@@ -817,24 +817,27 @@ body.kiosk .kioskSecondaryMini{ display:none; }
   .extraStats .extraVal{ font-size: 15px; }
   .extraStats .extraDot{ font-size: 15px; }
 }
+
 .extraStats .k{ font-size: 10px; }
-  .extraStats .v{ font-size: 12px; }
-}
+.extraStats .v{ font-size: 12px; }
 
 
 /* -------------------------------
-   Header: replace brand text with logo image
-   v1.4.8.1: single, scoped logo sizing (no media-query overrides)
+   v1.4.8.2 – Header logo proportion (scoped)
+   - Header height is constrained above (<= 72px)
+   - No media-query overrides
+   - No duplicate selectors
+   - No kiosk impact (kiosk.css is separate)
 -------------------------------- */
-.topbar .brand{ display:flex; align-items:center; }
+.topbar .brand{ display:flex; align-items:center; height:100%; min-width:0; }
 .topbar .brand .dot,
 .topbar .brand .brandText{ display:none !important; }
 
-.topbar .siteLogo{
-  height: 44px;
-  max-height: 44px;
+.topbar .brand .siteLogo{
+  height: 60px;
+  max-height: 60px;
   width: auto;
-  max-width: min(320px, 72vw);
+  max-width: min(420px, 70vw);
   display:block;
 }
 
@@ -849,5 +852,4 @@ body.kiosk .kioskSecondaryMini{ display:none; }
   text-align: center;
 }
 
-
-/* (Logo sizing consolidated above to avoid duplicate selectors) */
+/* (End) */
