@@ -32,9 +32,11 @@ body{
   display:flex;
   align-items:center;
   justify-content:space-between;
+  /* v1.4.8.1: constrain header height; keep logo proportionate */
   height:72px;
   max-height:72px;
   padding:0 14px;
+  flex-wrap:nowrap;
   border-bottom:1px solid var(--line);
   position:sticky;
   top:0;
@@ -821,36 +823,19 @@ body.kiosk .kioskSecondaryMini{ display:none; }
 
 
 /* -------------------------------
-   Header Logo
--------------------------------- */
-.siteLogo{
-  height: 34px;
-  width: auto;
-  display: block;
-}
-
-@media (min-width: 900px){
-  .siteLogo{
-    height: 40px;
-  }
-}
-
-
-/* -------------------------------
    Header: replace brand text with logo image
+   v1.4.8.1: single, scoped logo sizing (no media-query overrides)
 -------------------------------- */
 .topbar .brand{ display:flex; align-items:center; }
 .topbar .brand .dot,
 .topbar .brand .brandText{ display:none !important; }
 
-.siteLogo{
-  height: 48px;
+.topbar .siteLogo{
+  height: 44px;
+  max-height: 44px;
   width: auto;
-  max-width: min(360px, 72vw);
+  max-width: min(320px, 72vw);
   display:block;
-}
-@media (max-width: 430px){
-  .siteLogo{ height: 42px; max-width: min(320px, 78vw); }
 }
 
 /* -------------------------------
@@ -865,34 +850,4 @@ body.kiosk .kioskSecondaryMini{ display:none; }
 }
 
 
-/* -------------------------------
-   Header logo sizing (v6)
-   Keep header compact; logo readable.
--------------------------------- */
-.topbar{ min-height: 0; }
-.topbar .brand{
-  display:flex;
-  align-items:center;
-  flex: 0 0 auto;
-}
-.topbar .siteLogo{
-  height: 34px;
-  width: auto;
-  max-width: min(220px, 45vw);
-  display:block;
-}
-@media (max-width: 430px){
-  .topbar .siteLogo{ height: 30px; max-width: min(200px, 52vw); }
-}
-@media (min-width: 900px){
-  .topbar .siteLogo{ height: 38px; max-width: 260px; }
-}
-
-
-/* v1.4.8 — Scoped header logo sizing (main UI only) */
-.headerLogo{
-  height:42px;
-  width:auto;
-  max-width:min(360px,72vw);
-  display:block;
-}
+/* (Logo sizing consolidated above to avoid duplicate selectors) */
