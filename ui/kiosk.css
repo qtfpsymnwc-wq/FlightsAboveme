@@ -115,9 +115,12 @@ body{
   margin:0;
   overflow:hidden;
   background:
+    /* Full-screen dot-matrix background (extends behind header/top bar) */
     radial-gradient(1200px 700px at 50% -120px, rgba(120,160,255,.12), transparent 60%),
-    linear-gradient(180deg, rgba(255,255,255,.06), transparent 22%),
-    linear-gradient(180deg, var(--bg1), var(--bg0));
+    radial-gradient(circle at 1px 1px, rgba(255,255,255,.085) 1px, transparent 1.6px) 0 0 / 8px 8px,
+    linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.42)),
+    linear-gradient(180deg, rgba(20,30,55,.18), rgba(0,0,0,.0) 35%),
+    linear-gradient(180deg, #070a12, #04060b);
   color:var(--text);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   letter-spacing: .2px;
@@ -188,11 +191,8 @@ body{
   border: 0;
   overflow:hidden;
 
-  background:
-    radial-gradient(circle at 1px 1px, rgba(255,255,255,.085) 1px, transparent 1.6px) 0 0 / 8px 8px,
-    linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.42)),
-    linear-gradient(180deg, rgba(20,30,55,.18), rgba(0,0,0,.0) 35%),
-    linear-gradient(180deg, #070a12, #04060b);
+  /* Background moved to body so the dot matrix is continuous under the header */
+  background: transparent;
 
   display:grid;
   grid-template-rows: auto 1fr;
