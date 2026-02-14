@@ -244,7 +244,40 @@ async function kvPutAircraft(env, hex, payload, ttlSeconds = AIRCRAFT_KV_TTL_S) 
   }
 }
 
-function envBool(env, key, defVal = true) {
+
+// ---- D1 helpers (optional) ----
+// D1 is used as permanent storage for aircraft enrichment results (KV is the fast cache).
+function hasD1(env) {
+  return Boolean(env && env.DB && typeof env.DB.prepare === "function");
+}
+
+async function d1GetAircraft(env, hex) {
+  if (!hasD1(env)) return null;
+  try {
+    const h = String(hex || "").trim().toLowerCase();
+    const row = await env.DB.prepare("SELECT json FROM aircraft WHERE icao24 = ?").bind(h).first();
+    if (!row || !row.json) return null;
+    return JSON.parse(row.json);
+  } catch {
+    return null;
+  }
+}
+
+async function d1PutAircraft(env, hex, payload) {
+  if (!hasD1(env)) return;
+  try {
+    const h = String(hex || "").trim().toLowerCase();
+    const jsonStr = JSON.stringify(payload);
+    await env.DB.prepare(
+      "INSERT INTO aircraft (icao24, json, updatedAt) VALUES (?, ?, ?) " +
+      "ON CONFLICT(icao24) DO UPDATE SET json=excluded.json, updatedAt=excluded.updatedAt"
+    ).bind(h, jsonStr, new Date().toISOString()).run();
+  } catch {
+    // ignore D1 errors
+  }
+}
+
+(env, key, defVal = true) {
   const v = env?.[key];
   if (v === undefined || v === null || v === "") return defVal;
   const s = String(v).trim().toLowerCase();
@@ -836,6 +869,25 @@ export default {
         return out;
       }
 
+
+      // 2) D1 (permanent DB) — repopulates KV after KV expires
+      const d1Hit = await d1GetAircraft(env, hex);
+      if (d1Hit) {
+        ctx.waitUntil(kvPutAircraft(env, hex, d1Hit, AIRCRAFT_KV_TTL_S));
+        const out = new Response(JSON.stringify(d1Hit), {
+          status: 200,
+          headers: {
+            ...cors,
+            "Content-Type": "application/json; charset=utf-8",
+            "Cache-Control": `public, max-age=${AERODATA_AIRCRAFT_TTL_S}, s-maxage=${AERODATA_AIRCRAFT_TTL_S}`,
+            "X-Cache": "D1",
+          },
+        });
+        // also refresh Cache API for compatibility
+        ctx.waitUntil(cache.put(ck, out.clone()));
+        return out;
+      }
+
       const hit = await cache.match(ck);
       if (hit) return withCors(hit, cors, "HIT");
 
@@ -916,6 +968,7 @@ export default {
 
         ctx.waitUntil(cache.put(ck, out.clone()));
         ctx.waitUntil(kvPutAircraft(env, hex, payload, AIRCRAFT_KV_TTL_S));
+        ctx.waitUntil(d1PutAircraft(env, hex, payload));
         return out;
       } catch (err) {
         return json(
