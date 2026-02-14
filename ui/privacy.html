@@ -7,23 +7,55 @@
   <link rel="stylesheet" href="./style.css?v=211">
 </head>
 <body>
-  <div class="wrap">
-    <section class="card">
-      <h1>Privacy Policy</h1>
-      <p>
-        FlightsAboveMe does not require user accounts.
-      </p>
-      <h2>Advertising</h2>
-      <p>
-        We may use Google AdSense to serve ads. Google may use cookies
-        to personalize advertising.
-      </p>
-      <h2>Location</h2>
-      <p>
-        If you allow browser location access, coordinates are used only
-        to show nearby flights.
-      </p>
-    </section>
+  <div id="app">
+    <header class="topbar">
+      <div class="brand">
+        <a href="./index.html" aria-label="Back to FlightsAboveMe">
+          <img src="flightsaboveme-logo-tight.png?v=220" alt="FlightsAboveMe" class="siteLogo">
+        </a>
+      </div>
+      <div class="right"></div>
+    </header>
+
+    <main class="wrap">
+      <section class="card">
+        <div class="heroTop">
+          <div class="heroTitle">Privacy Policy</div>
+          <div class="heroHint">Last updated: 2026-02-14</div>
+        </div>
+
+        <div class="heroSub" style="line-height:1.65">
+          <p style="margin-top:0">
+            FlightsAboveMe is a read-only flight display. We do not require accounts to use the site.
+          </p>
+
+          <h3 style="margin:16px 0 6px; color: var(--text);">Location</h3>
+          <p style="margin:0 0 10px">
+            If you allow browser location access, your coordinates are used only to show flights near you. You can deny location access and still use the site.
+          </p>
+
+          <h3 style="margin:16px 0 6px; color: var(--text);">Advertising</h3>
+          <p style="margin:0 0 10px">
+            If ads are enabled on the main UI, we may use Google AdSense to serve advertisements. Google and its partners may use cookies or similar technologies to deliver and measure ads and to personalize advertising.
+          </p>
+
+          <h3 style="margin:16px 0 6px; color: var(--text);">Logs</h3>
+          <p style="margin:0 0 10px">
+            Like most websites, our hosting and CDN may process basic request metadata (such as time, IP address, and user agent) for security and performance.
+          </p>
+
+          <h3 style="margin:16px 0 6px; color: var(--text);">Contact</h3>
+          <p style="margin:0">
+            Questions? Email us at <span style="color:var(--text); font-weight:650;">support@flightsaboveme.com</span>.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="fabm-footer">
+      <div>© 2026 FlightsAboveMe</div>
+      <div class="fabm-links"><a href="./index.html">Home</a></div>
+    </footer>
   </div>
 </body>
 </html>
