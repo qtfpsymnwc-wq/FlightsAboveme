@@ -277,7 +277,7 @@ async function d1PutAircraft(env, hex, payload) {
   }
 }
 
-(env, key, defVal = true) {
+function envBool(env, key, defVal = true) {
   const v = env?.[key];
   if (v === undefined || v === null || v === "") return defVal;
   const s = String(v).trim().toLowerCase();
