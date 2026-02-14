@@ -32,7 +32,9 @@ body{
   display:flex;
   align-items:center;
   justify-content:space-between;
-  padding:16px 14px;
+  height:72px;
+  max-height:72px;
+  padding:0 14px;
   border-bottom:1px solid var(--line);
   position:sticky;
   top:0;
@@ -884,4 +886,13 @@ body.kiosk .kioskSecondaryMini{ display:none; }
 }
 @media (min-width: 900px){
   .topbar .siteLogo{ height: 38px; max-width: 260px; }
+}
+
+
+/* v1.4.8 — Scoped header logo sizing (main UI only) */
+.headerLogo{
+  height:42px;
+  width:auto;
+  max-width:min(360px,72vw);
+  display:block;
 }
