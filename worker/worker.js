@@ -54,6 +54,10 @@ const WARM_ENRICH_ENABLED = false;
 const AERODATA_AIRCRAFT_TTL_S = 60 * 60 * 24 * 7; // 7 days
 const AERODATA_FLIGHT_TTL_S = 60 * 60 * 6; // 6 hours
 
+// Optional (recommended): KV cache for aircraft metadata keyed by icao24.
+// If AIRCRAFT_KV binding is not configured, the worker will fall back to Cache API only.
+const AIRCRAFT_KV_TTL_S = 60 * 60 * 24 * 30; // 30 days (aircraft metadata rarely changes)
+
 // Enrichment gating (kept for compatibility, but warm enrich disabled)
 const ENRICH_MAX_REQUESTS_PER_CYCLE = 2;
 const ENRICH_DIST_APPROACH_MI = 35;
@@ -210,6 +214,34 @@ async function cachePutJson(cache, req, obj, ttlSeconds, cors) {
     },
   });
   await cache.put(req, res);
+}
+
+// ---- KV helpers (optional) ----
+function hasAircraftKV(env) {
+  return Boolean(env && env.AIRCRAFT_KV && typeof env.AIRCRAFT_KV.get === "function");
+}
+
+function kvKeyAircraft(hex) {
+  return `aircraft:${String(hex || "").trim().toLowerCase()}`;
+}
+
+async function kvGetAircraft(env, hex) {
+  if (!hasAircraftKV(env)) return null;
+  try {
+    const v = await env.AIRCRAFT_KV.get(kvKeyAircraft(hex), { type: "json" });
+    return v || null;
+  } catch {
+    return null;
+  }
+}
+
+async function kvPutAircraft(env, hex, payload, ttlSeconds = AIRCRAFT_KV_TTL_S) {
+  if (!hasAircraftKV(env)) return;
+  try {
+    await env.AIRCRAFT_KV.put(kvKeyAircraft(hex), JSON.stringify(payload), { expirationTtl: ttlSeconds });
+  } catch {
+    // ignore KV errors; Cache API remains as fallback
+  }
 }
 
 function envBool(env, key, defVal = true) {
@@ -789,6 +821,21 @@ export default {
       const cache = caches.default;
       const ck = cacheKeyAircraft(url.origin, hex);
 
+      // 1) Global KV cache (fast + shared across locations)
+      const kvHit = await kvGetAircraft(env, hex);
+      if (kvHit) {
+        const out = new Response(JSON.stringify(kvHit), {
+          status: 200,
+          headers: {
+            ...cors,
+            "Content-Type": "application/json; charset=utf-8",
+            "Cache-Control": `public, max-age=${AERODATA_AIRCRAFT_TTL_S}, s-maxage=${AERODATA_AIRCRAFT_TTL_S}`,
+            "X-Cache": "KV",
+          },
+        });
+        return out;
+      }
+
       const hit = await cache.match(ck);
       if (hit) return withCors(hit, cors, "HIT");
 
@@ -828,7 +875,8 @@ export default {
         }
 
         if (res.status === 204) {
-          const out = new Response(JSON.stringify({ ok: true, found: false, icao24: hex }), {
+          const nf = { ok: true, found: false, icao24: hex };
+          const out = new Response(JSON.stringify(nf), {
             status: 200,
             headers: {
               ...cors,
@@ -837,6 +885,8 @@ export default {
             },
           });
           ctx.waitUntil(cache.put(ck, out.clone()));
+          // Cache negative results briefly to avoid repeat lookups
+          ctx.waitUntil(kvPutAircraft(env, hex, nf, 60 * 60 * 6));
           return out;
         }
 
@@ -865,6 +915,7 @@ export default {
         });
 
         ctx.waitUntil(cache.put(ck, out.clone()));
+        ctx.waitUntil(kvPutAircraft(env, hex, payload, AIRCRAFT_KV_TTL_S));
         return out;
       } catch (err) {
         return json(
