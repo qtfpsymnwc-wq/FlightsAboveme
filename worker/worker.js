@@ -602,10 +602,6 @@ export default {
 
     const parts = url.pathname.split("/").filter(Boolean);
 
-
-    if (parts[0] === "zip" && parts[1]) {
-      return await zipLookup(parts[1], env, cors, ctx);
-    }
     if (parts[0] === "opensky" && parts[1] === "states") {
       const lamin = url.searchParams.get("lamin");
       const lomin = url.searchParams.get("lomin");
@@ -1399,6 +1395,11 @@ async function fetchADSBLOLAsOpenSky(env, bbox) {
 
       const squawk = (p.squawk || "").toString() || null;
 
+      // Best-effort aircraft type/model hint (provider-specific).
+      // If present, we append it as an extra field so the UI can display a fallback model until enrichment loads.
+      const typeHintRaw = (p.t ?? p.type ?? p.aircraft_type ?? p.aircraftType ?? p.ac_type ?? p.icaoType ?? p.model ?? "").toString().trim();
+      const typeHint = (typeHintRaw && typeHintRaw.length <= 16) ? typeHintRaw : null;
+
       return [
         icao24, callsign, "",
         time_position || null,
@@ -1414,6 +1415,7 @@ async function fetchADSBLOLAsOpenSky(env, bbox) {
         squawk,
         false,
         0,
+        typeHint,
       ];
     })
     .filter(Boolean);
@@ -1435,55 +1437,6 @@ function withCors(res, cors, cacheHint) {
   for (const [k, v] of Object.entries(cors)) h.set(k, v);
   if (cacheHint) h.set("X-Cache", cacheHint);
   return new Response(res.body, { status: res.status, headers: h });
-}
-
-async function zipLookup(usZip, env, cors, ctx){
-  const zip = String(usZip || "").trim();
-  if (!/^\d{5}$/.test(zip)) return json({ ok:false, error:"invalid_zip" }, 400, cors);
-
-  // Cache in KV (30 days) to avoid repeated external lookups
-  const kvKey = `zip:us:${zip}`;
-  try{
-    const cached = await env.AIRCRAFT_KV.get(kvKey);
-    if (cached){
-      const j = JSON.parse(cached);
-      return json({ ok:true, ...j, source:"kv" }, 200, cors);
-    }
-  }catch{}
-
-  const upstream = `https://api.zippopotam.us/us/${zip}`;
-  let res;
-  try{
-    res = await fetch(upstream, { cf: { cacheTtl: 0, cacheEverything: false } });
-  }catch(e){
-    return json({ ok:false, error:"zip_upstream_error" }, 502, cors);
-  }
-  if (res.status === 404) return new Response(null, { status: 204, headers: cors });
-  if (!res.ok) return json({ ok:false, error:"zip_upstream_error", status: res.status }, 502, cors);
-
-  let data;
-  try{ data = await res.json(); }catch{ return json({ ok:false, error:"zip_parse_error" }, 502, cors); }
-
-  const place = Array.isArray(data?.places) ? data.places[0] : null;
-  const lat = place?.latitude != null ? Number(place.latitude) : null;
-  const lon = place?.longitude != null ? Number(place.longitude) : null;
-  if (!(Number.isFinite(lat) && Number.isFinite(lon))) return new Response(null, { status: 204, headers: cors });
-
-  const payload = {
-    zip,
-    lat,
-    lon,
-    city: place["place name"] || "",
-    state: place["state abbreviation"] || place["state"] || "",
-  };
-
-  ctx?.waitUntil?.((async ()=>{
-    try{
-      await env.AIRCRAFT_KV.put(kvKey, JSON.stringify(payload), { expirationTtl: 60*60*24*30 });
-    }catch{}
-  })());
-
-  return json({ ok:true, ...payload, source:"upstream" }, 200, cors);
 }
 
 async function fetchWithTimeout(url, init, timeoutMs) {
