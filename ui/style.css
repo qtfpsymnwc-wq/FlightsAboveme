@@ -971,3 +971,9 @@ body.kiosk .kioskSecondaryMini{ display:none; }
   }
 }
 
+/* iPhone Safari sometimes renders in “desktop viewport” mode, which can prevent max-width
+   breakpoints from firing. Use physical device width to hide the Kiosk tab on phones. */
+@media (max-device-width: 480px){
+  .topbar .nav-kiosk{ display: none !important; }
+}
+
