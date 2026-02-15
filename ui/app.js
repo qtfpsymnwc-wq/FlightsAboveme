@@ -1,6 +1,6 @@
 // FlightsAboveMe UI
 const API_BASE = "https://flightsabove.t2hkmhgbwz.workers.dev";
-const UI_VERSION = "v194";
+const UI_VERSION = "v193";
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;
@@ -9,7 +9,8 @@ const BACKOFF_429_MS = 60000;
 
 // Enrichment timeouts (keep short so UI never “hangs” waiting on metadata)
 const ENRICH_TIMEOUT_MS = 4500;
-
+// Only enrich the closest flight if it's within this distance (miles)
+const ENRICH_MAX_MI = 16;
 
 // Closest-flight stability gating for AeroData enrichment (v1.4.1):
 // Require the same primary callsign for 2 consecutive cycles before queuing /flight + /aircraft.
@@ -23,7 +24,7 @@ const GEO_TIMEOUT_MS = 12000;
 const LAST_LOC_KEY = "fam_last_loc_v1";
 
 // Enrichment budgets (per “cycle”)
-// v1.2.9+: only enrich the closest flight
+// v1.2.9+: only enrich the closest flight (within ENRICH_MAX_MI)
 const LIST_AIRCRAFT_BUDGET = 0;
 const LIST_ROUTE_BUDGET = 0;
 
@@ -272,6 +273,77 @@ async function fetchJSON(url, timeoutMs=9000){
   } finally {
     clearTimeout(t);
   }
+}
+
+// ZIP fallback (US-only). Used when location permission is denied and we have no last-known location.
+function loadLastZip(){
+  try { return localStorage.getItem("fabm_zip") || ""; } catch { return ""; }
+}
+function saveLastZip(zip){
+  try { localStorage.setItem("fabm_zip", zip); } catch {}
+}
+function showZipGate(show){
+  const gate = document.getElementById("zipGate");
+  if (!gate) return;
+  gate.classList.toggle("hidden", !show);
+}
+function setZipMsg(msg){
+  const el = document.getElementById("zipMsg");
+  if (el) el.textContent = msg || "";
+}
+async function lookupZip(zip){
+  const z = String(zip || "").trim();
+  if (!/^\d{5}$/.test(z)) throw new Error("Enter a valid 5-digit ZIP");
+  const controller = new AbortController();
+  const t = setTimeout(()=>controller.abort(), 4500);
+  try{
+    const res = await fetch(`${API_BASE}/zip/${z}`, { signal: controller.signal });
+    if (res.status === 204) throw new Error("ZIP not found");
+    const j = await res.json();
+    if (!j || j.ok !== true) throw new Error(j?.error || "ZIP lookup failed");
+    return j;
+  } finally {
+    clearTimeout(t);
+  }
+}
+function promptZipLocation(){
+  return new Promise((resolve)=>{
+    const gate = document.getElementById("zipGate");
+    const input = document.getElementById("zipInput");
+    const btn = document.getElementById("zipBtn");
+    if (!gate || !input || !btn){
+      resolve(null);
+      return;
+    }
+    showZipGate(true);
+    const lastZip = loadLastZip();
+    if (lastZip) input.value = lastZip;
+    setZipMsg("");
+    const submit = async ()=>{
+      const z = String(input.value || "").replace(/\D/g,"").slice(0,5);
+      input.value = z;
+      btn.disabled = true;
+      btn.textContent = "Looking…";
+      setZipMsg("");
+      try{
+        const r = await lookupZip(z);
+        saveLastZip(z);
+        showZipGate(false);
+        resolve({ lat: Number(r.lat), lon: Number(r.lon), accuracy: 25000, zip: z });
+      }catch(e){
+        setZipMsg(String(e?.message || e));
+        btn.disabled = false;
+        btn.textContent = "Use ZIP";
+      }
+    };
+    btn.onclick = submit;
+    input.onkeydown = (ev)=>{
+      if (ev.key === "Enter") submit();
+    };
+    input.oninput = ()=>{
+      input.value = String(input.value||"").replace(/\D/g,"").slice(0,5);
+    };
+  });
 }
 
 /* Portrait route formatting: show only airport codes in kiosk portrait
@@ -600,13 +672,20 @@ async function main(){
       (e)=>reject(new Error(e.message || "Location denied")),
       { enableHighAccuracy:true, timeout:GEO_TIMEOUT_MS, maximumAge:5000 }
     );
-  }).catch((e)=>{
+  }).catch(async (e)=>{
     // v1.3.1: On flaky cellular GPS, fall back to last known location so the app still loads.
     const last = loadLastLocation();
     if (last) {
       if (statusEl) statusEl.textContent = "Using last location…";
       showErr("Location failed — using last known location");
       return { coords: { latitude: last.lat, longitude: last.lon, accuracy: last.accuracy }, __fromLast: true };
+    }
+    // If we have no last-known location, offer US ZIP entry on main UI.
+    if (statusEl) statusEl.textContent = "Enter ZIP…";
+    showErr("Location is off — enter ZIP code to continue");
+    const zipLoc = await promptZipLocation();
+    if (zipLoc) {
+      return { coords: { latitude: zipLoc.lat, longitude: zipLoc.lon, accuracy: zipLoc.accuracy }, __fromZip: true };
     }
     if (statusEl) statusEl.textContent = "Location failed";
     showErr(String(e.message || e));
@@ -758,7 +837,9 @@ async function main(){
           const sameAsLastQueue = lastEnrichQueuedKey === k;
           const recentQueue = nowMs - lastEnrichQueuedAt < 60_000;
 
-          if (stableEnough && (needAircraft || needRoute) && !(sameAsLastQueue && recentQueue)) {
+          const withinEnrichRange = Number.isFinite(lastPrimary.distanceMi) && lastPrimary.distanceMi <= ENRICH_MAX_MI;
+
+          if (withinEnrichRange && stableEnough && (needAircraft || needRoute) && !(sameAsLastQueue && recentQueue)) {
             if (needAircraft) queueEnrich("aircraft", lastPrimary);
             if (needRoute) queueEnrich("route", lastPrimary);
 
