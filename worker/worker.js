@@ -586,23 +586,6 @@ export default {
       return new Response(null, { status: 204, headers: cors });
     }
 
-    // Serve ads.txt at the domain root for Google AdSense / authorized digital sellers.
-    // NOTE: This worker has a catch-all route that otherwise serves the UI, so we must
-    // explicitly handle /ads.txt here.
-    if (url.pathname === "/ads.txt") {
-      return new Response(
-        "google.com, pub-4157780114857674, DIRECT, f08c47fec0942fa0\n",
-        {
-          status: 200,
-          headers: {
-            ...cors,
-            "content-type": "text/plain; charset=utf-8",
-            "cache-control": "public, max-age=3600",
-          },
-        }
-      );
-    }
-
     if (url.pathname === "/health") {
       return json({ ok: true, ts: new Date().toISOString(), version: WORKER_VERSION }, 200, cors);
     }
@@ -1254,6 +1237,24 @@ async function handleOpenSkyFailure({ env, cors, cache, cacheKey, ctx, status, d
     cors
   );
 }
+
+    // Serve ads.txt at the domain root for Google AdSense / authorized digital sellers.
+    // NOTE: This worker has a catch-all route that otherwise serves the UI, so we must
+    // explicitly handle /ads.txt here.
+    if (url.pathname === "/ads.txt") {
+      return new Response(
+        "google.com, pub-4157780114857674, DIRECT, f08c47fec0942fa0\n",
+        {
+          status: 200,
+          headers: {
+            ...cors,
+            "content-type": "text/plain; charset=utf-8",
+            "cache-control": "public, max-age=3600",
+          },
+        }
+      );
+    }
+
 
 // -------------------- OpenSky Auth Helpers --------------------
 
