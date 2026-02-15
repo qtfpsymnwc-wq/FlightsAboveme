@@ -64,6 +64,25 @@
   }
 }
 
+/* ✅ iPad landscape refinement
+   Problem: when airline wraps to 2 lines, vertical space gets tight and the
+   aircraft line + stats can appear to overlap.
+   Fix: slightly reduce stat + typography scale and tighten paddings on
+   tablet-height landscape screens.
+*/
+@media (orientation: landscape) and (min-width: 900px) and (max-width: 1200px) and (max-height: 900px){
+  :root{
+    --airline: clamp(52px, 7.8vmin, 118px);
+    --route:   clamp(40px, 5.8vmin, 96px);
+    --sub:     clamp(36px, 4.9vmin, 78px);
+    --statV:   clamp(54px, 8.2vmin, 132px);
+  }
+
+  .topPane{ padding: clamp(10px, 1.6vmin, 14px); }
+  .bottomPane{ padding: clamp(10px, 1.6vmin, 14px); }
+  .mainText{ gap: clamp(6px, 0.9vmin, 10px); }
+}
+
 /* Portrait baseline safety */
 @media (orientation: portrait){
   :root{
