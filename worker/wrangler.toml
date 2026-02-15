@@ -5,6 +5,7 @@ compatibility_date = "2026-02-04"
 [vars]
 # AeroDataBox (RapidAPI)
 AERODATA_HOST = "aerodatabox.p.rapidapi.com"
+AERODATA_DAILY_BUDGET = "400"  # daily upstream AeroDataBox call cap
 
 # ADS-B fallback provider (OpenSky backup)
 # Optional — defaults to https://api.adsb.lol if omitted
