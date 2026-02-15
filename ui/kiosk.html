@@ -30,8 +30,8 @@
                (We do this with tiny UI-only JS below.)
           -->
           <div class="routeBlock">
-            <div id="routeLine1" class="line route route1">—</div>
-            <div id="routeLine2" class="line route route2">—</div>
+            <div id="routeLine1" class="line route route1"></div>
+            <div id="routeLine2" class="line route route2"></div>
           </div>
 
           <div class="line sub">
@@ -116,12 +116,19 @@
       const src = document.getElementById('route');
       const l1 = document.getElementById('routeLine1');
       const l2 = document.getElementById('routeLine2');
+      const block = l1 && l1.parentElement ? l1.parentElement : null;
 
       if (!src || !l1 || !l2) return;
 
       const splitRoute = () => {
         const raw = (src.textContent || '').trim();
-        if (!raw || raw === '—') { l1.textContent = '—'; l2.textContent = ''; return; }
+        if (!raw || raw === '—') {
+          if (block) block.style.display = 'none';
+          l1.textContent = '';
+          l2.textContent = '';
+          return;
+        }
+        if (block) block.style.display = '';
 
         // Code-only route (e.g. "ORD → LAX"): render on ONE line.
         // IMPORTANT: check this FIRST so kiosk portrait (which hides line 2)
