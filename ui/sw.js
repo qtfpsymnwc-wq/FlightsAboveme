@@ -2,7 +2,8 @@
 // Cache-first for same-origin CSS/JS/images/fonts to improve repeat load speed.
 // Intentionally does NOT cache HTML documents or API responses.
 
-const CACHE_NAME = "fab-static-v1.5.2-1";
+// Bump this when you ship UI/CSS/JS updates so mobile clients pull fresh assets quickly.
+const CACHE_NAME = "fab-static-v1.5.2-2";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
@@ -57,7 +58,20 @@ self.addEventListener("fetch", (event) => {
     const cache = await caches.open(CACHE_NAME);
 
     const cached = await cache.match(cacheKey);
-    if (cached) return cached;
+    if (cached) {
+      // Stale-while-revalidate: serve cached immediately, update in background.
+      event.waitUntil((async () => {
+        try {
+          const fresh = await fetch(req);
+          if (fresh && fresh.ok && (fresh.type === "basic" || fresh.type === "cors")) {
+            await cache.put(cacheKey, fresh.clone());
+          }
+        } catch (_e) {
+          // Ignore network errors; cached response already served.
+        }
+      })());
+      return cached;
+    }
 
     const res = await fetch(req);
     if (res && res.ok && (res.type === "basic" || res.type === "cors")) {
