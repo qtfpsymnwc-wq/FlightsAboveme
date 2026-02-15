@@ -1,0 +1,26 @@
+name = "flightsabove"
+main = "worker.js"
+compatibility_date = "2026-02-04"
+
+[vars]
+# AeroDataBox (RapidAPI)
+AERODATA_HOST = "aerodatabox.p.rapidapi.com"
+AERODATA_DAILY_BUDGET = "400"  # daily upstream AeroDataBox call cap
+
+# ADS-B fallback provider (OpenSky backup)
+# Optional — defaults to https://api.adsb.lol if omitted
+ADSBLOL_BASE = "https://api.adsb.lol"
+
+# Secrets configured via:
+#   wrangler secret put <NAME>
+#
+# Required:
+#   AERODATA_KEY
+#
+# OpenSky (OAuth2 – recommended):
+#   OPENSKY_CLIENT_ID
+#   OPENSKY_CLIENT_SECRET
+#
+# (Optional legacy OpenSky basic auth if you still have it)
+#   OPENSKY_USER
+#   OPENSKY_PASS
