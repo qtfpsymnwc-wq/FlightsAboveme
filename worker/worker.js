@@ -199,6 +199,63 @@ function isNightChicago() {
   return h >= 22 || h < 7; // 10pm–7am
 }
 
+function chicagoDateKey() {
+  // YYYY-MM-DD in America/Chicago
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Chicago",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(new Date());
+    const y = parts.find((p) => p.type === "year")?.value;
+    const m = parts.find((p) => p.type === "month")?.value;
+    const d = parts.find((p) => p.type === "day")?.value;
+    if (y && m && d) return `${y}-${m}-${d}`;
+  } catch {}
+  // Fallback: UTC date
+  return new Date().toISOString().slice(0, 10);
+}
+
+function cacheKeyBudget(origin, dateKey) {
+  return new Request(
+    `${origin}/__cache/aerodata/v2/budget/${encodeURIComponent(dateKey)}`,
+    { method: "GET" }
+  );
+}
+
+async function budgetCanSpend(cache, origin, env, cors) {
+  // Hard daily budget cap for AeroDataBox upstream calls.
+  // Disabled by default (set AERODATA_DAILY_BUDGET to enable).
+  const limit = envInt(env, "AERODATA_DAILY_BUDGET", 0);
+  if (!limit || limit <= 0) return { ok: true, limit: 0, used: 0 };
+
+  const dateKey = chicagoDateKey();
+  const req = cacheKeyBudget(origin, dateKey);
+  const hit = await cache.match(req);
+  let used = 0;
+  if (hit) {
+    try {
+      const j = await hit.json();
+      used = Number(j?.used) || 0;
+    } catch {
+      used = 0;
+    }
+  }
+  if (used >= limit) return { ok: false, limit, used, dateKey };
+
+  // Best-effort increment (Cache API isn't atomic). Good enough to prevent most burn.
+  const next = used + 1;
+  await cachePutJson(
+    cache,
+    req,
+    { used: next, limit, dateKey, ts: Date.now() },
+    60 * 60 * 26,
+    cors
+  );
+  return { ok: true, limit, used: next, dateKey };
+}
+
 function cacheKeyADB(origin, path) {
   return new Request(`${origin}/__cache/aerodata/v3/${path}`, { method: "GET" });
 }
@@ -812,6 +869,22 @@ export default {
       if (gate.skip) {
         return json({ ok: false, callsign, error: "aerodata_throttled", reason: gate.code }, 200, cors);
       }
+
+      // Optional hard daily budget cap (set AERODATA_DAILY_BUDGET to enable)
+      const budget = await budgetCanSpend(cache, url.origin, env, cors);
+      if (!budget.ok) {
+        // "User sees nothing" mode: don't leak budget limits or return error JSON.
+        // If there's no cached enrichment and the budget is exhausted, return 204.
+        const out = new Response(null, {
+          status: 204,
+          headers: {
+            ...cors,
+            "Cache-Control": "public, max-age=60, s-maxage=60",
+          },
+        });
+        ctx.waitUntil(cache.put(ck, out.clone()));
+        return out;
+      }
       const upstreamUrl = `https://${env.AERODATA_HOST}/flights/callsign/${encodeURIComponent(callsign)}`;
 
       try {
@@ -996,6 +1069,22 @@ export default {
       const gate = await adbShouldSkip({ cache, origin: url.origin, env, cors, kind: "aircraft", id: hex });
       if (gate.skip) {
         return json({ ok: false, icao24: hex, error: "aerodata_throttled", reason: gate.code }, 200, cors);
+      }
+
+      // Optional hard daily budget cap (set AERODATA_DAILY_BUDGET to enable)
+      const budget = await budgetCanSpend(cache, url.origin, env, cors);
+      if (!budget.ok) {
+        // "User sees nothing" mode: don't leak budget limits or return error JSON.
+        // If there's no cached enrichment and the budget is exhausted, return 204.
+        const out = new Response(null, {
+          status: 204,
+          headers: {
+            ...cors,
+            "Cache-Control": "public, max-age=60, s-maxage=60",
+          },
+        });
+        ctx.waitUntil(cache.put(ck, out.clone()));
+        return out;
       }
       const upstreamUrl = `https://${env.AERODATA_HOST}/aircrafts/icao24/${encodeURIComponent(hex)}`;
 
