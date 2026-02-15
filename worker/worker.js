@@ -149,6 +149,27 @@ function quantize(n, step) {
   if (!Number.isFinite(x)) return "na";
   return (Math.round(x / step) * step).toFixed(2);
 }
+
+// Quantize bbox params to reduce cache fragmentation.
+// OpenSky states are inherently "now-ish"; small bbox rounding does not materially
+// change UX but significantly increases cache hit-rate across devices.
+function quantizeBbox({ lamin, lomin, lamax, lomax }, step = 0.02) {
+  const a = Number(lamin), b = Number(lomin), c = Number(lamax), d = Number(lomax);
+  if (![a, b, c, d].every(Number.isFinite)) return { lamin, lomin, lamax, lomax, ok: false };
+  const q = (x) => (Math.round(x / step) * step);
+  const qLamin = q(a);
+  const qLomin = q(b);
+  const qLamax = q(c);
+  const qLomax = q(d);
+  return {
+    lamin: qLamin.toFixed(4),
+    lomin: qLomin.toFixed(4),
+    lamax: qLamax.toFixed(4),
+    lomax: qLomax.toFixed(4),
+    ok: true,
+    step,
+  };
+}
 function warmLockKey(origin, lamin, lomin, lamax, lomax, mode) {
   const cLat = (Number(lamin) + Number(lamax)) / 2;
   const cLon = (Number(lomin) + Number(lomax)) / 2;
@@ -512,18 +533,25 @@ export default {
     const parts = url.pathname.split("/").filter(Boolean);
 
     if (parts[0] === "opensky" && parts[1] === "states") {
-      const lamin = url.searchParams.get("lamin");
-      const lomin = url.searchParams.get("lomin");
-      const lamax = url.searchParams.get("lamax");
-      const lomax = url.searchParams.get("lomax");
+      const laminRaw = url.searchParams.get("lamin");
+      const lominRaw = url.searchParams.get("lomin");
+      const lamaxRaw = url.searchParams.get("lamax");
+      const lomaxRaw = url.searchParams.get("lomax");
 
-      if (!lamin || !lomin || !lamax || !lomax) {
+      if (!laminRaw || !lominRaw || !lamaxRaw || !lomaxRaw) {
         return json(
           { ok: false, error: "missing bbox params", hint: "lamin,lomin,lamax,lomax required" },
           400,
           cors
         );
       }
+
+      // Reduce cache fragmentation by rounding bbox.
+      const qb = quantizeBbox({ lamin: laminRaw, lomin: lominRaw, lamax: lamaxRaw, lomax: lomaxRaw }, 0.02);
+      const lamin = qb.lamin;
+      const lomin = qb.lomin;
+      const lamax = qb.lamax;
+      const lomax = qb.lomax;
 
       const mode = detectOpenSkyAuthMode(env);
 
@@ -570,6 +598,8 @@ export default {
                       "Content-Type": "application/json; charset=utf-8",
                       "Cache-Control": "public, max-age=8, s-maxage=15, stale-while-revalidate=45",
                       "X-Provider": provider || "opensky",
+                      "X-BBox-Quantized": qb.ok ? "1" : "0",
+                      "X-BBox-Step": qb.ok ? String(qb.step) : "",
                     },
                   })
                 );
@@ -628,6 +658,8 @@ export default {
                           "Content-Type": "application/json; charset=utf-8",
                           "Cache-Control": "public, max-age=8, s-maxage=15, stale-while-revalidate=45",
                           "X-Provider": "adsb.lol",
+                      "X-BBox-Quantized": qb.ok ? "1" : "0",
+                      "X-BBox-Step": qb.ok ? String(qb.step) : "",
                         },
                       })
                     );
@@ -648,6 +680,8 @@ export default {
             ...cors,
             "Content-Type": "application/json; charset=utf-8",
             "Cache-Control": "public, max-age=8, s-maxage=15, stale-while-revalidate=45",
+            "X-BBox-Quantized": qb.ok ? "1" : "0",
+            "X-BBox-Step": qb.ok ? String(qb.step) : "",
             ...headersExtra,
           },
         });
