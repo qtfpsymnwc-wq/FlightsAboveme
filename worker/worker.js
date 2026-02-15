@@ -58,6 +58,8 @@ const AERODATA_AIRCRAFT_TTL_S = 60 * 60 * 24 * 7; // 7 days
 const AERODATA_FLIGHT_TTL_S = 60 * 60 * 6; // 6 hours
 const AERODATA_NEGATIVE_TTL_S = 60 * 60 * 6; // 6 hours
 
+const AERODATA_AIRCRAFT_TTL_VERIFIED_S = 60 * 60 * 24 * 30; // 30 days
+
 // Optional (recommended): KV cache for aircraft metadata keyed by icao24.
 // If AIRCRAFT_KV binding is not configured, the worker will fall back to Cache API only.
 const AIRCRAFT_KV_TTL_S = 60 * 60 * 24 * 30; // 30 days (aircraft metadata rarely changes)
@@ -289,6 +291,34 @@ function envBool(env, key, defVal = true) {
   if (["1","true","yes","on"].includes(s)) return true;
   return defVal;
 }
+
+
+function aircraftTtlS(env, record, fallbackTtlS) {
+  const verifiedTtl = envInt(env, "AERODATA_AIRCRAFT_TTL_VERIFIED_S", AERODATA_AIRCRAFT_TTL_VERIFIED_S);
+  const unverifiedTtl = envInt(env, "AERODATA_AIRCRAFT_TTL_UNVERIFIED_S", fallbackTtlS);
+  const negTtl = envInt(env, "AERODATA_NEGATIVE_TTL_S", AERODATA_NEGATIVE_TTL_S);
+
+  if (!record || typeof record !== "object") return fallbackTtlS;
+  if (record.found === false) return negTtl;
+
+  const v = record.verified;
+  if (v === true) return verifiedTtl;
+  return unverifiedTtl;
+}
+
+function adbTelemetryHeaders(kind, source, ttlS, record) {
+  const verified =
+    record && typeof record === "object" && Object.prototype.hasOwnProperty.call(record, "verified")
+      ? (record.verified === true ? "1" : (record.verified === false ? "0" : "na"))
+      : "na";
+  return {
+    "X-ADB-Kind": kind,
+    "X-ADB-Source": source,
+    "X-ADB-TTL": String(ttlS),
+    "X-ADB-Verified": verified,
+  };
+}
+
 
 function envInt(env, key, defVal) {
   const v = env?.[key];
@@ -769,6 +799,7 @@ export default {
             "Content-Type": "application/json; charset=utf-8",
             "Cache-Control": `public, max-age=${NEG_TTL_S}, s-maxage=${NEG_TTL_S}`,
             "X-Cache": "NEG",
+            ...adbTelemetryHeaders("flight", "GATED", NEG_TTL_S, null),
           },
         });
         ctx.waitUntil(cache.put(ck, out.clone()));
@@ -805,6 +836,7 @@ export default {
               "Content-Type": "application/json; charset=utf-8",
               "Cache-Control": `public, max-age=${NEG_TTL_S}, s-maxage=${NEG_TTL_S}`,
               "X-Cache": "NEG",
+              ...adbTelemetryHeaders("aircraft", "NEG", NEG_TTL_S, nf),
             },
           });
           ctx.waitUntil(cache.put(ck, out.clone()));
@@ -850,6 +882,7 @@ export default {
               "Content-Type": "application/json; charset=utf-8",
               "Cache-Control": `public, max-age=${NEG_TTL_S}, s-maxage=${NEG_TTL_S}`,
               "X-Cache": "NEG",
+              ...adbTelemetryHeaders("aircraft", "NEG", NEG_TTL_S, nf),
             },
           });
           ctx.waitUntil(cache.put(ck, out.clone()));
@@ -880,6 +913,7 @@ export default {
             ...cors,
             "Content-Type": "application/json; charset=utf-8",
             "Cache-Control": `public, max-age=${FLIGHT_TTL_S}, s-maxage=${FLIGHT_TTL_S}`,
+            ...adbTelemetryHeaders("flight", "UPSTREAM", FLIGHT_TTL_S, payload),
           },
         });
 
@@ -903,6 +937,8 @@ export default {
       const AIRCRAFT_TTL_S = envInt(env, "AERODATA_AIRCRAFT_TTL_S", AERODATA_AIRCRAFT_TTL_S);
       const NEG_TTL_S = envInt(env, "AERODATA_NEGATIVE_TTL_S", AERODATA_NEGATIVE_TTL_S);
 
+      const ttlFor = (rec) => aircraftTtlS(env, rec, AIRCRAFT_TTL_S);
+
       if (!env.AERODATA_KEY || !env.AERODATA_HOST) {
         return json(
           { ok: false, error: "aerodata_not_configured", hint: "Set AERODATA_KEY (Secret) and AERODATA_HOST (Text)" },
@@ -917,13 +953,15 @@ export default {
       // 1) Global KV cache (fast + shared across locations)
       const kvHit = await kvGetAircraft(env, hex);
       if (kvHit) {
+        const ttlS = ttlFor(kvHit);
         const out = new Response(JSON.stringify(kvHit), {
           status: 200,
           headers: {
             ...cors,
             "Content-Type": "application/json; charset=utf-8",
-            "Cache-Control": `public, max-age=${AIRCRAFT_TTL_S}, s-maxage=${AIRCRAFT_TTL_S}`,
+            "Cache-Control": `public, max-age=${ttlS}, s-maxage=${ttlS}`,
             "X-Cache": "KV",
+            ...adbTelemetryHeaders("aircraft", "KV", ttlS, kvHit),
           },
         });
         return out;
@@ -933,14 +971,16 @@ export default {
       // 2) D1 (permanent DB) — repopulates KV after KV expires
       const d1Hit = await d1GetAircraft(env, hex);
       if (d1Hit) {
+        const ttlS = ttlFor(d1Hit);
         ctx.waitUntil(kvPutAircraft(env, hex, d1Hit, AIRCRAFT_KV_TTL_S));
         const out = new Response(JSON.stringify(d1Hit), {
           status: 200,
           headers: {
             ...cors,
             "Content-Type": "application/json; charset=utf-8",
-            "Cache-Control": `public, max-age=${AIRCRAFT_TTL_S}, s-maxage=${AIRCRAFT_TTL_S}`,
+            "Cache-Control": `public, max-age=${ttlS}, s-maxage=${ttlS}`,
             "X-Cache": "D1",
+            ...adbTelemetryHeaders("aircraft", "D1", ttlS, d1Hit),
           },
         });
         // also refresh Cache API for compatibility
@@ -1034,12 +1074,15 @@ export default {
 
         const payload = { ok: true, icao24: hex, ...raw };
 
+        const ttlS = ttlFor(payload);
+
         const out = new Response(JSON.stringify(payload), {
           status: 200,
           headers: {
             ...cors,
             "Content-Type": "application/json; charset=utf-8",
-            "Cache-Control": `public, max-age=${AIRCRAFT_TTL_S}, s-maxage=${AIRCRAFT_TTL_S}`,
+            "Cache-Control": `public, max-age=${ttlS}, s-maxage=${ttlS}`,
+            ...adbTelemetryHeaders("aircraft", "UPSTREAM", ttlS, payload),
           },
         });
 
