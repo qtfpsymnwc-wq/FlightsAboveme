@@ -32,7 +32,7 @@
  *  - Fallback is only used when OpenSky fails (network/timeout/5xx) or returns 429.
  */
 
-const WORKER_VERSION = "v173";
+const WORKER_VERSION = "v174";
 
 const OPENSKY_STATES_URL = "https://opensky-network.org/api/states/all";
 const OPENSKY_TOKEN_URL =
@@ -51,8 +51,9 @@ const ADSBLOL_TIMEOUT_MS = 12000;
 const WARM_ENRICH_ENABLED = false;
 
 // TTLs
+// Allow TTL overrides via env (seconds). Defaults chosen to protect credits.
 const AERODATA_AIRCRAFT_TTL_S = 60 * 60 * 24 * 7; // 7 days
-const AERODATA_FLIGHT_TTL_S = 60 * 60 * 6; // 6 hours
+const AERODATA_FLIGHT_TTL_S = 60 * 60 * 12; // 12 hours
 
 // Optional (recommended): KV cache for aircraft metadata keyed by icao24.
 // If AIRCRAFT_KV binding is not configured, the worker will fall back to Cache API only.
@@ -148,27 +149,6 @@ function quantize(n, step) {
   const x = Number(n);
   if (!Number.isFinite(x)) return "na";
   return (Math.round(x / step) * step).toFixed(2);
-}
-
-// Quantize bbox params to reduce cache fragmentation.
-// OpenSky states are inherently "now-ish"; small bbox rounding does not materially
-// change UX but significantly increases cache hit-rate across devices.
-function quantizeBbox({ lamin, lomin, lamax, lomax }, step = 0.02) {
-  const a = Number(lamin), b = Number(lomin), c = Number(lamax), d = Number(lomax);
-  if (![a, b, c, d].every(Number.isFinite)) return { lamin, lomin, lamax, lomax, ok: false };
-  const q = (x) => (Math.round(x / step) * step);
-  const qLamin = q(a);
-  const qLomin = q(b);
-  const qLamax = q(c);
-  const qLomax = q(d);
-  return {
-    lamin: qLamin.toFixed(4),
-    lomin: qLomin.toFixed(4),
-    lamax: qLamax.toFixed(4),
-    lomax: qLomax.toFixed(4),
-    ok: true,
-    step,
-  };
 }
 function warmLockKey(origin, lamin, lomin, lamax, lomax, mode) {
   const cLat = (Number(lamin) + Number(lamax)) / 2;
@@ -533,25 +513,18 @@ export default {
     const parts = url.pathname.split("/").filter(Boolean);
 
     if (parts[0] === "opensky" && parts[1] === "states") {
-      const laminRaw = url.searchParams.get("lamin");
-      const lominRaw = url.searchParams.get("lomin");
-      const lamaxRaw = url.searchParams.get("lamax");
-      const lomaxRaw = url.searchParams.get("lomax");
+      const lamin = url.searchParams.get("lamin");
+      const lomin = url.searchParams.get("lomin");
+      const lamax = url.searchParams.get("lamax");
+      const lomax = url.searchParams.get("lomax");
 
-      if (!laminRaw || !lominRaw || !lamaxRaw || !lomaxRaw) {
+      if (!lamin || !lomin || !lamax || !lomax) {
         return json(
           { ok: false, error: "missing bbox params", hint: "lamin,lomin,lamax,lomax required" },
           400,
           cors
         );
       }
-
-      // Reduce cache fragmentation by rounding bbox.
-      const qb = quantizeBbox({ lamin: laminRaw, lomin: lominRaw, lamax: lamaxRaw, lomax: lomaxRaw }, 0.02);
-      const lamin = qb.lamin;
-      const lomin = qb.lomin;
-      const lamax = qb.lamax;
-      const lomax = qb.lomax;
 
       const mode = detectOpenSkyAuthMode(env);
 
@@ -598,8 +571,6 @@ export default {
                       "Content-Type": "application/json; charset=utf-8",
                       "Cache-Control": "public, max-age=8, s-maxage=15, stale-while-revalidate=45",
                       "X-Provider": provider || "opensky",
-                      "X-BBox-Quantized": qb.ok ? "1" : "0",
-                      "X-BBox-Step": qb.ok ? String(qb.step) : "",
                     },
                   })
                 );
@@ -658,8 +629,6 @@ export default {
                           "Content-Type": "application/json; charset=utf-8",
                           "Cache-Control": "public, max-age=8, s-maxage=15, stale-while-revalidate=45",
                           "X-Provider": "adsb.lol",
-                      "X-BBox-Quantized": qb.ok ? "1" : "0",
-                      "X-BBox-Step": qb.ok ? String(qb.step) : "",
                         },
                       })
                     );
@@ -680,8 +649,6 @@ export default {
             ...cors,
             "Content-Type": "application/json; charset=utf-8",
             "Cache-Control": "public, max-age=8, s-maxage=15, stale-while-revalidate=45",
-            "X-BBox-Quantized": qb.ok ? "1" : "0",
-            "X-BBox-Step": qb.ok ? String(qb.step) : "",
             ...headersExtra,
           },
         });
@@ -769,6 +736,25 @@ export default {
       const callsign = parts[1].trim().toUpperCase().replace(/\s+/g, "");
       if (!callsign) return json({ ok: false, error: "missing callsign" }, 400, cors);
 
+      // Credit control: skip enrichment for callsigns that look like cargo/private/misc.
+      // UI should only request /flight for the closest passenger flight.
+      if (!isLikelyPassengerCallsign(callsign)) {
+        const cache = caches.default;
+        const ck = cacheKeyFlight(url.origin, callsign);
+        const payload = { ok: false, callsign, error: "unsupported_callsign" };
+        const out = new Response(JSON.stringify(payload), {
+          status: 200,
+          headers: {
+            ...cors,
+            "Content-Type": "application/json; charset=utf-8",
+            "Cache-Control": "public, max-age=21600, s-maxage=21600",
+            "X-Reason": "non_passenger_callsign",
+          },
+        });
+        ctx.waitUntil(cache.put(ck, out.clone()));
+        return out;
+      }
+
       if (!env.AERODATA_KEY || !env.AERODATA_HOST) {
         return json(
           { ok: false, error: "aerodata_not_configured", hint: "Set AERODATA_KEY (Secret) and AERODATA_HOST (Text)" },
@@ -779,6 +765,7 @@ export default {
 
       const cache = caches.default;
       const ck = cacheKeyFlight(url.origin, callsign);
+      const flightTtl = envInt(env, "AERODATA_FLIGHT_TTL_S", AERODATA_FLIGHT_TTL_S);
 
       const hit = await cache.match(ck);
       if (hit) return withCors(hit, cors, "HIT");
@@ -857,7 +844,7 @@ export default {
           headers: {
             ...cors,
             "Content-Type": "application/json; charset=utf-8",
-            "Cache-Control": `public, max-age=${AERODATA_FLIGHT_TTL_S}, s-maxage=${AERODATA_FLIGHT_TTL_S}`,
+            "Cache-Control": `public, max-age=${flightTtl}, s-maxage=${flightTtl}`,
           },
         });
 
@@ -887,6 +874,7 @@ export default {
 
       const cache = caches.default;
       const ck = cacheKeyAircraft(url.origin, hex);
+      const aircraftTtl = envInt(env, "AERODATA_AIRCRAFT_TTL_S", AERODATA_AIRCRAFT_TTL_S);
 
       // 1) Global KV cache (fast + shared across locations)
       const kvHit = await kvGetAircraft(env, hex);
@@ -896,7 +884,7 @@ export default {
           headers: {
             ...cors,
             "Content-Type": "application/json; charset=utf-8",
-            "Cache-Control": `public, max-age=${AERODATA_AIRCRAFT_TTL_S}, s-maxage=${AERODATA_AIRCRAFT_TTL_S}`,
+            "Cache-Control": `public, max-age=${aircraftTtl}, s-maxage=${aircraftTtl}`,
             "X-Cache": "KV",
           },
         });
@@ -913,7 +901,7 @@ export default {
           headers: {
             ...cors,
             "Content-Type": "application/json; charset=utf-8",
-            "Cache-Control": `public, max-age=${AERODATA_AIRCRAFT_TTL_S}, s-maxage=${AERODATA_AIRCRAFT_TTL_S}`,
+            "Cache-Control": `public, max-age=${aircraftTtl}, s-maxage=${aircraftTtl}`,
             "X-Cache": "D1",
           },
         });
@@ -996,7 +984,7 @@ export default {
           headers: {
             ...cors,
             "Content-Type": "application/json; charset=utf-8",
-            "Cache-Control": `public, max-age=${AERODATA_AIRCRAFT_TTL_S}, s-maxage=${AERODATA_AIRCRAFT_TTL_S}`,
+            "Cache-Control": `public, max-age=${aircraftTtl}, s-maxage=${aircraftTtl}`,
           },
         });
 
