@@ -341,8 +341,11 @@ async function adbShouldSkip({ cache, origin, env, cors, kind, id }) {
   const cooldownHit = await cache.match(aerodataCooldownKey(origin));
   if (cooldownHit) return { skip: true, code: "cooldown_429" };
 
-  // Stampede lock: only one inflight enrichment at a time across endpoints
-  const lockReq = cacheKeyADB(origin, "lock/inflight");
+  // Stampede lock (per-entity): prevents multiple devices/users from triggering
+  // the same enrichment simultaneously (e.g., same icao24).
+  // NOTE: This is intentionally per (kind,id) rather than global so other aircraft
+  // can still enrich when needed.
+  const lockReq = cacheKeyADB(origin, `lock/inflight/${kind}/${encodeURIComponent(id)}`);
   const lockHit = await cache.match(lockReq);
   if (lockHit) return { skip: true, code: "locked" };
 
@@ -367,7 +370,7 @@ async function adbShouldSkip({ cache, origin, env, cors, kind, id }) {
   if (!b.ok) return { skip: true, code: "budget", budget: b };
 
   // Acquire locks (best effort)
-  await cachePutJson(cache, lockReq, { ts: Date.now(), kind, id }, 8, cors); // inflight lock
+  await cachePutJson(cache, lockReq, { ts: Date.now(), kind, id }, 12, cors); // inflight lock (short)
   await cachePutJson(cache, globalReq, { ts: Date.now() }, globalMinS, cors); // global cooldown
   await cachePutJson(cache, perReq, { ts: Date.now() }, cdS, cors); // entity cooldown
 
