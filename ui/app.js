@@ -429,13 +429,38 @@ function formatRouteForDisplay(routeText){
 
 // -------------------- Rendering --------------------
 
+/**
+ * Airline display policy:
+ * - Use enriched airlineName if present
+ * - Else use guessed airline if present
+ * - Else:
+ *   - N-number callsigns -> "General Aviation"
+ *   - Airline-pattern callsigns (AAA123) -> "Unknown Airline"
+ *   - Else: non-US country if present
+ *   - Else: blank (no "—")
+ */
+function airlineDisplayFromFlight(f){
+  const cs = normalizeCallsign(f?.callsign || "");
+  const inferred = nm(f?.airlineName) || nm(f?.airlineGuess) || nm(guessAirline(f?.callsign));
+
+  if (inferred) return inferred;
+
+  if (isNNumberCallsign(cs)) return "General Aviation";
+
+  const airlinePattern = /^[A-Z]{3}\d/;
+  if (airlinePattern.test(cs)) return "Unknown Airline";
+
+  if (f?.country && f.country !== "United States") return f.country;
+
+  return "";
+}
+
 function renderPrimary(f, radarMeta){
   if ($("callsign")) $("callsign").textContent = f.callsign || "—";
   if ($("icao24")) $("icao24").textContent = f.icao24 || "—";
 
-  const inferredAirline = f.airlineName || f.airlineGuess || guessAirline(f.callsign);
-  const countryFallback = (f.country && f.country !== "United States") ? f.country : "—";
-  if ($("airline")) $("airline").textContent = inferredAirline || countryFallback;
+  const a1 = airlineDisplayFromFlight(f);
+  if ($("airline")) $("airline").textContent = a1 || " ";
 
   const img = $("airlineLogo");
   if (img) {
@@ -493,9 +518,8 @@ function renderSecondary(f){
   $("callsign2").textContent = f.callsign || "—";
   $("icao242").textContent = f.icao24 || "—";
 
-  const inferredAirline = f.airlineName || f.airlineGuess || guessAirline(f.callsign);
-  const countryFallback = (f.country && f.country !== "United States") ? f.country : "—";
-  $("airline2").textContent = inferredAirline || countryFallback;
+  const a2 = airlineDisplayFromFlight(f);
+  $("airline2").textContent = a2 || " ";
 
   const img2 = $("airlineLogo2");
   if (img2) {
