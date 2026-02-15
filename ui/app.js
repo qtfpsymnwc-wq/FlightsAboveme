@@ -51,6 +51,35 @@ window.addEventListener("unhandledrejection", (e)=>showErr("Promise rejection: "
 
 const nm = (v) => (v ?? "").toString().trim();
 
+
+// Best-effort aircraft type/model hint from live state payloads (OpenSky array + some ADS-B fallbacks).
+// Returns "" when unavailable. Safe to call on every state row.
+function liveModelHintFromState(s){
+  try{
+    // Most OpenSky "states" rows are arrays. Some providers may append extra fields.
+    if (Array.isArray(s)){
+      // Try a few likely indices (provider-dependent). Only accept short-ish strings.
+      for (const idx of [16,17,18,19,20]) {
+        const v = s[idx];
+        if (typeof v === "string") {
+          const t = nm(v).replace(/^"+|"+$/g,"");
+          if (t && t.length <= 16) return t;
+        }
+      }
+    } else if (s && typeof s === "object") {
+      // If a provider ever returns objects, try common keys.
+      const candidates = [s.type, s.aircraft_type, s.aircraftType, s.model, s.t];
+      for (const v of candidates) {
+        if (typeof v === "string") {
+          const t = nm(v);
+          if (t && t.length <= 32) return t;
+        }
+      }
+    }
+  } catch {}
+  return "";
+}
+
 function normalizeCallsign(cs){
   return nm(cs).replace(/\s+/g,"").toUpperCase();
 }
@@ -392,7 +421,8 @@ function routeCodesOnly(text){
 }
 
 function formatRouteForDisplay(routeText){
-  const t = nm(routeText) || "—";
+  const t = nm(routeText);
+  if (!t) return "";
   if (isKiosk() && isPortrait()) return routeCodesOnly(t);
   return t;
 }
@@ -431,8 +461,21 @@ function renderPrimary(f, radarMeta){
     { short: (isKiosk() && isPortrait()) }
   );
 
-  if ($("route")) $("route").textContent = formatRouteForDisplay(f.routeText || "—");
-  if ($("model")) $("model").textContent = f.modelText || "—";
+  // Route: hide when not available (no placeholder dashes)
+  const routeDisp = formatRouteForDisplay(f.routeText);
+  const routeEl = $("route");
+  if (routeEl) {
+    routeEl.textContent = routeDisp;
+    routeEl.style.display = routeDisp ? "" : "none";
+  }
+
+  // Aircraft type/model: show live hint until enriched; hide when unknown
+  const modelDisp = f.modelText || f.modelHint || "";
+  const modelEl = $("model");
+  if (modelEl) {
+    modelEl.textContent = modelDisp;
+    modelEl.style.display = modelDisp ? "" : "none";
+  }
 
   if ($("radarLine")) $("radarLine").textContent =
     `Radar: ${radarMeta.count} flights • Showing: ${radarMeta.showing}`;
@@ -463,8 +506,19 @@ function renderSecondary(f){
     img2.classList.remove("hidden");
   }
 
-  $("route2").textContent = formatRouteForDisplay(f.routeText || "—");
-  $("model2").textContent = f.modelText || "—";
+  const routeDisp2 = formatRouteForDisplay(f.routeText);
+  const r2 = $("route2");
+  if (r2) {
+    r2.textContent = routeDisp2;
+    r2.style.display = routeDisp2 ? "" : "none";
+  }
+
+  const modelDisp2 = f.modelText || f.modelHint || "";
+  const m2 = $("model2");
+  if (m2) {
+    m2.textContent = modelDisp2;
+    m2.style.display = modelDisp2 ? "" : "none";
+  }
 
   const compactStats = (isKiosk() && isPortrait() && window.innerWidth <= 430);
 
@@ -804,6 +858,7 @@ async function main(){
           modelText: undefined,
           airlineName: undefined,
           airlineGuess: guessAirline(callsign),
+          modelHint: liveModelHintFromState(s),
         };
       }).filter(f => Number.isFinite(f.distanceMi)).sort((a,b)=>a.distanceMi-b.distanceMi);
 
