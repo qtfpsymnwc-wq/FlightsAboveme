@@ -1,6 +1,6 @@
 // FlightsAboveMe UI
 const API_BASE = "https://flightsabove.t2hkmhgbwz.workers.dev";
-const UI_VERSION = "v193";
+const UI_VERSION = "v194";
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;
@@ -9,8 +9,7 @@ const BACKOFF_429_MS = 60000;
 
 // Enrichment timeouts (keep short so UI never “hangs” waiting on metadata)
 const ENRICH_TIMEOUT_MS = 4500;
-// Only enrich the closest flight if it's within this distance (miles)
-const ENRICH_MAX_MI = 16;
+
 
 // Closest-flight stability gating for AeroData enrichment (v1.4.1):
 // Require the same primary callsign for 2 consecutive cycles before queuing /flight + /aircraft.
@@ -24,7 +23,7 @@ const GEO_TIMEOUT_MS = 12000;
 const LAST_LOC_KEY = "fam_last_loc_v1";
 
 // Enrichment budgets (per “cycle”)
-// v1.2.9+: only enrich the closest flight (within ENRICH_MAX_MI)
+// v1.2.9+: only enrich the closest flight
 const LIST_AIRCRAFT_BUDGET = 0;
 const LIST_ROUTE_BUDGET = 0;
 
@@ -759,9 +758,7 @@ async function main(){
           const sameAsLastQueue = lastEnrichQueuedKey === k;
           const recentQueue = nowMs - lastEnrichQueuedAt < 60_000;
 
-          const withinEnrichRange = Number.isFinite(lastPrimary.distanceMi) && lastPrimary.distanceMi <= ENRICH_MAX_MI;
-
-          if (withinEnrichRange && stableEnough && (needAircraft || needRoute) && !(sameAsLastQueue && recentQueue)) {
+          if (stableEnough && (needAircraft || needRoute) && !(sameAsLastQueue && recentQueue)) {
             if (needAircraft) queueEnrich("aircraft", lastPrimary);
             if (needRoute) queueEnrich("route", lastPrimary);
 
