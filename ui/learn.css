@@ -1,0 +1,66 @@
+/* FlightsAboveMe — Learn page only (safe overrides) */
+.learnBody .learnMain{
+  padding: 22px 14px 50px;
+}
+.learnBody .learnWrap{
+  max-width: 980px;
+  margin: 0 auto;
+}
+.learnBody h1{
+  margin: 8px 0 10px;
+  font-size: 28px;
+  letter-spacing: .2px;
+}
+.learnBody .learnLede{
+  margin: 0 0 18px;
+  line-height: 1.65;
+  opacity: .92;
+}
+.learnBody .learnSection{
+  margin: 22px 0;
+  padding: 16px 16px;
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 14px;
+  background: rgba(255,255,255,.02);
+}
+.learnBody .learnSection h2{
+  margin: 0 0 10px;
+  font-size: 18px;
+}
+.learnBody .learnSection p,
+.learnBody .learnSection li{
+  line-height: 1.6;
+}
+.learnBody .learnSection ul{
+  margin: 10px 0 0 18px;
+}
+.learnBody .learnNote{
+  margin-top: 10px;
+  font-size: 0.95em;
+  opacity: .85;
+}
+.learnBody .learnBack{
+  margin: 26px 0 6px;
+  display: flex;
+  justify-content: center;
+}
+.learnBody .learnBtn{
+  display: inline-block;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.16);
+  text-decoration: none;
+}
+.learnBody .learnBtn:hover{
+  border-color: rgba(255,255,255,.26);
+}
+.learnBody .learnTopLink{
+  margin-left: 12px;
+  text-decoration: none;
+  opacity: .9;
+  font-weight: 600;
+}
+.learnBody .learnTopLink:hover{
+  opacity: 1;
+  text-decoration: underline;
+}
