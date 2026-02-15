@@ -908,11 +908,12 @@ body.kiosk .kioskSecondaryMini{ display:none; }
 .fabm-footer a:hover{
   opacity: .9;
 }
-/* Kiosk mode callout (main UI only) */
+
+/* --- Kiosk Mode callout (main UI only) --- */
 .kiosk-callout{
   max-width: 980px;
   margin: 14px auto 10px;
-  padding: 12px 14px;
+  padding: 14px 16px;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: rgba(19, 31, 54, 0.65);
@@ -921,22 +922,52 @@ body.kiosk .kioskSecondaryMini{ display:none; }
 .kiosk-callout__title{
   font-weight: 800;
   letter-spacing: .2px;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .kiosk-callout__desc{
   color: var(--muted);
   line-height: 1.35;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 
 .kiosk-callout__link{
-  display: inline-block;
-  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #06101a;
   text-decoration: none;
-  font-weight: 700;
+  font-weight: 800;
+  letter-spacing: .2px;
+  box-shadow: 0 10px 24px rgba(79, 209, 197, 0.18);
 }
 
 .kiosk-callout__link:hover{
-  text-decoration: underline;
+  filter: brightness(1.04);
 }
+
+.kiosk-callout__link:active{
+  transform: translateY(1px);
+}
+
+@media (max-width: 520px){
+  .kiosk-callout{
+    margin: 12px 12px 10px;
+    padding: 16px 16px;
+  }
+  .kiosk-callout__title{
+    font-size: 18px;
+  }
+  .kiosk-callout__desc{
+    font-size: 14px;
+  }
+  .kiosk-callout__link{
+    width: 100%;
+    justify-content: center;
+    padding: 12px 14px;
+  }
+}
+
