@@ -908,3 +908,35 @@ body.kiosk .kioskSecondaryMini{ display:none; }
 .fabm-footer a:hover{
   opacity: .9;
 }
+/* Kiosk mode callout (main UI only) */
+.kiosk-callout{
+  max-width: 980px;
+  margin: 14px auto 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(19, 31, 54, 0.65);
+}
+
+.kiosk-callout__title{
+  font-weight: 800;
+  letter-spacing: .2px;
+  margin-bottom: 4px;
+}
+
+.kiosk-callout__desc{
+  color: var(--muted);
+  line-height: 1.35;
+  margin-bottom: 8px;
+}
+
+.kiosk-callout__link{
+  display: inline-block;
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.kiosk-callout__link:hover{
+  text-decoration: underline;
+}
