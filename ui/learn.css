@@ -1,66 +1,67 @@
-/* FlightsAboveMe — Learn page only (safe overrides) */
-.learnBody .learnMain{
-  padding: 22px 14px 50px;
+/* FlightsAboveMe — Learn page (page-only). */
+
+.learnLayout{
+  padding: 18px 12px 42px;
 }
-.learnBody .learnWrap{
+
+.learnCard{
   max-width: 980px;
   margin: 0 auto;
+  padding: 18px 18px 12px;
 }
-.learnBody h1{
-  margin: 8px 0 10px;
-  font-size: 28px;
-  letter-spacing: .2px;
+
+.learnCard h1{
+  margin: 6px 0 10px;
+  font-size: clamp(22px, 3.2vw, 34px);
 }
-.learnBody .learnLede{
-  margin: 0 0 18px;
-  line-height: 1.65;
+
+.lede{
+  margin: 0 0 14px;
   opacity: .92;
-}
-.learnBody .learnSection{
-  margin: 22px 0;
-  padding: 16px 16px;
-  border: 1px solid rgba(255,255,255,.10);
-  border-radius: 14px;
-  background: rgba(255,255,255,.02);
-}
-.learnBody .learnSection h2{
-  margin: 0 0 10px;
-  font-size: 18px;
-}
-.learnBody .learnSection p,
-.learnBody .learnSection li{
   line-height: 1.6;
 }
-.learnBody .learnSection ul{
-  margin: 10px 0 0 18px;
+
+.learnGrid{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin: 14px 0 18px;
 }
-.learnBody .learnNote{
-  margin-top: 10px;
-  font-size: 0.95em;
-  opacity: .85;
-}
-.learnBody .learnBack{
-  margin: 26px 0 6px;
-  display: flex;
-  justify-content: center;
-}
-.learnBody .learnBtn{
-  display: inline-block;
-  padding: 10px 14px;
+
+.learnPill{
+  display: block;
+  text-decoration: none;
+  padding: 10px 12px;
+  border: 1px solid rgba(255,255,255,.14);
   border-radius: 12px;
-  border: 1px solid rgba(255,255,255,.16);
-  text-decoration: none;
 }
-.learnBody .learnBtn:hover{
-  border-color: rgba(255,255,255,.26);
+
+.learnPill:hover{
+  border-color: rgba(255,255,255,.24);
 }
-.learnBody .learnTopLink{
-  margin-left: 12px;
-  text-decoration: none;
-  opacity: .9;
-  font-weight: 600;
+
+.learnSection{
+  margin: 18px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255,255,255,.08);
 }
-.learnBody .learnTopLink:hover{
-  opacity: 1;
-  text-decoration: underline;
+
+.learnSection h2{
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+
+.learnSection p,
+.learnSection li{
+  line-height: 1.6;
+}
+
+.learnSection ul{
+  margin: 8px 0 0 20px;
+}
+
+.note{
+  margin-top: 10px;
+  opacity: .85;
+  font-size: .95em;
 }

@@ -7,128 +7,150 @@
   <link rel="stylesheet" href="./style.css?v=211">
   <link rel="stylesheet" href="./learn.css?v=1">
 </head>
-<body class="learnBody">
-  <header class="topbar">
-    <div class="brand">
-      <a href="/ui/index.html" aria-label="FlightsAboveMe Home">
-        <img src="flightsaboveme-logo-tight.png?v=220" alt="FlightsAboveMe" class="siteLogo">
-      </a>
-    </div>
-    <div class="right">
-      <a class="learnTopLink" href="/ui/index.html">Home</a>
-      <a class="learnTopLink" href="/ui/privacy.html">Privacy</a>
-    </div>
-  </header>
-
-  <main class="learnMain">
-    <div class="learnWrap">
-      <h1>How Flight Tracking Works</h1>
-      <p class="learnLede">
-        FlightsAboveMe displays aircraft overhead using public surveillance broadcasts and aviation data feeds.
-        Here’s what you’re seeing, where it comes from, and why it can differ from other trackers.
-      </p>
-
-      <section class="learnSection" id="adsb">
-        <h2>ADS-B in a nutshell</h2>
-        <p>
-          <strong>ADS-B</strong> (Automatic Dependent Surveillance–Broadcast) is a system where an aircraft
-          broadcasts its position, altitude, speed, and identification, typically derived from onboard GPS.
-          Anyone with the right receiver (or a data feed that aggregates receivers) can pick up these broadcasts.
-        </p>
-        <p class="learnNote">
-          Coverage varies by region and receiver density, so “what’s overhead” can be missed or delayed in some areas.
-        </p>
-      </section>
-
-      <section class="learnSection" id="modes-mlat">
-        <h2>ADS-B vs Mode S vs MLAT</h2>
-        <ul>
-          <li><strong>Mode S</strong>: transponder messages that identify the aircraft and can include other data, sometimes without GPS position.</li>
-          <li><strong>ADS-B</strong>: broadcasts that include GPS-based position (Mode S ES on 1090 MHz or UAT on 978 MHz in the US).</li>
-          <li><strong>MLAT</strong> (multilateration): position estimated by comparing signal arrival times at multiple receivers when ADS-B position isn’t available.</li>
-        </ul>
-        <p>
-          Different sources may use different mixes of ADS-B and MLAT, which can cause small differences between flight tracking sites.
-        </p>
-      </section>
-
-      <section class="learnSection" id="icao24">
-        <h2>What is ICAO24?</h2>
-        <p>
-          <strong>ICAO24</strong> is a unique 6-character hexadecimal identifier assigned to an aircraft’s transponder.
-          It’s like a digital fingerprint used to match live broadcasts to aircraft details (type, registration, operator) when available.
-        </p>
-      </section>
-
-      <section class="learnSection" id="callsign">
-        <h2>Callsign vs flight number</h2>
-        <p>
-          The <strong>callsign</strong> is what you’ll see in surveillance/radar data and what pilots use on the radio.
-          It often resembles a flight number (e.g., DAL123), but it can also be a charter/cargo identifier or a format that doesn’t match public schedules.
-        </p>
-      </section>
-
-      <section class="learnSection" id="altitude-speed">
-        <h2>Altitude, speed, and direction</h2>
-        <ul>
-          <li><strong>Altitude</strong>: often based on barometric pressure (“baro altitude”), not exact GPS height above sea level.</li>
-          <li><strong>Ground speed</strong>: speed over the ground (winds can make it differ from airspeed).</li>
-          <li><strong>Track vs heading</strong>: track is the direction of motion; heading is where the nose points.</li>
-        </ul>
-      </section>
-
-      <section class="learnSection" id="climb">
-        <h2>Climbing, descending, and cruising</h2>
-        <p>
-          FlightsAboveMe uses <strong>vertical speed</strong> (feet per minute) to label the climb state:
-        </p>
-        <ul>
-          <li>Positive vertical speed → <strong>Climbing</strong></li>
-          <li>Negative vertical speed → <strong>Descending</strong></li>
-          <li>Near zero or missing → <strong>Cruising</strong> (level flight or no reliable vertical speed available)</li>
-        </ul>
-      </section>
-
-      <section class="learnSection" id="sources">
-        <h2>Where FlightsAboveMe data comes from</h2>
-        <p>
-          FlightsAboveMe blends multiple sources to improve reliability and fill in details:
-        </p>
-        <ul>
-          <li><strong>OpenSky Network</strong> – primary live state vectors when available</li>
-          <li><strong>adsb.lol</strong> – fallback live aircraft state data</li>
-          <li><strong>AeroDataBox</strong> – enrichment (aircraft model/type/operator details)</li>
-        </ul>
-        <p class="learnNote">
-          Each source has different coverage and latency. If you see occasional blanks or changes, it’s usually due to upstream availability.
-        </p>
-      </section>
-
-      <section class="learnSection" id="limitations">
-        <h2>Data limitations</h2>
-        <ul>
-          <li>Flight tracking data can be <strong>delayed, incomplete, or temporarily inaccurate</strong>.</li>
-          <li>Coverage depends on aircraft equipment and receiver density.</li>
-          <li>This site is for <strong>informational purposes only</strong> and is not intended for navigation or operational decisions.</li>
-        </ul>
-      </section>
-
-      <div class="learnBack">
-        <a class="learnBtn" href="/ui/index.html">Back to Live Flights</a>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div class="brand">
+        <a href="/ui/index.html" aria-label="FlightsAboveMe Home">
+          <img src="flightsaboveme-logo-tight.png?v=220" alt="FlightsAboveMe" class="siteLogo">
+        </a>
       </div>
-    </div>
-  </main>
 
-  <footer class="fabm-footer">
-    <div>© 2026 FlightsAboveMe</div>
-    <div class="fabm-links">
-      <a href="/ui/privacy.html">Privacy</a> ·
-      <a href="/ui/learn.html">How Flight Tracking Works</a>
-    </div>
-    <div class="fabm-legal">
-      <div>Airline names and logos are trademarks of their respective owners.</div>
-      <div>Flight data is provided for informational purposes only and may be delayed, incomplete, or inaccurate. Not for operational or navigation use.</div>
-    </div>
-  </footer>
+      <div class="right">
+        <a class="modeToggle nav-kiosk" href="/ui/index.html" aria-label="Back to main">Home</a>
+        <a class="modeToggle nav-kiosk" href="/ui/privacy.html" aria-label="Privacy policy">Privacy</a>
+      </div>
+    </header>
+
+    <main class="layout learnLayout">
+      <section class="card learnCard">
+        <h1>How Flight Tracking Works</h1>
+        <p class="lede">
+          FlightsAboveMe shows aircraft overhead using public broadcast signals and aviation data feeds.
+          This page explains what you’re seeing, where it comes from, and why flight data can differ between trackers.
+        </p>
+
+        <div class="learnGrid">
+          <a class="learnPill" href="#adsb">ADS-B</a>
+          <a class="learnPill" href="#modes-mlat">Mode S &amp; MLAT</a>
+          <a class="learnPill" href="#icao24">ICAO24</a>
+          <a class="learnPill" href="#callsign">Callsign</a>
+          <a class="learnPill" href="#alt-speed">Altitude &amp; Speed</a>
+          <a class="learnPill" href="#climb">Climb / Descend</a>
+          <a class="learnPill" href="#sources">Data Sources</a>
+          <a class="learnPill" href="#limits">Limitations</a>
+        </div>
+
+        <section class="learnSection" id="adsb">
+          <h2>ADS-B in a nutshell</h2>
+          <p>
+            <strong>ADS-B</strong> (Automatic Dependent Surveillance–Broadcast) lets an aircraft broadcast its position,
+            altitude, speed, and identification. It’s “dependent” because it typically relies on onboard GPS, and it’s
+            “broadcast” because it transmits regularly for receivers to pick up.
+          </p>
+          <p>
+            Most airliners and many general aviation aircraft transmit ADS-B, but what you can see depends on receiver coverage
+            and aircraft equipment.
+          </p>
+        </section>
+
+        <section class="learnSection" id="modes-mlat">
+          <h2>ADS-B vs Mode S vs MLAT</h2>
+          <ul>
+            <li><strong>Mode S</strong>: Transponder messages used for surveillance/identification (not always full GPS position).</li>
+            <li><strong>ADS-B</strong>: Position broadcasts (commonly GPS-based) plus identity and other telemetry.</li>
+            <li><strong>MLAT</strong> (multilateration): Position estimated by comparing arrival times at multiple receivers.</li>
+          </ul>
+          <p>
+            Two flight tracking sites can show slightly different tracks depending on whether they’re using ADS-B position,
+            MLAT estimates, different receiver networks, or different smoothing.
+          </p>
+        </section>
+
+        <section class="learnSection" id="icao24">
+          <h2>What is ICAO24?</h2>
+          <p>
+            <strong>ICAO24</strong> is a unique six-character hexadecimal identifier associated with an aircraft’s transponder.
+            Think of it as a digital identifier used to match live broadcasts to aircraft details.
+          </p>
+        </section>
+
+        <section class="learnSection" id="callsign">
+          <h2>Callsign vs flight number</h2>
+          <p>
+            The <strong>callsign</strong> is an operational identifier used in surveillance systems and radio communications.
+            It often resembles a flight number (like DAL123), but it can also be a charter/cargo identifier or other format.
+          </p>
+          <p>
+            Because of that, the scheduled “flight number” you see on airline sites isn’t always a perfect match to the live callsign.
+          </p>
+        </section>
+
+        <section class="learnSection" id="alt-speed">
+          <h2>Altitude, speed, and direction</h2>
+          <ul>
+            <li><strong>Altitude</strong>: Often based on barometric pressure (“baro altitude”), not exact GPS height.</li>
+            <li><strong>Speed</strong>: Usually <em>ground speed</em> (wind affects this).</li>
+            <li><strong>Direction</strong>: Typically the aircraft’s track over the ground.</li>
+          </ul>
+          <p>
+            Small differences in rounding, latency, or altitude reference can make trackers disagree.
+          </p>
+        </section>
+
+        <section class="learnSection" id="climb">
+          <h2>Climbing, descending, and cruising</h2>
+          <p>
+            FlightsAboveMe determines climb state using <strong>vertical speed</strong> (feet per minute):
+          </p>
+          <ul>
+            <li>Positive vertical speed → <strong>Climbing</strong></li>
+            <li>Negative vertical speed → <strong>Descending</strong></li>
+            <li>Near zero or missing → <strong>Cruising / Level</strong></li>
+          </ul>
+          <p class="note">
+            Vertical speed can be noisy or missing in some feeds; “Cruising” can also mean “no reliable vertical speed available.”
+          </p>
+        </section>
+
+        <section class="learnSection" id="sources">
+          <h2>Where FlightsAboveMe data comes from</h2>
+          <p>
+            FlightsAboveMe blends multiple sources to improve reliability and fill in aircraft details:
+          </p>
+          <ul>
+            <li><strong>OpenSky Network</strong> — primary live state vectors when available</li>
+            <li><strong>adsb.lol</strong> — fallback live aircraft state data</li>
+            <li><strong>AeroDataBox</strong> — enrichment (aircraft type/model/operator details)</li>
+          </ul>
+          <p>
+            Coverage and update rates vary by region and source, so you may occasionally see delays or missing fields.
+          </p>
+        </section>
+
+        <section class="learnSection" id="limits">
+          <h2>Data limitations</h2>
+          <ul>
+            <li>Flight data may be <strong>delayed, incomplete, or inaccurate</strong>.</li>
+            <li>Coverage depends on aircraft equipment and receiver density.</li>
+            <li>This site is for <strong>informational purposes only</strong> — not for navigation or operational decisions.</li>
+          </ul>
+        </section>
+
+      </section>
+    </main>
+
+    <footer class="fabm-footer">
+      <div>© 2026 FlightsAboveMe</div>
+      <div class="fabm-links">
+        <a href="/ui/index.html">Home</a> ·
+        <a href="/ui/privacy.html">Privacy</a>
+      </div>
+      <div class="fabm-legal">
+        <div>Airline names and logos are trademarks of their respective owners.</div>
+        <div>Flight data is provided for informational purposes only and may be delayed, incomplete, or inaccurate. Not for operational or navigation use.</div>
+      </div>
+    </footer>
+  </div>
 </body>
 </html>
