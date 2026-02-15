@@ -2,6 +2,16 @@
 const API_BASE = "https://flightsabove.t2hkmhgbwz.workers.dev";
 const UI_VERSION = "v193";
 
+// ---- Static asset caching (Service Worker) ----
+// Speeds up repeat loads on cellular by caching CSS/JS/images locally.
+// Does NOT cache HTML or API responses (to avoid staleness / AdSense verification issues).
+if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(() => {});
+  });
+}
+// ---------------------------------------------
+
 // Poll cadence
 const POLL_MAIN_MS = 8000;
 const POLL_KIOSK_MS = 12000;
@@ -261,12 +271,11 @@ function loadLastLocation(maxAgeMs = 1000 * 60 * 60 * 24 * 7){
 }
 
 
-async function fetchJSON(url, timeoutMs=9000, opts={}){
+async function fetchJSON(url, timeoutMs=9000){
   const ctrl = new AbortController();
   const t = setTimeout(()=>ctrl.abort(), timeoutMs);
   try {
-    const cacheMode = (opts && typeof opts.cache === "string") ? opts.cache : "no-store";
-    const res = await fetch(url, { signal: ctrl.signal, cache: cacheMode, credentials:"omit" });
+    const res = await fetch(url, { signal: ctrl.signal, cache:"no-store", credentials:"omit" });
     const text = await res.text();
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0,220)}`);
     return JSON.parse(text);
@@ -594,46 +603,31 @@ async function main(){
     syncTierButtons();
   }
 
-  // v1.5.2 performance patch:
-  // If we have a last-known location, start radar immediately (fast first paint on cellular),
-  // then update to live GPS in the background when available.
-  const last = loadLastLocation();
-  let lat = last ? last.lat : null;
-  let lon = last ? last.lon : null;
-  let bb = (lat != null && lon != null) ? bboxAround(lat, lon) : null;
-
-  const getLivePosition = () => new Promise((resolve, reject)=>{
+  const pos = await new Promise((resolve, reject)=>{
     if (!navigator.geolocation) return reject(new Error("Geolocation not supported"));
     navigator.geolocation.getCurrentPosition(
       (p)=>resolve(p),
       (e)=>reject(new Error(e.message || "Location denied")),
       { enableHighAccuracy:true, timeout:GEO_TIMEOUT_MS, maximumAge:5000 }
     );
+  }).catch((e)=>{
+    // v1.3.1: On flaky cellular GPS, fall back to last known location so the app still loads.
+    const last = loadLastLocation();
+    if (last) {
+      if (statusEl) statusEl.textContent = "Using last location…";
+      showErr("Location failed — using last known location");
+      return { coords: { latitude: last.lat, longitude: last.lon, accuracy: last.accuracy }, __fromLast: true };
+    }
+    if (statusEl) statusEl.textContent = "Location failed";
+    showErr(String(e.message || e));
+    throw e;
   });
 
-  if (!bb) {
-    // No last location available — must block on GPS once.
-    const pos = await getLivePosition().catch((e)=>{
-      if (statusEl) statusEl.textContent = "Location failed";
-      showErr(String(e.message || e));
-      throw e;
-    });
-    lat = pos.coords.latitude;
-    lon = pos.coords.longitude;
-    saveLastLocation(lat, lon, pos?.coords?.accuracy);
-    bb = bboxAround(lat, lon);
-  } else {
-    if (statusEl) statusEl.textContent = "Using last location…";
-    // Update to live GPS in background; next tick uses the new bbox.
-    getLivePosition()
-      .then((pos)=>{
-        lat = pos.coords.latitude;
-        lon = pos.coords.longitude;
-        saveLastLocation(lat, lon, pos?.coords?.accuracy);
-        bb = bboxAround(lat, lon);
-      })
-      .catch(()=>{});
-  }
+  const lat = pos.coords.latitude;
+  const lon = pos.coords.longitude;
+  // v1.3.1: persist last good location to survive cellular GPS flakiness
+  saveLastLocation(lat, lon, pos?.coords?.accuracy);
+  const bb = bboxAround(lat, lon);
 
   if (statusEl) statusEl.textContent = "Radar…";
 
@@ -708,67 +702,47 @@ async function main(){
       const url = new URL(`${API_BASE}/opensky/states`);
       Object.entries(bb).forEach(([k,v])=>url.searchParams.set(k,v));
 
-      // Allow browser/edge caching for very short-lived radar payloads.
-      const data = await fetchJSON(url.toString(), STATES_TIMEOUT_MS, { cache: "default" });
+      const data = await fetchJSON(url.toString(), STATES_TIMEOUT_MS);
       const states = Array.isArray(data?.states) ? data.states : [];
+
+      lastRadarMeta = { count: states.length, showing: Math.min(states.length, 5) };
 
       if (!states.length){
         if (statusEl) statusEl.textContent = "No flights";
         lastTop = [];
         lastPrimary = {callsign:"—", icao24:"—"};
         lastSecondary = null;
-        lastRadarMeta = { count: 0, showing: 0 };
         renderAll();
         return;
       }
 
-      // Performance: avoid sorting thousands of flights every tick.
-      // Single-pass: track nearest overall + nearest 5 in the selected tier.
-      const top = [];
-      let overallNearest = null;
-
-      const pushTop = (arr, flight, k=5) => {
-        const d = flight.distanceMi;
-        let i = 0;
-        while (i < arr.length && arr[i].distanceMi <= d) i++;
-        arr.splice(i, 0, flight);
-        if (arr.length > k) arr.length = k;
-      };
-
-      for (const s of states) {
-        const lon2 = (typeof s[5] === "number") ? s[5] : NaN;
-        const lat2 = (typeof s[6] === "number") ? s[6] : NaN;
-        if (!Number.isFinite(lat2) || !Number.isFinite(lon2)) continue;
-
+      const flights = states.map((s)=>{
         const icao24 = nm(s[0]).toLowerCase();
         const callsign = nm(s[1]);
         const country = nm(s[2]);
+        const lon2 = (typeof s[5] === "number") ? s[5] : NaN;
+        const lat2 = (typeof s[6] === "number") ? s[6] : NaN;
         const baroAlt = (typeof s[7] === "number") ? s[7] : NaN;
         const velocity = (typeof s[9] === "number") ? s[9] : NaN;
         const trueTrack = (typeof s[10] === "number") ? s[10] : NaN;
         const verticalRate = (typeof s[11] === "number") ? s[11] : NaN;
         const squawk = (s[14] != null) ? String(s[14]).trim() : "";
-        const distanceMi = haversineMi(lat, lon, lat2, lon2);
+        const distanceMi = (Number.isFinite(lat2) && Number.isFinite(lon2)) ? haversineMi(lat, lon, lat2, lon2) : Infinity;
 
-        const f = {
+        return {
           icao24, callsign, country, baroAlt, velocity, trueTrack, verticalRate, squawk, distanceMi,
           routeText: undefined,
           modelText: undefined,
           airlineName: undefined,
           airlineGuess: guessAirline(callsign),
         };
+      }).filter(f => Number.isFinite(f.distanceMi)).sort((a,b)=>a.distanceMi-b.distanceMi);
 
-        if (!overallNearest || f.distanceMi < overallNearest.distanceMi) overallNearest = f;
+      const shown = flights.filter(f => groupForFlight(f.callsign) === tier);
+      lastTop = shown.slice(0,5);
 
-        if (groupForFlight(f.callsign) === tier) {
-          pushTop(top, f, 5);
-        }
-      }
-
-      lastTop = top;
-      lastPrimary = top[0] || overallNearest;
-      lastSecondary = top[1] || null;
-      lastRadarMeta = { count: states.length, showing: top.length };
+      lastPrimary = lastTop[0] || flights[0];
+      lastSecondary = lastTop[1] || null;
 
       for (const f of lastTop) applyCachedEnrichment(f);
       applyCachedEnrichment(lastPrimary);
