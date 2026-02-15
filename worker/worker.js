@@ -1,7 +1,7 @@
 /**
- * FlightsAboveMe API Worker (v173)
+ * FlightsAboveMe API Worker (v174)
  *
- * CHANGE (v173):
+ * CHANGE (v174):
  *  - Disable warm enrichment entirely (no AeroDataBox calls triggered by /opensky/states)
  *  - Keep /flight and /aircraft endpoints cache-first (UI should call these ONLY for closest flight)
  *
@@ -32,7 +32,7 @@
  *  - Fallback is only used when OpenSky fails (network/timeout/5xx) or returns 429.
  */
 
-const WORKER_VERSION = "v173";
+const WORKER_VERSION = "v174";
 
 const OPENSKY_STATES_URL = "https://opensky-network.org/api/states/all";
 const OPENSKY_TOKEN_URL =
@@ -50,15 +50,9 @@ const ADSBLOL_TIMEOUT_MS = 12000;
 // ✅ v173: Warm cache enrichment disabled (UI should request enrich ONLY for closest flight)
 const WARM_ENRICH_ENABLED = false;
 
-// TTLs (defaults). Can be overridden with env vars:
-//  - AERODATA_AIRCRAFT_TTL_S (default 604800 = 7 days)
-//  - AERODATA_FLIGHT_TTL_S   (default 21600  = 6 hours)
-//  - AERODATA_NEGATIVE_TTL_S (default 21600  = 6 hours)
+// TTLs
 const AERODATA_AIRCRAFT_TTL_S = 60 * 60 * 24 * 7; // 7 days
 const AERODATA_FLIGHT_TTL_S = 60 * 60 * 6; // 6 hours
-const AERODATA_NEGATIVE_TTL_S = 60 * 60 * 6; // 6 hours
-
-const AERODATA_AIRCRAFT_TTL_VERIFIED_S = 60 * 60 * 24 * 30; // 30 days
 
 // Optional (recommended): KV cache for aircraft metadata keyed by icao24.
 // If AIRCRAFT_KV binding is not configured, the worker will fall back to Cache API only.
@@ -199,63 +193,6 @@ function isNightChicago() {
   return h >= 22 || h < 7; // 10pm–7am
 }
 
-function chicagoDateKey() {
-  // YYYY-MM-DD in America/Chicago
-  try {
-    const parts = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "America/Chicago",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).formatToParts(new Date());
-    const y = parts.find((p) => p.type === "year")?.value;
-    const m = parts.find((p) => p.type === "month")?.value;
-    const d = parts.find((p) => p.type === "day")?.value;
-    if (y && m && d) return `${y}-${m}-${d}`;
-  } catch {}
-  // Fallback: UTC date
-  return new Date().toISOString().slice(0, 10);
-}
-
-function cacheKeyBudget(origin, dateKey) {
-  return new Request(
-    `${origin}/__cache/aerodata/v2/budget/${encodeURIComponent(dateKey)}`,
-    { method: "GET" }
-  );
-}
-
-async function budgetCanSpend(cache, origin, env, cors) {
-  // Hard daily budget cap for AeroDataBox upstream calls.
-  // Disabled by default (set AERODATA_DAILY_BUDGET to enable).
-  const limit = envInt(env, "AERODATA_DAILY_BUDGET", 0);
-  if (!limit || limit <= 0) return { ok: true, limit: 0, used: 0 };
-
-  const dateKey = chicagoDateKey();
-  const req = cacheKeyBudget(origin, dateKey);
-  const hit = await cache.match(req);
-  let used = 0;
-  if (hit) {
-    try {
-      const j = await hit.json();
-      used = Number(j?.used) || 0;
-    } catch {
-      used = 0;
-    }
-  }
-  if (used >= limit) return { ok: false, limit, used, dateKey };
-
-  // Best-effort increment (Cache API isn't atomic). Good enough to prevent most burn.
-  const next = used + 1;
-  await cachePutJson(
-    cache,
-    req,
-    { used: next, limit, dateKey, ts: Date.now() },
-    60 * 60 * 26,
-    cors
-  );
-  return { ok: true, limit, used: next, dateKey };
-}
-
 function cacheKeyADB(origin, path) {
   return new Request(`${origin}/__cache/aerodata/v3/${path}`, { method: "GET" });
 }
@@ -349,34 +286,6 @@ function envBool(env, key, defVal = true) {
   return defVal;
 }
 
-
-function aircraftTtlS(env, record, fallbackTtlS) {
-  const verifiedTtl = envInt(env, "AERODATA_AIRCRAFT_TTL_VERIFIED_S", AERODATA_AIRCRAFT_TTL_VERIFIED_S);
-  const unverifiedTtl = envInt(env, "AERODATA_AIRCRAFT_TTL_UNVERIFIED_S", fallbackTtlS);
-  const negTtl = envInt(env, "AERODATA_NEGATIVE_TTL_S", AERODATA_NEGATIVE_TTL_S);
-
-  if (!record || typeof record !== "object") return fallbackTtlS;
-  if (record.found === false) return negTtl;
-
-  const v = record.verified;
-  if (v === true) return verifiedTtl;
-  return unverifiedTtl;
-}
-
-function adbTelemetryHeaders(kind, source, ttlS, record) {
-  const verified =
-    record && typeof record === "object" && Object.prototype.hasOwnProperty.call(record, "verified")
-      ? (record.verified === true ? "1" : (record.verified === false ? "0" : "na"))
-      : "na";
-  return {
-    "X-ADB-Kind": kind,
-    "X-ADB-Source": source,
-    "X-ADB-TTL": String(ttlS),
-    "X-ADB-Verified": verified,
-  };
-}
-
-
 function envInt(env, key, defVal) {
   const v = env?.[key];
   const n = parseInt(String(v ?? ""), 10);
@@ -431,8 +340,8 @@ async function adbShouldSkip({ cache, origin, env, cors, kind, id }) {
   const cooldownHit = await cache.match(aerodataCooldownKey(origin));
   if (cooldownHit) return { skip: true, code: "cooldown_429" };
 
-  // Stampede lock: only one inflight enrichment per entity (prevents credit burn)
-  const lockReq = cacheKeyADB(origin, `lock/inflight/${kind}/${encodeURIComponent(id)}`);
+  // Stampede lock: only one inflight enrichment at a time across endpoints
+  const lockReq = cacheKeyADB(origin, "lock/inflight");
   const lockHit = await cache.match(lockReq);
   if (lockHit) return { skip: true, code: "locked" };
 
@@ -457,7 +366,7 @@ async function adbShouldSkip({ cache, origin, env, cors, kind, id }) {
   if (!b.ok) return { skip: true, code: "budget", budget: b };
 
   // Acquire locks (best effort)
-  await cachePutJson(cache, lockReq, { ts: Date.now(), kind, id }, 12, cors); // inflight lock (short)
+  await cachePutJson(cache, lockReq, { ts: Date.now(), kind, id }, 8, cors); // inflight lock
   await cachePutJson(cache, globalReq, { ts: Date.now() }, globalMinS, cors); // global cooldown
   await cachePutJson(cache, perReq, { ts: Date.now() }, cdS, cors); // entity cooldown
 
@@ -826,10 +735,6 @@ export default {
       const callsign = parts[1].trim().toUpperCase().replace(/\s+/g, "");
       if (!callsign) return json({ ok: false, error: "missing callsign" }, 400, cors);
 
-      // TTLs (configurable)
-      const FLIGHT_TTL_S = envInt(env, "AERODATA_FLIGHT_TTL_S", AERODATA_FLIGHT_TTL_S);
-      const NEG_TTL_S = envInt(env, "AERODATA_NEGATIVE_TTL_S", AERODATA_NEGATIVE_TTL_S);
-
       if (!env.AERODATA_KEY || !env.AERODATA_HOST) {
         return json(
           { ok: false, error: "aerodata_not_configured", hint: "Set AERODATA_KEY (Secret) and AERODATA_HOST (Text)" },
@@ -844,46 +749,11 @@ export default {
       const hit = await cache.match(ck);
       if (hit) return withCors(hit, cors, "HIT");
 
-      // Callsign gate: avoid burning credits on cargo/private patterns.
-      // Can be disabled with env var: ADBX_CALLSIGN_GATE=0
-      const gateCallsign = envBool(env, "ADBX_CALLSIGN_GATE", true);
-      if (gateCallsign && !isLikelyPassengerCallsign(callsign)) {
-        const payload = { ok: false, callsign, error: "unsupported_callsign" };
-        const out = new Response(JSON.stringify(payload), {
-          status: 200,
-          headers: {
-            ...cors,
-            "Content-Type": "application/json; charset=utf-8",
-            "Cache-Control": `public, max-age=${NEG_TTL_S}, s-maxage=${NEG_TTL_S}`,
-            "X-Cache": "NEG",
-            ...adbTelemetryHeaders("flight", "GATED", NEG_TTL_S, null),
-          },
-        });
-        ctx.waitUntil(cache.put(ck, out.clone()));
-        return out;
-      }
-
 
       // Safety locks: throttle + budget + cooldown + stampede protection
       const gate = await adbShouldSkip({ cache, origin: url.origin, env, cors, kind: "flight", id: callsign });
       if (gate.skip) {
         return json({ ok: false, callsign, error: "aerodata_throttled", reason: gate.code }, 200, cors);
-      }
-
-      // Optional hard daily budget cap (set AERODATA_DAILY_BUDGET to enable)
-      const budget = await budgetCanSpend(cache, url.origin, env, cors);
-      if (!budget.ok) {
-        // "User sees nothing" mode: don't leak budget limits or return error JSON.
-        // If there's no cached enrichment and the budget is exhausted, return 204.
-        const out = new Response(null, {
-          status: 204,
-          headers: {
-            ...cors,
-            "Cache-Control": "public, max-age=60, s-maxage=60",
-          },
-        });
-        ctx.waitUntil(cache.put(ck, out.clone()));
-        return out;
       }
       const upstreamUrl = `https://${env.AERODATA_HOST}/flights/callsign/${encodeURIComponent(callsign)}`;
 
@@ -898,23 +768,6 @@ export default {
         });
 
         const text = await res.text();
-
-        // Negative-cache not-found cases so repeated lookups don't burn credits.
-        if (res.status === 204 || res.status === 404) {
-          const payload = { ok: true, found: false, callsign };
-          const out = new Response(JSON.stringify(payload), {
-            status: 200,
-            headers: {
-              ...cors,
-              "Content-Type": "application/json; charset=utf-8",
-              "Cache-Control": `public, max-age=${NEG_TTL_S}, s-maxage=${NEG_TTL_S}`,
-              "X-Cache": "NEG",
-              ...adbTelemetryHeaders("aircraft", "NEG", NEG_TTL_S, nf),
-            },
-          });
-          ctx.waitUntil(cache.put(ck, out.clone()));
-          return out;
-        }
 
         if (res.status === 429) {
           const out = new Response(
@@ -946,21 +799,6 @@ export default {
         catch { return json({ ok: false, callsign, error: "aerodata_non_json" }, 502, cors); }
 
         const f = Array.isArray(data) ? data[0] : data;
-        if (!f) {
-          const payload = { ok: true, found: false, callsign };
-          const out = new Response(JSON.stringify(payload), {
-            status: 200,
-            headers: {
-              ...cors,
-              "Content-Type": "application/json; charset=utf-8",
-              "Cache-Control": `public, max-age=${NEG_TTL_S}, s-maxage=${NEG_TTL_S}`,
-              "X-Cache": "NEG",
-              ...adbTelemetryHeaders("aircraft", "NEG", NEG_TTL_S, nf),
-            },
-          });
-          ctx.waitUntil(cache.put(ck, out.clone()));
-          return out;
-        }
         const origin = f?.departure?.airport || null;
         const destination = f?.arrival?.airport || null;
 
@@ -985,8 +823,7 @@ export default {
           headers: {
             ...cors,
             "Content-Type": "application/json; charset=utf-8",
-            "Cache-Control": `public, max-age=${FLIGHT_TTL_S}, s-maxage=${FLIGHT_TTL_S}`,
-            ...adbTelemetryHeaders("flight", "UPSTREAM", FLIGHT_TTL_S, payload),
+            "Cache-Control": `public, max-age=${AERODATA_FLIGHT_TTL_S}, s-maxage=${AERODATA_FLIGHT_TTL_S}`,
           },
         });
 
@@ -1006,12 +843,6 @@ export default {
       const hex = parts[2].trim().toLowerCase();
       if (!hex) return json({ ok: false, error: "missing icao24" }, 400, cors);
 
-      // TTLs (configurable)
-      const AIRCRAFT_TTL_S = envInt(env, "AERODATA_AIRCRAFT_TTL_S", AERODATA_AIRCRAFT_TTL_S);
-      const NEG_TTL_S = envInt(env, "AERODATA_NEGATIVE_TTL_S", AERODATA_NEGATIVE_TTL_S);
-
-      const ttlFor = (rec) => aircraftTtlS(env, rec, AIRCRAFT_TTL_S);
-
       if (!env.AERODATA_KEY || !env.AERODATA_HOST) {
         return json(
           { ok: false, error: "aerodata_not_configured", hint: "Set AERODATA_KEY (Secret) and AERODATA_HOST (Text)" },
@@ -1026,15 +857,13 @@ export default {
       // 1) Global KV cache (fast + shared across locations)
       const kvHit = await kvGetAircraft(env, hex);
       if (kvHit) {
-        const ttlS = ttlFor(kvHit);
         const out = new Response(JSON.stringify(kvHit), {
           status: 200,
           headers: {
             ...cors,
             "Content-Type": "application/json; charset=utf-8",
-            "Cache-Control": `public, max-age=${ttlS}, s-maxage=${ttlS}`,
+            "Cache-Control": `public, max-age=${AERODATA_AIRCRAFT_TTL_S}, s-maxage=${AERODATA_AIRCRAFT_TTL_S}`,
             "X-Cache": "KV",
-            ...adbTelemetryHeaders("aircraft", "KV", ttlS, kvHit),
           },
         });
         return out;
@@ -1044,16 +873,14 @@ export default {
       // 2) D1 (permanent DB) — repopulates KV after KV expires
       const d1Hit = await d1GetAircraft(env, hex);
       if (d1Hit) {
-        const ttlS = ttlFor(d1Hit);
         ctx.waitUntil(kvPutAircraft(env, hex, d1Hit, AIRCRAFT_KV_TTL_S));
         const out = new Response(JSON.stringify(d1Hit), {
           status: 200,
           headers: {
             ...cors,
             "Content-Type": "application/json; charset=utf-8",
-            "Cache-Control": `public, max-age=${ttlS}, s-maxage=${ttlS}`,
+            "Cache-Control": `public, max-age=${AERODATA_AIRCRAFT_TTL_S}, s-maxage=${AERODATA_AIRCRAFT_TTL_S}`,
             "X-Cache": "D1",
-            ...adbTelemetryHeaders("aircraft", "D1", ttlS, d1Hit),
           },
         });
         // also refresh Cache API for compatibility
@@ -1069,22 +896,6 @@ export default {
       const gate = await adbShouldSkip({ cache, origin: url.origin, env, cors, kind: "aircraft", id: hex });
       if (gate.skip) {
         return json({ ok: false, icao24: hex, error: "aerodata_throttled", reason: gate.code }, 200, cors);
-      }
-
-      // Optional hard daily budget cap (set AERODATA_DAILY_BUDGET to enable)
-      const budget = await budgetCanSpend(cache, url.origin, env, cors);
-      if (!budget.ok) {
-        // "User sees nothing" mode: don't leak budget limits or return error JSON.
-        // If there's no cached enrichment and the budget is exhausted, return 204.
-        const out = new Response(null, {
-          status: 204,
-          headers: {
-            ...cors,
-            "Cache-Control": "public, max-age=60, s-maxage=60",
-          },
-        });
-        ctx.waitUntil(cache.put(ck, out.clone()));
-        return out;
       }
       const upstreamUrl = `https://${env.AERODATA_HOST}/aircrafts/icao24/${encodeURIComponent(hex)}`;
 
@@ -1115,22 +926,6 @@ export default {
           return out;
         }
 
-        if (res.status === 404) {
-          const nf = { ok: true, found: false, icao24: hex };
-          const out = new Response(JSON.stringify(nf), {
-            status: 200,
-            headers: {
-              ...cors,
-              "Content-Type": "application/json; charset=utf-8",
-              "Cache-Control": `public, max-age=${NEG_TTL_S}, s-maxage=${NEG_TTL_S}`,
-              "X-Cache": "NEG",
-            },
-          });
-          ctx.waitUntil(cache.put(ck, out.clone()));
-          ctx.waitUntil(kvPutAircraft(env, hex, nf, NEG_TTL_S));
-          return out;
-        }
-
         if (res.status === 204) {
           const nf = { ok: true, found: false, icao24: hex };
           const out = new Response(JSON.stringify(nf), {
@@ -1138,13 +933,12 @@ export default {
             headers: {
               ...cors,
               "Content-Type": "application/json; charset=utf-8",
-              "Cache-Control": `public, max-age=${NEG_TTL_S}, s-maxage=${NEG_TTL_S}`,
-              "X-Cache": "NEG",
+              "Cache-Control": "public, max-age=21600, s-maxage=21600",
             },
           });
           ctx.waitUntil(cache.put(ck, out.clone()));
           // Cache negative results briefly to avoid repeat lookups
-          ctx.waitUntil(kvPutAircraft(env, hex, nf, NEG_TTL_S));
+          ctx.waitUntil(kvPutAircraft(env, hex, nf, 60 * 60 * 6));
           return out;
         }
 
@@ -1163,15 +957,12 @@ export default {
 
         const payload = { ok: true, icao24: hex, ...raw };
 
-        const ttlS = ttlFor(payload);
-
         const out = new Response(JSON.stringify(payload), {
           status: 200,
           headers: {
             ...cors,
             "Content-Type": "application/json; charset=utf-8",
-            "Cache-Control": `public, max-age=${ttlS}, s-maxage=${ttlS}`,
-            ...adbTelemetryHeaders("aircraft", "UPSTREAM", ttlS, payload),
+            "Cache-Control": `public, max-age=${AERODATA_AIRCRAFT_TTL_S}, s-maxage=${AERODATA_AIRCRAFT_TTL_S}`,
           },
         });
 
