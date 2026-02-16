@@ -1074,3 +1074,7 @@ body.kiosk .kioskSecondaryMini{ display:none; }
   .about.card{ padding: 16px 16px 14px; }
   .about h2{ font-size: 17px; }
 }
+
+/* Footer separator (used on static pages) */
+.fabm-sep{margin:0 10px;opacity:.7;}
+
