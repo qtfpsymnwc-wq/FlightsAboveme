@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>FlightsAboveMe — About</title>
+  <link rel="stylesheet" href="./style.css?v=211">
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div class="brand">
+        <a href="./index.html" aria-label="Back to FlightsAboveMe">
+          <img src="flightsaboveme-logo-tight.png?v=220" alt="FlightsAboveMe" class="siteLogo">
+        </a>
+      </div>
+      <div class="right"></div>
+    </header>
+
+    <main class="wrap">
+      <section class="card">
+        <div class="heroTop">
+          <div class="heroTitle">About FlightsAboveMe</div>
+          <div class="heroHint">What this site is, where the data comes from, and what to expect</div>
+        </div>
+
+        <div class="heroSub" style="line-height:1.65">
+          <p style="margin-top:0">
+            <b>FlightsAboveMe</b> is a lightweight “what’s overhead?” flight display. It’s built for quick checks on your phone and
+            for always‑on wall boards and TVs using <a href="./kiosk.html">Kiosk Mode</a>.
+          </p>
+
+          <h3 style="margin:16px 0 6px; color: var(--text);">What you’ll see</h3>
+          <ul style="margin:0 0 10px 18px">
+            <li>Nearby aircraft with altitude, speed, distance, and direction</li>
+            <li>Basic aircraft details when available (type/model/operator)</li>
+            <li>Simple labels like climbing/descending/cruising based on vertical speed</li>
+          </ul>
+
+          <h3 style="margin:16px 0 6px; color: var(--text);">Data sources</h3>
+          <p style="margin:0 0 10px">
+            FlightsAboveMe blends multiple aviation data sources to improve reliability and add aircraft details:
+          </p>
+          <ul style="margin:0 0 10px 18px">
+            <li><b>OpenSky Network</b> — primary live state vectors when available</li>
+            <li><b>adsb.lol</b> — fallback live aircraft state data</li>
+            <li><b>AeroDataBox</b> — aircraft enrichment (type/model/operator details)</li>
+          </ul>
+
+          <h3 style="margin:16px 0 6px; color: var(--text);">Limitations</h3>
+          <p style="margin:0 0 10px">
+            Coverage and accuracy vary by region and aircraft equipment. Some flights may be delayed, incomplete, or missing.
+            If location access is disabled, you can still view flights by entering a U.S. ZIP code.
+          </p>
+
+          <h3 style="margin:16px 0 6px; color: var(--text);">Trademarks</h3>
+          <p style="margin:0 0 10px">
+            Airline names and logos are trademarks of their respective owners. FlightsAboveMe is not affiliated with any airline.
+          </p>
+
+          <h3 style="margin:16px 0 6px; color: var(--text);">Contact</h3>
+          <p style="margin:0">
+            Questions or feedback? Email us at <span style="color:var(--text); font-weight:650;">support@flightsaboveme.com</span>.
+          </p>
+
+          <p style="margin:14px 0 0; opacity:.9">
+            <b>Notice:</b> Flight data is provided for informational purposes only and may be delayed, incomplete, or inaccurate.
+            Not for operational or navigation use.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="fabm-footer">
+      <div>© 2026 FlightsAboveMe</div>
+      <div class="fabm-links">
+        <a href="./index.html">Home</a>
+        <span class="fabm-sep">•</span>
+        <a href="./learn.html">How It Works</a>
+        <span class="fabm-sep">•</span>
+        <a href="./privacy.html">Privacy</a>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>
