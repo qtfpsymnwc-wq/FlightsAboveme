@@ -147,18 +147,6 @@ body{
   outline-offset:2px;
 }
 
-/* Kiosk button accent (keeps the old "colored pill" feel) */
-.nav-kiosk{
-  margin: 10px 0 14px;
-  border-color: rgba(79,209,197,.55);
-  background: rgba(79,209,197,.16);
-}
-.nav-kiosk:hover{
-  border-color: rgba(79,209,197,.75);
-  background: rgba(79,209,197,.22);
-}
-
-
 /* Exit button only visible in kiosk */
 .kioskOnly{ display:none !important; }
 body.kiosk .kioskOnly{
@@ -1092,6 +1080,33 @@ body.kiosk .kioskSecondaryMini{ display:none; }
 
 
 
-/* v1.5.7: content-first layout helpers */
-.layout .modeToggle{ margin: 10px 0 12px; }
-.about-actions{ margin-top: 12px; }
+/* Publisher intro (AdSense-friendly content above the main card) */
+.publisherIntro.card{
+  padding: 16px 18px 14px;
+}
+.publisherIntro__title{
+  margin: 0 0 8px;
+  font-size: 18px;
+  letter-spacing: .2px;
+}
+.publisherIntro__text{
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+/* About actions */
+.about-actions{
+  margin: 10px 0 6px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.nav-learn{
+  border-color: rgba(79,209,197,.35);
+  background: rgba(79,209,197,.10);
+}
+.nav-learn:hover{
+  border-color: rgba(79,209,197,.55);
+  background: rgba(79,209,197,.16);
+}
