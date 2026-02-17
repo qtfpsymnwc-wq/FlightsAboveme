@@ -315,6 +315,42 @@ function loadLastZip(){
 function saveLastZip(zip){
   try { localStorage.setItem("fabm_zip", zip); } catch {}
 }
+
+// Zip gate controls need to work even after initial load.
+// Keep it simple: validate ZIP, save it, then reload so the app re-initializes
+// using the new coordinates.
+function setupZipGateControls(){
+  const gate = document.getElementById("zipGate");
+  const input = document.getElementById("zipInput");
+  const btn = document.getElementById("zipBtn");
+  if (!gate || !input || !btn) return;
+
+  input.oninput = ()=>{
+    input.value = String(input.value||"").replace(/\D/g,"").slice(0,5);
+  };
+
+  const submit = async ()=>{
+    const z = String(input.value || "").replace(/\D/g,"").slice(0,5);
+    input.value = z;
+    btn.disabled = true;
+    const oldText = btn.textContent;
+    btn.textContent = "Looking…";
+    setZipMsg("");
+    try{
+      await lookupZip(z);
+      saveLastZip(z);
+      try { localStorage.setItem("fabm_zip_user_set", "1"); } catch {}
+      window.location.reload();
+    }catch(e){
+      setZipMsg(String(e?.message || e));
+      btn.disabled = false;
+      btn.textContent = oldText || "Use ZIP";
+    }
+  };
+
+  btn.onclick = submit;
+  input.onkeydown = (ev)=>{ if (ev.key === "Enter") submit(); };
+}
 function showZipGate(show){
   const gate = document.getElementById("zipGate");
   if (!gate) return;
@@ -723,6 +759,8 @@ async function main(){
 
   const statusEl = $("statusText");
   const contextEl = document.getElementById("contextLine");
+  // Make ZIP entry usable at any time (not only during the initial location prompt).
+  try { setupZipGateControls(); } catch {}
   if (statusEl) statusEl.textContent = "Locating…";
 
   const tierSegment = document.getElementById("tierSegment");
@@ -765,7 +803,15 @@ async function main(){
     }
     // If we have no last-known location, use a default ZIP (72704) so the site loads with real data,
 // and still allow the user to enter their own ZIP to override.
-const savedZip = loadLastZip();
+let savedZip = loadLastZip();
+let userSet = false;
+try {
+  userSet = localStorage.getItem("fabm_zip_user_set") === "1";
+} catch {}
+// Back-compat: if a non-default ZIP is already stored, treat it as user-set.
+if (!userSet && savedZip && savedZip !== DEFAULT_ZIP) userSet = true;
+if (!userSet) savedZip = "";
+
 const z = savedZip || DEFAULT_ZIP;
 
 try {
@@ -780,7 +826,8 @@ try {
   }
 
   const r = await lookupZip(z);
-  if (!savedZip) saveLastZip(z);
+  // Do NOT persist the default ZIP as the user's ZIP.
+  // This keeps behavior correct when the user later enters their own ZIP.
 
   return { coords: { latitude: Number(r.lat), longitude: Number(r.lon), accuracy: 25000 }, __fromZip: true, __zip: z, __defaultZip: !savedZip };
 } catch (e2) {
