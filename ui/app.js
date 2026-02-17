@@ -795,7 +795,30 @@ async function main(){
     );
   }).catch(async (e)=>{
     // v1.3.1: On flaky cellular GPS, fall back to last known location so the app still loads.
-    const last = loadLastLocation();
+        // If the user has explicitly set a ZIP code, prefer it over "last known location".
+    let savedZip = loadLastZip();
+    let userSet = false;
+    try { userSet = localStorage.getItem("fabm_zip_user_set") === "1"; } catch {}
+    // Back-compat: if a non-default ZIP is already stored, treat it as user-set.
+    if (!userSet && savedZip && savedZip !== DEFAULT_ZIP) userSet = true;
+
+    if (userSet && savedZip) {
+      try {
+        if (statusEl) statusEl.textContent = "Using ZIP…";
+        if (!isKiosk()) {
+          showZipGate(true);
+          const input = document.getElementById("zipInput");
+          if (input) input.value = savedZip;
+          setZipMsg("");
+        }
+        const r = await lookupZip(savedZip);
+        return { coords: { latitude: Number(r.lat), longitude: Number(r.lon), accuracy: 25000 }, __fromZip: true, __zip: savedZip, __defaultZip: false };
+      } catch (zipErr) {
+        // If ZIP lookup fails, fall through to last-known/default handling below.
+      }
+    }
+
+const last = loadLastLocation();
     if (last) {
       if (statusEl) statusEl.textContent = "Using last location…";
       showErr("Location failed — using last known location");
@@ -803,13 +826,7 @@ async function main(){
     }
     // If we have no last-known location, use a default ZIP (72704) so the site loads with real data,
 // and still allow the user to enter their own ZIP to override.
-let savedZip = loadLastZip();
-let userSet = false;
-try {
-  userSet = localStorage.getItem("fabm_zip_user_set") === "1";
-} catch {}
-// Back-compat: if a non-default ZIP is already stored, treat it as user-set.
-if (!userSet && savedZip && savedZip !== DEFAULT_ZIP) userSet = true;
+// savedZip/userSet already handled above (ZIP has priority over last-known location)
 if (!userSet) savedZip = "";
 
 const z = savedZip || DEFAULT_ZIP;
