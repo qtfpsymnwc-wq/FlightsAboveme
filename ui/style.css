@@ -147,6 +147,18 @@ body{
   outline-offset:2px;
 }
 
+/* Kiosk button accent (keeps the old "colored pill" feel) */
+.nav-kiosk{
+  margin: 10px 0 14px;
+  border-color: rgba(79,209,197,.55);
+  background: rgba(79,209,197,.16);
+}
+.nav-kiosk:hover{
+  border-color: rgba(79,209,197,.75);
+  background: rgba(79,209,197,.22);
+}
+
+
 /* Exit button only visible in kiosk */
 .kioskOnly{ display:none !important; }
 body.kiosk .kioskOnly{
