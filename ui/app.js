@@ -23,10 +23,6 @@ const STATES_TIMEOUT_MS = 16000;
 const GEO_TIMEOUT_MS = 12000;
 const LAST_LOC_KEY = "fam_last_loc_v1";
 
-// Default demo location when user has no location permission and no ZIP set
-const DEFAULT_ZIP = "72704";
-const DEFAULT_ZIP_LABEL = "Flights above Fayetteville, Arkansas";
-
 // Enrichment budgets (per “cycle”)
 // v1.2.9+: only enrich the closest flight (within ENRICH_MAX_MI)
 const LIST_AIRCRAFT_BUDGET = 0;
@@ -314,42 +310,6 @@ function loadLastZip(){
 }
 function saveLastZip(zip){
   try { localStorage.setItem("fabm_zip", zip); } catch {}
-}
-
-// Zip gate controls need to work even after initial load.
-// Keep it simple: validate ZIP, save it, then reload so the app re-initializes
-// using the new coordinates.
-function setupZipGateControls(){
-  const gate = document.getElementById("zipGate");
-  const input = document.getElementById("zipInput");
-  const btn = document.getElementById("zipBtn");
-  if (!gate || !input || !btn) return;
-
-  input.oninput = ()=>{
-    input.value = String(input.value||"").replace(/\D/g,"").slice(0,5);
-  };
-
-  const submit = async ()=>{
-    const z = String(input.value || "").replace(/\D/g,"").slice(0,5);
-    input.value = z;
-    btn.disabled = true;
-    const oldText = btn.textContent;
-    btn.textContent = "Looking…";
-    setZipMsg("");
-    try{
-      await lookupZip(z);
-      saveLastZip(z);
-      try { localStorage.setItem("fabm_zip_user_set", "1"); } catch {}
-      window.location.reload();
-    }catch(e){
-      setZipMsg(String(e?.message || e));
-      btn.disabled = false;
-      btn.textContent = oldText || "Use ZIP";
-    }
-  };
-
-  btn.onclick = submit;
-  input.onkeydown = (ev)=>{ if (ev.key === "Enter") submit(); };
 }
 function showZipGate(show){
   const gate = document.getElementById("zipGate");
@@ -758,9 +718,6 @@ async function main(){
   enableKioskIfRequested();
 
   const statusEl = $("statusText");
-  const contextEl = document.getElementById("contextLine");
-  // Make ZIP entry usable at any time (not only during the initial location prompt).
-  try { setupZipGateControls(); } catch {}
   if (statusEl) statusEl.textContent = "Locating…";
 
   const tierSegment = document.getElementById("tierSegment");
@@ -795,92 +752,25 @@ async function main(){
     );
   }).catch(async (e)=>{
     // v1.3.1: On flaky cellular GPS, fall back to last known location so the app still loads.
-        // If the user has explicitly set a ZIP code, prefer it over "last known location".
-    let savedZip = loadLastZip();
-    let userSet = false;
-    try { userSet = localStorage.getItem("fabm_zip_user_set") === "1"; } catch {}
-    // Back-compat: if a non-default ZIP is already stored, treat it as user-set.
-    if (!userSet && savedZip && savedZip !== DEFAULT_ZIP) userSet = true;
-
-    if (userSet && savedZip) {
-      try {
-        if (statusEl) statusEl.textContent = "Using ZIP…";
-        if (!isKiosk()) {
-          showZipGate(true);
-          const input = document.getElementById("zipInput");
-          if (input) input.value = savedZip;
-          setZipMsg("");
-        }
-        const r = await lookupZip(savedZip);
-        return { coords: { latitude: Number(r.lat), longitude: Number(r.lon), accuracy: 25000 }, __fromZip: true, __zip: savedZip, __defaultZip: false };
-      } catch (zipErr) {
-        // If ZIP lookup fails, fall through to last-known/default handling below.
-      }
-    }
-
-const last = loadLastLocation();
+    const last = loadLastLocation();
     if (last) {
       if (statusEl) statusEl.textContent = "Using last location…";
       showErr("Location failed — using last known location");
       return { coords: { latitude: last.lat, longitude: last.lon, accuracy: last.accuracy }, __fromLast: true };
     }
-    // If we have no last-known location, use a default ZIP (72704) so the site loads with real data,
-// and still allow the user to enter their own ZIP to override.
-// savedZip/userSet already handled above (ZIP has priority over last-known location)
-if (!userSet) savedZip = "";
-
-const z = savedZip || DEFAULT_ZIP;
-
-try {
-  if (statusEl) statusEl.textContent = savedZip ? "Using ZIP…" : "Demo location…";
-
-  // Show ZIP gate on main UI so the user can override.
-  if (!isKiosk()) {
-    showZipGate(true);
-    const input = document.getElementById("zipInput");
-    if (input) input.value = z;
-    setZipMsg(savedZip ? "" : "Defaulting to 72704 (Fayetteville, Arkansas). Enter your ZIP to change.");
-  }
-
-  const r = await lookupZip(z);
-  // Do NOT persist the default ZIP as the user's ZIP.
-  // This keeps behavior correct when the user later enters their own ZIP.
-
-  return { coords: { latitude: Number(r.lat), longitude: Number(r.lon), accuracy: 25000 }, __fromZip: true, __zip: z, __defaultZip: !savedZip };
-} catch (e2) {
-  // If default ZIP lookup fails, fall back to interactive ZIP entry.
-  if (statusEl) statusEl.textContent = "Enter ZIP…";
-  showErr("Location is off — enter ZIP code to continue");
-  const zipLoc = await promptZipLocation();
-  if (zipLoc) {
-    return { coords: { latitude: zipLoc.lat, longitude: zipLoc.lon, accuracy: zipLoc.accuracy }, __fromZip: true, __zip: zipLoc.zip, __defaultZip: false };
-  }
-}
+    // If we have no last-known location, offer US ZIP entry on main UI.
+    if (statusEl) statusEl.textContent = "Enter ZIP…";
+    showErr("Location is off — enter ZIP code to continue");
+    const zipLoc = await promptZipLocation();
+    if (zipLoc) {
+      return { coords: { latitude: zipLoc.lat, longitude: zipLoc.lon, accuracy: zipLoc.accuracy }, __fromZip: true };
+    }
     if (statusEl) statusEl.textContent = "Location failed";
     showErr(String(e.message || e));
     throw e;
   });
 
-  
-
-// Update context label (helps first-load clarity and AdSense reviewer flow)
-try {
-  if (contextEl) {
-    if (pos.__fromZip === true) {
-      if (pos.__defaultZip === true && String(pos.__zip || "") === DEFAULT_ZIP) {
-        contextEl.textContent = DEFAULT_ZIP_LABEL;
-      } else {
-        const z = String(pos.__zip || loadLastZip() || "").trim();
-        contextEl.textContent = z ? `Flights above ${z}` : "Flights above your area";
-      }
-    } else if (pos.__fromLast === true) {
-      contextEl.textContent = "Flights above your last location";
-    } else {
-      contextEl.textContent = "Flights above you";
-    }
-  }
-} catch {}
-const lat = pos.coords.latitude;
+  const lat = pos.coords.latitude;
   const lon = pos.coords.longitude;
   // v1.3.1: persist last good location to survive cellular GPS flakiness
   saveLastLocation(lat, lon, pos?.coords?.accuracy);
