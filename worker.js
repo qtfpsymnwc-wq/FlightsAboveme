@@ -582,6 +582,54 @@ export default {
         { headers: { "content-type": "text/plain; charset=utf-8" } }
       );
     }
+    // ZIP -> lat/lon lookup (US 5-digit ZIP codes)
+    // Must be handled before any UI/SPA fallbacks so the frontend can fetch JSON.
+    if (url.pathname.startsWith("/zip/")) {
+      const zip = url.pathname.split("/")[2] || "";
+      const jsonHeaders = { "content-type": "application/json; charset=utf-8" };
+
+      if (!/^\d{5}$/.test(zip)) {
+        return new Response(JSON.stringify({ ok: false, error: "Invalid ZIP" }), {
+          status: 400,
+          headers: jsonHeaders,
+        });
+      }
+
+      // Reliable public ZIP lookup (returns JSON)
+      const upstream = await fetch(`https://api.zippopotam.us/us/${zip}`, {
+        cf: { cacheTtl: 86400, cacheEverything: true },
+      });
+
+      if (upstream.status === 404) {
+        // Not found → allow UI to show a friendly message
+        return new Response(null, { status: 204 });
+      }
+      if (!upstream.ok) {
+        return new Response(JSON.stringify({ ok: false, error: "ZIP lookup failed" }), {
+          status: 502,
+          headers: jsonHeaders,
+        });
+      }
+
+      const data = await upstream.json();
+      const place = data?.places?.[0];
+      const lat = place ? Number(place.latitude) : NaN;
+      const lon = place ? Number(place.longitude) : NaN;
+
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+        return new Response(JSON.stringify({ ok: false, error: "ZIP lookup invalid response" }), {
+          status: 502,
+          headers: jsonHeaders,
+        });
+      }
+
+      return new Response(JSON.stringify({ ok: true, zip, lat, lon, source: "zippopotam" }), {
+        status: 200,
+        headers: jsonHeaders,
+      });
+    }
+
+
 
 
     const cors = {
