@@ -20,17 +20,21 @@
           <button type="button" data-tier="A" class="active">Airlines</button>
           <button type="button" data-tier="B">Other</button>
         </div>
-
-        <!-- ✅ Main → Kiosk (UPDATED to new kiosk page) -->
-        <a class="modeToggle nav-kiosk" href="./kiosk.html" aria-label="Enter kiosk mode">Kiosk Mode</a>
-
-        <div class="status">
+<div class="status">
           <span id="statusText">Booting…</span>
         </div>
       </div>
     </header>
 
     <main class="layout">
+      <section class="about card intro" id="intro">
+      <h2>Flights above you — live, fast, and simple.</h2>
+      <p>FlightsAboveMe shows aircraft currently flying near your location using live flight tracking signals (ADS‑B) and public aviation data. Tap an aircraft to see details like altitude, speed, distance, and direction.</p>
+      <p class="about-note">Coverage varies by region and aircraft equipment, so results may be delayed or incomplete. This site is for informational purposes only.</p>
+    </section>
+
+      <a class="modeToggle nav-kiosk" href="./kiosk.html" aria-label="Enter kiosk mode">Kiosk Mode</a>
+
       <section class="primary card">
         <div class="primaryHeader">
           <div class="airlineHeader">
@@ -64,6 +68,32 @@
         </div>
       </section>
 
+      <section class="about card" id="about">
+      <h2>What is FlightsAboveMe?</h2>
+      <p>FlightsAboveMe shows aircraft currently flying near your location using live flight tracking data. It’s designed for quick “what’s overhead?” checks and for always-on displays.</p>
+      <p>It combines live aircraft state data with lightweight enrichment so you can identify what’s overhead quickly—without digging through airline schedules. Data sources include OpenSky, adsb.lol (fallback), and AeroDataBox for aircraft details.</p>
+      <ul>
+        <li>See the closest flights near you, including altitude, speed, distance, and direction.</li>
+        <li>Tap Kiosk Mode for an ad-free, full-screen flight board for TVs and tablets.</li>
+        <li>If you don’t allow location access, you can enter a U.S. ZIP code to view flights near that area.</li>
+      </ul>
+      <div class="about-actions">
+        <a class="modeToggle nav-learn" href="./learn.html" aria-label="Learn how flight tracking works">How It Works</a>
+      </div>
+
+      <p class="about-note">Data is informational and may be delayed or incomplete. Not for operational or navigation use.</p>
+    </section>
+
+      <section id="zipGate" class="zipGate hidden" role="form" aria-label="Enter ZIP code">
+      <div class="zipGate__title">Enter ZIP Code</div>
+      <div class="zipGate__desc">Location is off. Enter a 5‑digit US ZIP to see flights near you.</div>
+      <div class="zipGate__row">
+        <input id="zipInput" class="zipGate__input" inputmode="numeric" autocomplete="postal-code" maxlength="5" placeholder="e.g., 72701" aria-label="ZIP code" />
+        <button id="zipBtn" class="zipGate__btn" type="button">Use ZIP</button>
+      </div>
+      <div id="zipMsg" class="zipGate__msg" aria-live="polite"></div>
+    </section>
+
       <section class="list card">
         <div class="listHeader">
           <div class="listTitle">Nearby flights</div>
@@ -74,47 +104,14 @@
     </main>
 
     <div id="errBox" class="errBox hidden"></div>
-
-    <!-- ZIP fallback (main UI only): shown if location permission is denied and no last location exists -->
-    <section id="zipGate" class="zipGate hidden" role="form" aria-label="Enter ZIP code">
-      <div class="zipGate__title">Enter ZIP Code</div>
-      <div class="zipGate__desc">Location is off. Enter a 5‑digit US ZIP to see flights near you.</div>
-      <div class="zipGate__row">
-        <input id="zipInput" class="zipGate__input" inputmode="numeric" autocomplete="postal-code" maxlength="5" placeholder="e.g., 72701" aria-label="ZIP code" />
-        <button id="zipBtn" class="zipGate__btn" type="button">Use ZIP</button>
-      </div>
-      <div id="zipMsg" class="zipGate__msg" aria-live="polite"></div>
-    </section>
-
-    
-
-
-    <!-- Kiosk mode callout (main UI only). Keep kiosk.html ad-free. -->
-    
-    <section class="about card" id="about">
-      <h2>What is FlightsAboveMe?</h2>
-      <p>FlightsAboveMe shows aircraft currently flying near your location using live flight tracking data. It’s designed for quick “what’s overhead?” checks and for always-on displays.</p>
-      <ul>
-        <li>See the closest flights near you, including altitude, speed, distance, and direction.</li>
-        <li>Tap Kiosk Mode for an ad-free, full-screen flight board for TVs and tablets.</li>
-        <li>If you don’t allow location access, you can enter a U.S. ZIP code to view flights near that area.</li>
-      </ul>
-      <p class="about-note">Data is informational and may be delayed or incomplete. Not for operational or navigation use.</p>
-    </section>
-
-<section class="kiosk-callout" role="note" aria-label="Kiosk mode">
-      <div class="kiosk-callout__title">Kiosk Mode</div>
-      <div class="kiosk-callout__desc">An ad-free, full-screen flight display for TVs, tablets, and always-on wall boards.</div>
-      <a class="kiosk-callout__link" href="./kiosk.html">Open Kiosk Mode →</a>
-    </section>
-
-    <!-- Ad slot (main UI only). Keep kiosk.html ad-free. -->
+<!-- Kiosk mode callout (main UI only). Keep kiosk.html ad-free. -->
+<!-- Ad slot (main UI only). Keep kiosk.html ad-free. -->
     <div id="ad-container" aria-label="Advertisement">
       <!-- Paste your AdSense ad unit <ins ...></ins> + push script here (after approval). -->
     </div>
 <footer class="fabm-footer">
   <div>© 2026 FlightsAboveMe</div>
-  <div class="fabm-links"><a href="./about.html">About</a><span class="fabm-sep">•</span><a href="./privacy.html">Privacy</a><span class="fabm-sep">•</span><a href="./learn.html">How It Works</a></div>
+  <div class="fabm-links"><a href="./privacy.html">Privacy</a><span class="fabm-sep">•</span><a href="./learn.html">How It Works</a></div>
     <div class="fabm-legal">
       <div>Airline names and logos are trademarks of their respective owners.</div>
       <div>Flight data is provided for informational purposes only and may be delayed, incomplete, or inaccurate. Not for operational or navigation use.</div>

@@ -1078,3 +1078,8 @@ body.kiosk .kioskSecondaryMini{ display:none; }
 /* Footer separator (used on static pages) */
 .fabm-sep{margin:0 10px;opacity:.7;}
 
+
+
+/* v1.5.7: content-first layout helpers */
+.layout .modeToggle{ margin: 10px 0 12px; }
+.about-actions{ margin-top: 12px; }
