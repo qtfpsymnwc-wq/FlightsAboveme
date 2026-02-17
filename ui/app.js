@@ -23,6 +23,10 @@ const STATES_TIMEOUT_MS = 16000;
 const GEO_TIMEOUT_MS = 12000;
 const LAST_LOC_KEY = "fam_last_loc_v1";
 
+// Default demo location when user has no location permission and no ZIP set
+const DEFAULT_ZIP = "72704";
+const DEFAULT_ZIP_LABEL = "Flights above Fayetteville, Arkansas";
+
 // Enrichment budgets (per “cycle”)
 // v1.2.9+: only enrich the closest flight (within ENRICH_MAX_MI)
 const LIST_AIRCRAFT_BUDGET = 0;
@@ -718,6 +722,7 @@ async function main(){
   enableKioskIfRequested();
 
   const statusEl = $("statusText");
+  const contextEl = document.getElementById("contextLine");
   if (statusEl) statusEl.textContent = "Locating…";
 
   const tierSegment = document.getElementById("tierSegment");
@@ -758,19 +763,60 @@ async function main(){
       showErr("Location failed — using last known location");
       return { coords: { latitude: last.lat, longitude: last.lon, accuracy: last.accuracy }, __fromLast: true };
     }
-    // If we have no last-known location, offer US ZIP entry on main UI.
-    if (statusEl) statusEl.textContent = "Enter ZIP…";
-    showErr("Location is off — enter ZIP code to continue");
-    const zipLoc = await promptZipLocation();
-    if (zipLoc) {
-      return { coords: { latitude: zipLoc.lat, longitude: zipLoc.lon, accuracy: zipLoc.accuracy }, __fromZip: true };
-    }
+    // If we have no last-known location, use a default ZIP (72704) so the site loads with real data,
+// and still allow the user to enter their own ZIP to override.
+const savedZip = loadLastZip();
+const z = savedZip || DEFAULT_ZIP;
+
+try {
+  if (statusEl) statusEl.textContent = savedZip ? "Using ZIP…" : "Demo location…";
+
+  // Show ZIP gate on main UI so the user can override.
+  if (!isKiosk()) {
+    showZipGate(true);
+    const input = document.getElementById("zipInput");
+    if (input) input.value = z;
+    setZipMsg(savedZip ? "" : "Defaulting to 72704 (Fayetteville, Arkansas). Enter your ZIP to change.");
+  }
+
+  const r = await lookupZip(z);
+  if (!savedZip) saveLastZip(z);
+
+  return { coords: { latitude: Number(r.lat), longitude: Number(r.lon), accuracy: 25000 }, __fromZip: true, __zip: z, __defaultZip: !savedZip };
+} catch (e2) {
+  // If default ZIP lookup fails, fall back to interactive ZIP entry.
+  if (statusEl) statusEl.textContent = "Enter ZIP…";
+  showErr("Location is off — enter ZIP code to continue");
+  const zipLoc = await promptZipLocation();
+  if (zipLoc) {
+    return { coords: { latitude: zipLoc.lat, longitude: zipLoc.lon, accuracy: zipLoc.accuracy }, __fromZip: true, __zip: zipLoc.zip, __defaultZip: false };
+  }
+}
     if (statusEl) statusEl.textContent = "Location failed";
     showErr(String(e.message || e));
     throw e;
   });
 
-  const lat = pos.coords.latitude;
+  
+
+// Update context label (helps first-load clarity and AdSense reviewer flow)
+try {
+  if (contextEl) {
+    if (pos.__fromZip === true) {
+      if (pos.__defaultZip === true && String(pos.__zip || "") === DEFAULT_ZIP) {
+        contextEl.textContent = DEFAULT_ZIP_LABEL;
+      } else {
+        const z = String(pos.__zip || loadLastZip() || "").trim();
+        contextEl.textContent = z ? `Flights above ${z}` : "Flights above your area";
+      }
+    } else if (pos.__fromLast === true) {
+      contextEl.textContent = "Flights above your last location";
+    } else {
+      contextEl.textContent = "Flights above you";
+    }
+  }
+} catch {}
+const lat = pos.coords.latitude;
   const lon = pos.coords.longitude;
   // v1.3.1: persist last good location to survive cellular GPS flakiness
   saveLastLocation(lat, lon, pos?.coords?.accuracy);
