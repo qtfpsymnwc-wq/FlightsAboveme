@@ -33,3 +33,14 @@ body.learn .learnNotice{
   border-radius: 12px;
   opacity: .9;
 }
+
+
+/* Jump links + small helper text */
+body.learn .learnJump{
+  margin: -6px 0 14px;
+  font-size: .92rem;
+  opacity: .92;
+}
+body.learn .learnJump a{ text-decoration: underline; }
+body.learn .learnJump .dot{ opacity: .75; padding: 0 6px; }
+body.learn .learnSmall{ margin: 0 0 10px; opacity: .92; }

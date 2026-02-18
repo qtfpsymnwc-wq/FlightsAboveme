@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>FlightsAboveMe — Squawk Codes Explained</title>
+  <link rel="stylesheet" href="./style.css?v=215">
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div class="brand">
+        <a href="./index.html" aria-label="Back to FlightsAboveMe">
+          <img src="flightsaboveme-logo-tight.png?v=220" alt="FlightsAboveMe" class="siteLogo">
+        </a>
+      </div>
+      <nav class="topnav">
+        <a class="pill" href="./learn.html">How It Works</a>
+        <a class="pill" href="./build-adsb.html">Build ADS‑B</a>
+      </nav>
+    </header>
+
+    <main class="wrap">
+      <section class="hero card">
+        <div class="heroTitle">Squawk codes explained</div>
+        <div class="heroHint">What transponder codes mean and why they matter</div>
+        <div class="heroSub" style="line-height:1.65">
+          <p style="margin-top:0">
+            A <b>squawk</b> is a 4‑digit transponder code (Mode A) used by radar and air traffic control systems.
+            Controllers assign squawks so aircraft can be identified and tracked on ATC displays.
+          </p>
+          <h3 style="margin:16px 0 6px; color: var(--text);">Common emergency squawks</h3>
+          <ul style="margin:8px 0 12px 18px">
+            <li><b>7700</b> — general emergency</li>
+            <li><b>7600</b> — radio communications failure</li>
+            <li><b>7500</b> — unlawful interference (hijacking)</li>
+          </ul>
+          <h3 style="margin:16px 0 6px; color: var(--text);">Why squawk may be missing</h3>
+          <p style="margin:0 0 10px">
+            Not all public feeds provide squawk consistently, and some sources omit it for privacy or data-quality reasons.
+            When it’s available, FlightsAboveMe may display it and/or a plain‑English label.
+          </p>
+          <p style="margin:0">
+            Want the quick version? <a href="./learn.html#squawk">See the Learn page squawk section</a>.
+          </p>
+
+        </div>
+      </section>
+    </main>
+
+    <footer class="fabm-footer">
+      <div>© 2026 FlightsAboveMe</div>
+      <div class="fabm-links">
+        <a href="./index.html">Home</a>
+        <span class="fabm-sep">•</span>
+        <a href="./altitude.html">Altitude</a>
+        <span class="fabm-sep">•</span>
+        <a href="./squawk.html">Squawk</a>
+        <span class="fabm-sep">•</span>
+        <a href="./privacy.html">Privacy</a>
+      </div>
+      <div class="fabm-legal">
+        <div>Flight data is provided for informational purposes only and may be delayed, incomplete, or inaccurate. Not for operational or navigation use.</div>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>

@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>FlightsAboveMe — How Flight Tracking Works</title>
-  <link rel="stylesheet" href="./style.css?v=212">
-  <link rel="stylesheet" href="./learn.css?v=1">
+  <link rel="stylesheet" href="./style.css?v=215">
+  <link rel="stylesheet" href="./learn.css?v=2">
 </head>
 <body class="learn">
   <div id="app">
@@ -30,6 +30,15 @@
             FlightsAboveMe shows aircraft flying near your location using live surveillance broadcasts and aviation data feeds.
             The goal is to make “what’s overhead?” easy to understand — without needing to be a pilot.
           </p>
+
+          <div class="learnJump">
+            <b>Jump to:</b>
+            <a href="#altitude">Altitude</a>
+            <span class="dot">•</span>
+            <a href="#squawk">Squawk codes</a>
+            <span class="dot">•</span>
+            <a href="./build-adsb.html">Build a receiver</a>
+          </div>
 
           <h3>ADS‑B (the main signal)</h3>
           <p>
@@ -73,6 +82,36 @@
             <li><b>Direction:</b> the track over the ground (can differ from “where the nose points”).</li>
           </ul>
 
+
+          <h3 id="altitude">How altitude is calculated</h3>
+          <p>
+            Most altitudes shown by flight trackers come from the aircraft’s transponder as <b>barometric altitude</b> (pressure‑based),
+            referenced to standard atmospheric pressure (29.92 inHg / 1013.25 hPa). Air traffic control uses this standardized altitude
+            so all aircraft agree on the same reference even as local weather pressure changes.
+          </p>
+          <ul>
+            <li><b>Barometric vs GPS:</b> baro altitude is not the same as GPS height and can differ by a few hundred feet.</li>
+            <li><b>MSL vs AGL:</b> trackers usually show altitude above mean sea level (MSL), not height above the ground (AGL).</li>
+            <li><b>Rounding:</b> some feeds round altitude to 25–100 ft increments depending on the message type.</li>
+          </ul>
+          <p class="learnSmall">
+            Learn more on the dedicated page: <a href="./altitude.html">Altitude explained</a>.
+          </p>
+
+          <h3 id="squawk">Squawk codes (transponder codes)</h3>
+          <p>
+            A <b>squawk</b> is a 4‑digit code set on the aircraft’s transponder (Mode A) so radar and ATC systems can identify and manage aircraft.
+            Many squawks are assigned by controllers; some are standard codes used in certain situations.
+          </p>
+          <ul>
+            <li><b>7700</b> — general emergency</li>
+            <li><b>7600</b> — radio communications failure</li>
+            <li><b>7500</b> — unlawful interference (hijacking)</li>
+          </ul>
+          <p class="learnSmall">
+            Not all data sources provide squawk consistently. Learn more: <a href="./squawk.html">Squawk codes explained</a>.
+          </p>
+
           <h3>Climbing • Descending • Cruising</h3>
           <p>
             FlightsAboveMe labels movement using <b>vertical speed</b> (feet per minute): positive = climbing, negative = descending,
@@ -102,6 +141,10 @@
       <div>© 2026 FlightsAboveMe</div>
       <div class="fabm-links">
         <a href="./index.html">Home</a>
+        <span class="fabm-sep">•</span>
+        <a href="./altitude.html">Altitude</a>
+        <span class="fabm-sep">•</span>
+        <a href="./squawk.html">Squawk</a>
         <span class="fabm-sep">•</span>
         <a href="./about.html">About</a>
         <span class="fabm-sep">•</span>
