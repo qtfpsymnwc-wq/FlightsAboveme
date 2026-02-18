@@ -112,27 +112,9 @@
         </div>
       </section>
 
-    </main>
-
-    <div id="errBox" class="errBox hidden"></div>
-
-    <!-- ZIP fallback (main UI only): shown if location permission is denied and no last location exists -->
-    <section id="zipGate" class="zipGate hidden" role="form" aria-label="Enter ZIP code">
-      <div class="zipGate__title">Enter ZIP Code</div>
-      <div class="zipGate__desc">Location is off. Enter a 5‑digit US ZIP to see flights near you.</div>
-      <div class="zipGate__row">
-        <input id="zipInput" class="zipGate__input" inputmode="numeric" autocomplete="postal-code" maxlength="5" placeholder="e.g., 72701" aria-label="ZIP code" />
-        <button id="zipBtn" class="zipGate__btn" type="button">Use ZIP</button>
-      </div>
-      <div id="zipMsg" class="zipGate__msg" aria-live="polite"></div>
-    </section>
-
     
 
-
-    <!-- Kiosk mode callout (main UI only). Keep kiosk.html ad-free. -->
-    
-    
+      <!-- Education / publisher content (kept below the flight UI) -->
       <section class="faq card" aria-label="Frequently asked questions">
         <h2 class="faq__title">Frequently Asked Questions</h2>
 
@@ -157,7 +139,7 @@
         </details>
       </section>
 
-<section class="about card" id="about">
+      <section class="about card" id="about">
       <h2>Understanding live flight data</h2>
       <p>FlightsAboveMe uses publicly available ADS‑B (Automatic Dependent Surveillance–Broadcast) signals to estimate aircraft position and movement. Modern aircraft broadcast identity, altitude, speed, and position data, which can be received by ground stations and aggregated into live tracking networks.</p>
       <p><b>Regulatory note:</b> In the United States, many aircraft operating in controlled airspace are required to transmit <i>ADS‑B Out</i> under FAA rules, but what you see here still depends on aircraft equipment, altitude, terrain, and receiver coverage.</p>
@@ -171,6 +153,28 @@
             <a class="btnOutline" href="./squawk.html">Squawk codes</a>
           </div>
 </section>
+</main>
+
+    <div id="errBox" class="errBox hidden"></div>
+
+    <!-- ZIP fallback (main UI only): shown if location permission is denied and no last location exists -->
+    <section id="zipGate" class="zipGate hidden" role="form" aria-label="Enter ZIP code">
+      <div class="zipGate__title">Enter ZIP Code</div>
+      <div class="zipGate__desc">Location is off. Enter a 5‑digit US ZIP to see flights near you.</div>
+      <div class="zipGate__row">
+        <input id="zipInput" class="zipGate__input" inputmode="numeric" autocomplete="postal-code" maxlength="5" placeholder="e.g., 72701" aria-label="ZIP code" />
+        <button id="zipBtn" class="zipGate__btn" type="button">Use ZIP</button>
+      </div>
+      <div id="zipMsg" class="zipGate__msg" aria-live="polite"></div>
+    </section>
+
+    
+
+
+    <!-- Kiosk mode callout (main UI only). Keep kiosk.html ad-free. -->
+    
+    
+      
 
 
     <!-- Ad slot (main UI only). Keep kiosk.html ad-free. -->
