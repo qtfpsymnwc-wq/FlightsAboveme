@@ -1,6 +1,6 @@
 // FlightsAboveMe UI
 const API_BASE = "https://flightsabove.t2hkmhgbwz.workers.dev";
-const UI_VERSION = "v194";
+const UI_VERSION = "v193";
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;
@@ -304,18 +304,12 @@ async function fetchJSON(url, timeoutMs=9000){
   }
 }
 
-// ZIP fallback (US-only). Used when location permission is denied.
-const DEFAULT_ZIP = "72704";
-const DEFAULT_ZIP_LABEL = "Flights above Fayetteville, Arkansas";
+// ZIP fallback (US-only). Used when location permission is denied and we have no last-known location.
 function loadLastZip(){
   try { return localStorage.getItem("fabm_zip") || ""; } catch { return ""; }
 }
 function saveLastZip(zip){
-  try {
-    const z = String(zip || "").trim();
-    if (!z) localStorage.removeItem("fabm_zip");
-    else localStorage.setItem("fabm_zip", z);
-  } catch {}
+  try { localStorage.setItem("fabm_zip", zip); } catch {}
 }
 function showZipGate(show){
   const gate = document.getElementById("zipGate");
@@ -332,7 +326,7 @@ async function lookupZip(zip){
   const controller = new AbortController();
   const t = setTimeout(()=>controller.abort(), 4500);
   try{
-    const res = await fetch(`/zip/${z}`, { signal: controller.signal });
+    const res = await fetch(`${API_BASE}/zip/${z}`, { signal: controller.signal });
     if (res.status === 204) throw new Error("ZIP not found");
     const j = await res.json();
     if (!j || j.ok !== true) throw new Error(j?.error || "ZIP lookup failed");
@@ -341,45 +335,6 @@ async function lookupZip(zip){
     clearTimeout(t);
   }
 }
-
-let __zipUIWired = false;
-function setupZipUI(){
-  if (__zipUIWired) return;
-  const gate = document.getElementById("zipGate");
-  const input = document.getElementById("zipInput");
-  const btn = document.getElementById("zipBtn");
-  if (!gate || !input || !btn) return;
-  __zipUIWired = true;
-
-  // Keep input sanitized
-  input.oninput = ()=>{
-    input.value = String(input.value||"").replace(/\D/g,"").slice(0,5);
-  };
-
-  const submit = async ()=>{
-    const z = String(input.value || "").replace(/\D/g,"").slice(0,5);
-    input.value = z;
-    btn.disabled = true;
-    const prior = btn.textContent;
-    btn.textContent = "Looking…";
-    setZipMsg("");
-    try{
-      await lookupZip(z);
-      saveLastZip(z);
-      setZipMsg("Loading…");
-      // Reboot the app so the new ZIP takes effect immediately.
-      window.location.reload();
-    }catch(e){
-      setZipMsg(String(e?.message || e));
-      btn.disabled = false;
-      btn.textContent = prior || "Use ZIP";
-    }
-  };
-
-  btn.onclick = submit;
-  input.onkeydown = (ev)=>{ if (ev.key === "Enter") submit(); };
-}
-
 function promptZipLocation(){
   return new Promise((resolve)=>{
     const gate = document.getElementById("zipGate");
@@ -763,8 +718,6 @@ async function main(){
   enableKioskIfRequested();
 
   const statusEl = $("statusText");
-  // Wire ZIP UI so manual entry works even after the page has loaded.
-  setupZipUI();
   if (statusEl) statusEl.textContent = "Locating…";
 
   const tierSegment = document.getElementById("tierSegment");
@@ -798,52 +751,29 @@ async function main(){
       { enableHighAccuracy:true, timeout:GEO_TIMEOUT_MS, maximumAge:5000 }
     );
   }).catch(async (e)=>{
-// If location fails/denied, prefer a saved ZIP, then last known location, then default ZIP.
-const savedZip = loadLastZip();
-if (savedZip) {
-  try {
-    if (statusEl) statusEl.textContent = `Flights above ZIP ${savedZip}`;
-    showErr(`Location is off — using ZIP ${savedZip}`);
-    showZipGate(true);
-    const input = document.getElementById("zipInput");
-    if (input) input.value = savedZip;
-    setZipMsg("Using your ZIP. Enter a different ZIP to change.");
-    const r = await lookupZip(savedZip);
-    return { coords: { latitude: Number(r.lat), longitude: Number(r.lon), accuracy: 25000 }, __fromZip: true, __zip: savedZip };
-  } catch (err) {
-    // Bad saved ZIP; clear and continue to other fallbacks
-    saveLastZip("");
-  }
-}
-
-// v1.3.1: On flaky cellular GPS, fall back to last known location so the app still loads.
-const last = loadLastLocation();
-if (last) {
-  if (statusEl) statusEl.textContent = "Using last location…";
-  showErr("Location failed — using last known location");
-  showZipGate(true);
-  setZipMsg("Location is off. Enter ZIP code to change location.");
-  return { coords: { latitude: last.lat, longitude: last.lon, accuracy: last.accuracy }, __fromLast: true };
-}
-
-// Default demo area: Fayetteville, Arkansas (72704)
-if (statusEl) statusEl.textContent = DEFAULT_ZIP_LABEL;
-showErr("Location is off — showing flights above Fayetteville, Arkansas");
-showZipGate(true);
-setZipMsg("Showing Fayetteville, Arkansas (72704). Enter your ZIP code to see flights near you.");
-const input = document.getElementById("zipInput");
-if (input) input.value = "";
-
-const r = await lookupZip(DEFAULT_ZIP);
-return { coords: { latitude: Number(r.lat), longitude: Number(r.lon), accuracy: 25000 }, __fromDefaultZip: true, __zip: DEFAULT_ZIP };
+    // v1.3.1: On flaky cellular GPS, fall back to last known location so the app still loads.
+    const last = loadLastLocation();
+    if (last) {
+      if (statusEl) statusEl.textContent = "Using last location…";
+      showErr("Location failed — using last known location");
+      return { coords: { latitude: last.lat, longitude: last.lon, accuracy: last.accuracy }, __fromLast: true };
+    }
+    // If we have no last-known location, offer US ZIP entry on main UI.
+    if (statusEl) statusEl.textContent = "Enter ZIP…";
+    showErr("Location is off — enter ZIP code to continue");
+    const zipLoc = await promptZipLocation();
+    if (zipLoc) {
+      return { coords: { latitude: zipLoc.lat, longitude: zipLoc.lon, accuracy: zipLoc.accuracy }, __fromZip: true };
+    }
+    if (statusEl) statusEl.textContent = "Location failed";
+    showErr(String(e.message || e));
+    throw e;
   });
 
   const lat = pos.coords.latitude;
   const lon = pos.coords.longitude;
-  // Persist last good GEO location only (not ZIP/default), to survive cellular GPS flakiness.
-  if (!pos?.__fromZip && !pos?.__fromDefaultZip && !pos?.__fromLast) {
-    saveLastLocation(lat, lon, pos?.coords?.accuracy);
-  }
+  // v1.3.1: persist last good location to survive cellular GPS flakiness
+  saveLastLocation(lat, lon, pos?.coords?.accuracy);
   const bb = bboxAround(lat, lon);
 
   if (statusEl) statusEl.textContent = "Radar…";
@@ -916,11 +846,10 @@ return { coords: { latitude: Number(r.lat), longitude: Number(r.lon), accuracy: 
     inFlight = true;
 
     try{
-      // Build URL without URL() constructor (Safari can throw "string did not match expected pattern" on some inputs)
-      const qs = new URLSearchParams(bb).toString();
-      const url = `${API_BASE}/opensky/states?${qs}`;
+      const url = new URL(`${API_BASE}/opensky/states`);
+      Object.entries(bb).forEach(([k,v])=>url.searchParams.set(k,v));
 
-      const data = await fetchJSON(url, STATES_TIMEOUT_MS);
+      const data = await fetchJSON(url.toString(), STATES_TIMEOUT_MS);
       const states = Array.isArray(data?.states) ? data.states : [];
 
       lastRadarMeta = { count: states.length, showing: Math.min(states.length, 5) };
