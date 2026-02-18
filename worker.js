@@ -583,6 +583,56 @@ export default {
       );
     }
 
+    // ZIP -> lat/lon lookup (used by UI when location is denied)
+    // Route: GET /zip/<5-digit>
+    // Uses zippopotam.us upstream (no key) and caches at Cloudflare edge.
+    if (url.pathname.startsWith("/zip/")) {
+      const zip = (url.pathname.split("/")[2] || "").trim();
+      const headers = { "content-type": "application/json; charset=utf-8" };
+
+      if (!/^\d{5}$/.test(zip)) {
+        return new Response(JSON.stringify({ ok: false, error: "invalid_zip" }), {
+          status: 400,
+          headers,
+        });
+      }
+
+      const upstream = await fetch(`https://api.zippopotam.us/us/${zip}`, {
+        cf: { cacheTtl: 60 * 60 * 24, cacheEverything: true },
+      });
+
+      if (upstream.status === 404) {
+        return new Response(JSON.stringify({ ok: false, error: "zip_not_found" }), {
+          status: 404,
+          headers,
+        });
+      }
+
+      if (!upstream.ok) {
+        return new Response(JSON.stringify({ ok: false, error: "zip_lookup_failed" }), {
+          status: 502,
+          headers,
+        });
+      }
+
+      const data = await upstream.json();
+      const place = data?.places?.[0];
+      const lat = place ? Number(place.latitude) : NaN;
+      const lon = place ? Number(place.longitude) : NaN;
+
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+        return new Response(JSON.stringify({ ok: false, error: "zip_lookup_invalid" }), {
+          status: 502,
+          headers,
+        });
+      }
+
+      return new Response(JSON.stringify({ ok: true, zip, lat, lon, source: "zippopotam" }), {
+        status: 200,
+        headers,
+      });
+    }
+
 
     const cors = {
       "Access-Control-Allow-Origin": "*",
