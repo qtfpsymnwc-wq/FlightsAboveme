@@ -1,0 +1,46 @@
+/* FlightsAboveMe — Learn page only (scoped) */
+
+body.learn .learnCard{padding-bottom: 10px;}
+
+body.learn .learnBody{
+  line-height: 1.65;
+}
+
+body.learn .learnLede{
+  margin-top: 6px;
+  margin-bottom: 18px;
+  opacity: .92;
+}
+
+body.learn .learnBody h3{
+  margin: 18px 0 6px;
+  color: var(--text);
+}
+
+body.learn .learnBody p{margin: 0 0 10px;}
+
+body.learn .learnBody ul{margin: 8px 0 12px 18px;}
+
+body.learn .learnBody code{
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.95em;
+}
+
+body.learn .learnNotice{
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 12px;
+  opacity: .9;
+}
+
+
+/* Jump links + small helper text */
+body.learn .learnJump{
+  margin: -6px 0 14px;
+  font-size: .92rem;
+  opacity: .92;
+}
+body.learn .learnJump a{ text-decoration: underline; }
+body.learn .learnJump .dot{ opacity: .75; padding: 0 6px; }
+body.learn .learnSmall{ margin: 0 0 10px; opacity: .92; }

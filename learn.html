@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>FlightsAboveMe — How Flight Tracking Works</title>
+  <link rel="stylesheet" href="./style.css?v=228">
+  <link rel="stylesheet" href="./learn.css?v=2">
+</head>
+<body class="learn">
+  <div id="app">
+    <header class="topbar">
+      <div class="brand">
+        <a href="./index.html" aria-label="Back to FlightsAboveMe">
+          <img src="flightsaboveme-logo-tight.png?v=220" alt="FlightsAboveMe" class="siteLogo">
+        </a>
+      </div>
+      <div class="right"></div>
+    </header>
+
+    <main class="wrap">
+      <section class="card learnCard">
+        <div class="heroTop">
+          <div class="heroTitle">How Flight Tracking Works</div>
+          <div class="heroHint">A quick guide to the data you see on FlightsAboveMe</div>
+        </div>
+
+        <div class="learnBody">
+          <p class="learnLede">
+            FlightsAboveMe shows aircraft flying near your location using live surveillance broadcasts and aviation data feeds.
+            The goal is to make “what’s overhead?” easy to understand — without needing to be a pilot.
+          </p>
+
+          <div class="learnJump">
+            <b>Jump to:</b>
+            <a class="btnOutline" href="#altitude">Altitude</a>
+            <a class="btnOutline" href="#squawk">Squawk codes</a>
+            <a class="btnOutline" href="./build-adsb.html">Build a receiver</a>
+          </div>
+
+          
+          <h3>What FlightsAboveMe is showing you</h3>
+          <p>
+            FlightsAboveMe is built around the same data air traffic systems see: aircraft transponder broadcasts.
+            Most of what you see is derived from <b>ADS‑B Out</b> messages (and in some regions, supplemental techniques like <b>MLAT</b>).
+            The site is designed for understanding what’s overhead — not for navigation.
+          </p>
+
+          <h3>ADS‑B Out vs ADS‑B In</h3>
+          <p>
+            <b>ADS‑B Out</b> is the broadcast from an aircraft. That’s what tracking networks receive.
+            <b>ADS‑B In</b> is a receiver inside an aircraft that can display nearby traffic.
+            FlightsAboveMe uses public data networks that collect ADS‑B Out messages.
+          </p>
+
+          <h3>1090 MHz vs 978 MHz (UAT)</h3>
+          <p>
+            Most commercial and international aircraft broadcast ADS‑B on <b>1090&nbsp;MHz</b> (Mode S / “Extended Squitter”).
+            In the United States, some general aviation aircraft use <b>978&nbsp;MHz</b> UAT.
+            Your local receiver (and some networks) may support both, but 1090&nbsp;MHz is the global standard.
+          </p>
+
+          <h3>Why different trackers sometimes disagree</h3>
+          <p>
+            Two sites can show slightly different positions, altitudes, or callsigns for the same aircraft.
+            Differences usually come from receiver coverage (what messages were actually received), timing/latency,
+            and how each network cleans and merges data.
+          </p>
+
+          <h3>Coverage and “no flights found”</h3>
+          <p>
+            ADS‑B is line‑of‑sight. Terrain, buildings, and distance affect whether a receiver can hear an aircraft.
+            Low‑altitude flights can disappear behind terrain, and remote areas may have limited ground coverage.
+            That’s why FlightsAboveMe falls back to a demo area when location is unavailable — so you can still see how it works.
+          </p>
+
+<h3>ADS‑B (the main signal)</h3>
+          <p>
+            <b>ADS‑B</b> stands for <i>Automatic Dependent Surveillance–Broadcast</i>. Many aircraft continuously broadcast
+            information like position, altitude, ground speed, and an identifier. Receivers on the ground (and sometimes satellites)
+            pick up these broadcasts and share them through flight tracking networks.
+          </p>
+
+          <h3>Mode S and MLAT (why trackers can differ)</h3>
+          <p>
+            <b>Mode S</b> is the transponder format used by most modern aircraft and includes a unique aircraft address (ICAO24).
+            Not every aircraft broadcasts full ADS‑B position all the time. When position isn’t available, some networks can estimate it using <b>MLAT</b>
+            (multilateration) — measuring the time difference of arrival of the same signal at multiple receivers.
+          </p>
+          <p>
+            MLAT can be very accurate when receiver geometry is good, but it depends on coverage.
+            That’s one reason an aircraft may appear on one network but not another, or show a slightly different track.
+          </p>
+
+          <p>
+            Not every aircraft transmits the same level of detail all the time.
+            Some transponders report identity (Mode S) but may not include precise GPS position.
+            In those cases, some networks estimate position using <b>MLAT</b> (multilateration), which compares the signal timing
+            across multiple receivers. That’s one reason two sites can show slightly different tracks.
+          </p>
+
+          <h3>Why a plane might not appear</h3>
+          <ul>
+            <li><b>Coverage:</b> receiver density varies by region.</li>
+            <li><b>Equipment/config:</b> not all aircraft broadcast ADS‑B position.</li>
+            <li><b>Latency:</b> some feeds are delayed or temporarily missing fields.</li>
+            <li><b>Filtering:</b> data sources may filter low-quality or incomplete messages.</li>
+          </ul>
+
+          <h3>ICAO24 (the aircraft’s hex ID)</h3>
+          <p>
+            <b>ICAO24</b> is the 6‑character hexadecimal identifier tied to an aircraft’s transponder.
+            It’s a stable ID that helps services look up aircraft details like registration and type.
+          </p>
+
+          <h3>Callsign vs flight number</h3>
+          <p>
+            The <b>callsign</b> is what the aircraft uses for air traffic control and surveillance systems (often like <code>DAL123</code>).
+            It usually matches the public flight number, but not always — cargo, charter, and private flights can use different formats.
+          </p>
+
+          <h3>Altitude, speed, and direction</h3>
+          <ul>
+            <li><b>Altitude:</b> often barometric (pressure‑based) altitude, not exact GPS height.</li>
+            <li><b>Speed:</b> ground speed (wind affects it).</li>
+            <li><b>Direction:</b> the track over the ground (can differ from “where the nose points”).</li>
+          </ul>
+
+
+          <h3 id="altitude">How altitude is calculated</h3>
+          <p>
+            Most altitudes shown by flight trackers come from the aircraft’s transponder as <b>barometric altitude</b> (pressure‑based),
+            referenced to standard atmospheric pressure (29.92 inHg / 1013.25 hPa). Air traffic control uses this standardized altitude
+            so all aircraft agree on the same reference even as local weather pressure changes.
+          </p>
+          <ul>
+            <li><b>Barometric vs GPS:</b> baro altitude is not the same as GPS height and can differ by a few hundred feet.</li>
+            <li><b>MSL vs AGL:</b> trackers usually show altitude above mean sea level (MSL), not height above the ground (AGL).</li>
+            <li><b>Rounding:</b> some feeds round altitude to 25–100 ft increments depending on the message type.</li>
+          </ul>
+          <p class="learnSmall">
+            Learn more:</p>
+          <div class="linkPills"><a class="btnOutline" href="./altitude.html">Altitude explained</a></div>
+          <p>
+          </p>
+
+          <h3 id="squawk">Squawk codes (transponder codes)</h3>
+          <p>
+            A <b>squawk</b> is a 4‑digit code set on the aircraft’s transponder (Mode A) so radar and ATC systems can identify and manage aircraft.
+            Many squawks are assigned by controllers; some are standard codes used in certain situations.
+          </p>
+          <ul>
+            <li><b>7700</b> — general emergency</li>
+            <li><b>7600</b> — radio communications failure</li>
+            <li><b>7500</b> — unlawful interference (hijacking)</li>
+          </ul>
+          <p class="learnSmall">
+            Not all data sources provide squawk consistently. Learn more:</p>
+          <div class="linkPills"><a class="btnOutline" href="./squawk.html">Squawk codes</a></div>
+          <p>
+          </p>
+
+          <h3>Climbing • Descending • Cruising</h3>
+          <p>
+            FlightsAboveMe labels movement using <b>vertical speed</b> (feet per minute): positive = climbing, negative = descending,
+            and near‑zero (or missing) = cruising/level flight.
+          </p>
+
+          <h3>Our data sources</h3>
+          <p>
+            FlightsAboveMe blends multiple sources to improve reliability and add aircraft details:
+          </p>
+          <ul>
+            <li><b>OpenSky Network</b> — primary live state vectors when available</li>
+            <li><b>adsb.lol</b> — fallback live aircraft state data</li>
+            <li><b>AeroDataBox</b> — aircraft enrichment (type/model/operator details)</li>
+          </ul>
+
+          <h3>Important notice</h3>
+          <p class="learnNotice">
+            Flight data is provided for informational purposes only and may be delayed, incomplete, or inaccurate.
+            Not for operational or navigation use.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="fabm-footer">
+      <div>© 2026 FlightsAboveMe</div>
+      <div class="footerNav">
+        <a href="./index.html">Home</a>
+        
+        <a href="./altitude.html">Altitude</a>
+        
+        <a href="./squawk.html">Squawk</a>
+        
+        <a href="./about.html">About</a>
+        
+        <a href="./privacy.html">Privacy</a>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>
