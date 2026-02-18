@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>FlightsAboveMe</title>
-  <link rel="stylesheet" href="./style.css?v=212">
+  <link rel="stylesheet" href="./style.css?v=213">
 
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4157780114857674"
      crossorigin="anonymous"></script>
@@ -45,30 +45,6 @@
           <a class="modeToggle nav-build" href="./build-adsb.html" aria-label="Build your own ADS-B receiver">Build Your Own ADS‑B Receiver</a>
         </div>
 </section>
-
-      <section class="faq card" aria-label="Frequently asked questions">
-        <h2 class="faq__title">Frequently Asked Questions</h2>
-
-        <div class="faq__item">
-          <h3 class="faq__q">Is FlightsAboveMe real-time?</h3>
-          <p class="faq__a">FlightsAboveMe uses ADS‑B broadcasts and aviation data feeds to estimate aircraft position in near real time. Depending on coverage and source latency, updates may be delayed.</p>
-        </div>
-
-        <div class="faq__item">
-          <h3 class="faq__q">Why are some flights missing?</h3>
-          <p class="faq__a">Visibility depends on aircraft equipment, receiver coverage, altitude, and terrain. Some aircraft don’t broadcast full position data, and some flights may be filtered if messages are incomplete.</p>
-        </div>
-
-        <div class="faq__item">
-          <h3 class="faq__q">What is an ICAO24 code?</h3>
-          <p class="faq__a">ICAO24 is the 6‑character hexadecimal identifier tied to an aircraft’s transponder. It’s a stable technical ID used to look up aircraft details even when callsigns change.</p>
-        </div>
-
-        <div class="faq__item">
-          <h3 class="faq__q">Why does the site sometimes show a demo location?</h3>
-          <p class="faq__a">If browser location access is unavailable, FlightsAboveMe defaults to a demo location in Fayetteville, Arkansas (72704) so you can still see how the display works.</p>
-        </div>
-      </section>
 
 <section class="primary card">
         <div class="primaryHeader">
@@ -137,7 +113,32 @@
 
     <!-- Kiosk mode callout (main UI only). Keep kiosk.html ad-free. -->
     
-    <section class="about card" id="about">
+    
+      <section class="faq card" aria-label="Frequently asked questions">
+        <h2 class="faq__title">Frequently Asked Questions</h2>
+
+        <details class="faq__item">
+          <summary class="faq__q">Is FlightsAboveMe real-time?</summary>
+          <p class="faq__a">FlightsAboveMe uses ADS‑B broadcasts and aviation data feeds to estimate aircraft position in near real time. Depending on coverage and source latency, updates may be delayed.</p>
+        </details>
+
+        <details class="faq__item">
+          <summary class="faq__q">Why are some flights missing?</summary>
+          <p class="faq__a">Visibility depends on aircraft equipment, receiver coverage, altitude, and terrain. Some aircraft don’t broadcast full position data, and some flights may be filtered if messages are incomplete.</p>
+        </details>
+
+        <details class="faq__item">
+          <summary class="faq__q">What is an ICAO24 code?</summary>
+          <p class="faq__a">ICAO24 is the 6‑character hexadecimal identifier tied to an aircraft’s transponder. It’s a stable technical ID used to look up aircraft details even when callsigns change.</p>
+        </details>
+
+        <details class="faq__item">
+          <summary class="faq__q">Why does the site sometimes show a demo location?</summary>
+          <p class="faq__a">If browser location access is unavailable, FlightsAboveMe defaults to a demo location in Fayetteville, Arkansas (72704) so you can still see how the display works.</p>
+        </details>
+      </section>
+
+<section class="about card" id="about">
       <h2>Understanding live flight data</h2>
       <p>FlightsAboveMe uses publicly available ADS‑B (Automatic Dependent Surveillance–Broadcast) signals to estimate aircraft position and movement. Modern aircraft broadcast identity, altitude, speed, and position data, which can be received by ground stations and aggregated into live tracking networks.</p>
       <p>Coverage depends on aircraft equipment and receiver density in a given region. Some flights may not appear, and data may occasionally be delayed or incomplete.</p>
