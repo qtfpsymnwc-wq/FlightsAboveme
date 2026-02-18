@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>FlightsAboveMe — Squawk Codes Explained</title>
-  <link rel="stylesheet" href="./style.css?v=215">
+  <link rel="stylesheet" href="./style.css?v=216">
 </head>
 <body>
   <div id="app">
@@ -35,13 +35,39 @@
             <li><b>7600</b> — radio communications failure</li>
             <li><b>7500</b> — unlawful interference (hijacking)</li>
           </ul>
+          <h3 style="margin:18px 0 6px; color: var(--text);">How squawks work</h3>
+          <p>
+            Squawk codes are entered on the aircraft&#39;s transponder and transmitted to ground radar/ATC systems.
+            Most squawks are <b>discrete</b> (uniquely assigned to one aircraft at a time) so controllers can correlate a radar target with a specific flight.
+          </p>
+
+          <h3 style="margin:18px 0 6px; color: var(--text);">Why the digits look &ldquo;odd&rdquo;</h3>
+          <p>
+            Squawk codes are written as four digits, but each digit is <b>octal</b> (0&ndash;7). That&#39;s why you won&#39;t see 8 or 9 in a squawk code.
+          </p>
+
+          <h3 style="margin:18px 0 6px; color: var(--text);">Mode A vs Mode C vs Mode S</h3>
+          <ul style="margin:8px 0 0 18px; padding:0; line-height:1.7">
+            <li><b>Mode A</b>: the 4‑digit squawk code</li>
+            <li><b>Mode C</b>: adds pressure altitude (often what tracking sites display as altitude)</li>
+            <li><b>Mode S / ADS‑B</b>: adds a unique aircraft address (ICAO24) and, with ADS‑B, position and other data</li>
+          </ul>
+
+          <h3 style="margin:18px 0 6px; color: var(--text);">Conspicuity codes (varies by country)</h3>
+          <p>
+            In some situations aircraft may use a standard &ldquo;conspicuity&rdquo; code when not assigned a discrete squawk.
+            These common codes vary by country and airspace rules, so FlightsAboveMe focuses on explaining the squawk when it is available rather than guessing what it should be.
+          </p>
+
           <h3 style="margin:16px 0 6px; color: var(--text);">Why squawk may be missing</h3>
           <p style="margin:0 0 10px">
             Not all public feeds provide squawk consistently, and some sources omit it for privacy or data-quality reasons.
             When it’s available, FlightsAboveMe may display it and/or a plain‑English label.
           </p>
           <p style="margin:0">
-            Want the quick version? <a href="./learn.html#squawk">See the Learn page squawk section</a>.
+            Want the quick version?</p>
+          <div class="linkPills"><a class="btnOutline" href="./learn.html#squawk">See squawk section on How It Works</a></div>
+          <p>
           </p>
 
         </div>
@@ -50,13 +76,13 @@
 
     <footer class="fabm-footer">
       <div>© 2026 FlightsAboveMe</div>
-      <div class="fabm-links">
+      <div class="footerNav">
         <a href="./index.html">Home</a>
-        <span class="fabm-sep">•</span>
+        
         <a href="./altitude.html">Altitude</a>
-        <span class="fabm-sep">•</span>
+        
         <a href="./squawk.html">Squawk</a>
-        <span class="fabm-sep">•</span>
+        
         <a href="./privacy.html">Privacy</a>
       </div>
       <div class="fabm-legal">
