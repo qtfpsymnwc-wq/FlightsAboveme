@@ -650,7 +650,20 @@ function pumpEnrichment(renderFn){
 
 async function main(){
   enableKioskIfRequested();
-const statusEl = $("statusText");
+
+
+  // Publisher intro: collapse long text on mobile, expand on demand
+  if (pubToggle && pubMore) {
+    pubToggle.addEventListener("click", ()=>{
+      const expanded = pubToggle.getAttribute("aria-expanded") === "true";
+      pubToggle.setAttribute("aria-expanded", (!expanded).toString());
+      pubMore.hidden = expanded;
+      pubToggle.textContent = expanded ? "Read more" : "Read less";
+    });
+  }
+
+
+  const statusEl = $("statusText");
   if (statusEl) statusEl.textContent = "Locating…";
 
   const tierSegment = document.getElementById("tierSegment");
