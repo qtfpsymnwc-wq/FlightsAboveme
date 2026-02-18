@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>FlightsAboveMe — Squawk Codes Explained</title>
-  <link rel="stylesheet" href="./style.css?v=216">
+  <link rel="stylesheet" href="./style.css?v=217">
 </head>
 <body>
   <div id="app">
@@ -68,6 +68,30 @@
             Want the quick version?</p>
           <div class="linkPills"><a class="btnOutline" href="./learn.html#squawk">See squawk section on How It Works</a></div>
           <p>
+          </p>
+
+          <h3 style="margin:18px 0 6px; color: var(--text);">Why squawk digits are 0–7 only</h3>
+          <p style="margin:0 0 10px">
+            Squawks are <b>octal</b> — each digit ranges from 0 to 7. That’s a historical design from early transponder systems and radar encoding.
+            So you will never see an 8 or 9 in a standard squawk.
+          </p>
+
+          <h3 style="margin:18px 0 6px; color: var(--text);">Discrete vs “conspicuity” codes</h3>
+          <p style="margin:0 0 10px">
+            A <b>discrete</b> code is assigned to a specific aircraft by ATC. A <b>conspicuity</b> code is a common code used to be visible to radar when not receiving a discrete assignment.
+            Examples include <b>1200</b> for VFR in the United States and <b>7000</b> in many European regions (rules vary by country).
+          </p>
+
+          <h3 style="margin:18px 0 6px; color: var(--text);">How squawks relate to Mode A/C/S</h3>
+          <p style="margin:0 0 10px">
+            <b>Mode A</b> carries the squawk code. <b>Mode C</b> adds altitude reporting. <b>Mode S</b> adds a unique aircraft address (ICAO24) and supports richer messaging.
+            ADS‑B builds on Mode S to broadcast position and velocity.
+          </p>
+
+          <h3 style="margin:18px 0 6px; color: var(--text);">Why squawk might be missing or change</h3>
+          <p style="margin:0 0 0">
+            Some networks suppress squawks for privacy or safety reasons, and not all receivers decode every message reliably.
+            Squawks can also change during a flight when handed off between controllers or when entering controlled airspace.
           </p>
 
         </div>

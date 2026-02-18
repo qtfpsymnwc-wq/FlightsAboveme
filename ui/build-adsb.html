@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>FlightsAboveMe — Build Your Own ADS‑B Receiver</title>
-  <link rel="stylesheet" href="./style.css?v=216">
-  <link rel="stylesheet" href="./learn.css?v=1">
+  <link rel="stylesheet" href="./style.css?v=217">
+  <link rel="stylesheet" href="./learn.css?v=2">
 </head>
 <body class="learn">
   <div id="app">
@@ -41,6 +41,43 @@
             <li><b>Coax + adapters</b> (keep cable runs short when possible)</li>
             <li><b>Power supply</b> and (optional) a case</li>
           </ul>
+
+          <h3>Quick setup overview (Raspberry Pi)</h3>
+          <ol>
+            <li>Install Raspberry Pi OS on a microSD card and boot the Pi.</li>
+            <li>Plug in the RTL‑SDR dongle and connect your 1090&nbsp;MHz antenna.</li>
+            <li>Install a decoder (common choices: <b>readsb</b> or <b>dump1090</b>).</li>
+            <li>Open the local web map (often available on your network at the Pi’s IP address).</li>
+            <li>Optional: feed a public network so your receiver helps improve coverage for everyone.</li>
+          </ol>
+
+          <h3>1090 MHz antenna placement tips</h3>
+          <ul>
+            <li><b>Higher is better.</b> ADS‑B is line‑of‑sight — elevation increases range dramatically.</li>
+            <li><b>Use good coax.</b> Cheap cable can lose a surprising amount of signal at 1090&nbsp;MHz.</li>
+            <li><b>Weatherproof outdoor runs.</b> If mounting outside, protect connections from water.</li>
+            <li><b>Consider filtering.</b> In dense RF areas, a 1090&nbsp;MHz filter or an LNA near the antenna can help.</li>
+          </ul>
+
+          <h3>What range should you expect?</h3>
+          <p>
+            Range depends on antenna height and local terrain. With a modest antenna indoors you may see 50–100 miles at cruise altitudes.
+            With an outdoor antenna mounted high, 150–250+ miles for high‑altitude aircraft is common.
+            Low‑altitude aircraft will always have shorter range.
+          </p>
+
+          <h3>Feeding data (optional)</h3>
+          <p>
+            Many communities and research networks accept receiver feeds. Contributing can improve coverage in rural areas and help scientific or safety projects.
+            Always review each network’s terms before sharing data.
+          </p>
+
+          <div class="buttonRow">
+            <a class="btnOutline" href="./learn.html">Back: How it works</a>
+            <a class="btnOutline" href="./altitude.html">Altitude explained</a>
+            <a class="btnOutline" href="./squawk.html">Squawk codes</a>
+          </div>
+
 
           <h3>Placement tips (this matters a lot)</h3>
           <ul>

@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>FlightsAboveMe — How Flight Tracking Works</title>
-  <link rel="stylesheet" href="./style.css?v=216">
+  <link rel="stylesheet" href="./style.css?v=217">
   <link rel="stylesheet" href="./learn.css?v=2">
 </head>
 <body class="learn">
@@ -33,14 +33,48 @@
 
           <div class="learnJump">
             <b>Jump to:</b>
-            <a href="#altitude">Altitude</a>
-            <span class="dot">•</span>
-            <a href="#squawk">Squawk codes</a>
-            <span class="dot">•</span>
-            <a href="./build-adsb.html">Build a receiver</a>
+            <a class="btnOutline" href="#altitude">Altitude</a>
+            <a class="btnOutline" href="#squawk">Squawk codes</a>
+            <a class="btnOutline" href="./build-adsb.html">Build a receiver</a>
           </div>
 
-          <h3>ADS‑B (the main signal)</h3>
+          
+          <h3>What FlightsAboveMe is showing you</h3>
+          <p>
+            FlightsAboveMe is built around the same data air traffic systems see: aircraft transponder broadcasts.
+            Most of what you see is derived from <b>ADS‑B Out</b> messages (and in some regions, supplemental techniques like <b>MLAT</b>).
+            The site is designed for understanding what’s overhead — not for navigation.
+          </p>
+
+          <h3>ADS‑B Out vs ADS‑B In</h3>
+          <p>
+            <b>ADS‑B Out</b> is the broadcast from an aircraft. That’s what tracking networks receive.
+            <b>ADS‑B In</b> is a receiver inside an aircraft that can display nearby traffic.
+            FlightsAboveMe uses public data networks that collect ADS‑B Out messages.
+          </p>
+
+          <h3>1090 MHz vs 978 MHz (UAT)</h3>
+          <p>
+            Most commercial and international aircraft broadcast ADS‑B on <b>1090&nbsp;MHz</b> (Mode S / “Extended Squitter”).
+            In the United States, some general aviation aircraft use <b>978&nbsp;MHz</b> UAT.
+            Your local receiver (and some networks) may support both, but 1090&nbsp;MHz is the global standard.
+          </p>
+
+          <h3>Why different trackers sometimes disagree</h3>
+          <p>
+            Two sites can show slightly different positions, altitudes, or callsigns for the same aircraft.
+            Differences usually come from receiver coverage (what messages were actually received), timing/latency,
+            and how each network cleans and merges data.
+          </p>
+
+          <h3>Coverage and “no flights found”</h3>
+          <p>
+            ADS‑B is line‑of‑sight. Terrain, buildings, and distance affect whether a receiver can hear an aircraft.
+            Low‑altitude flights can disappear behind terrain, and remote areas may have limited ground coverage.
+            That’s why FlightsAboveMe falls back to a demo area when location is unavailable — so you can still see how it works.
+          </p>
+
+<h3>ADS‑B (the main signal)</h3>
           <p>
             <b>ADS‑B</b> stands for <i>Automatic Dependent Surveillance–Broadcast</i>. Many aircraft continuously broadcast
             information like position, altitude, ground speed, and an identifier. Receivers on the ground (and sometimes satellites)
@@ -48,6 +82,16 @@
           </p>
 
           <h3>Mode S and MLAT (why trackers can differ)</h3>
+          <p>
+            <b>Mode S</b> is the transponder format used by most modern aircraft and includes a unique aircraft address (ICAO24).
+            Not every aircraft broadcasts full ADS‑B position all the time. When position isn’t available, some networks can estimate it using <b>MLAT</b>
+            (multilateration) — measuring the time difference of arrival of the same signal at multiple receivers.
+          </p>
+          <p>
+            MLAT can be very accurate when receiver geometry is good, but it depends on coverage.
+            That’s one reason an aircraft may appear on one network but not another, or show a slightly different track.
+          </p>
+
           <p>
             Not every aircraft transmits the same level of detail all the time.
             Some transponders report identity (Mode S) but may not include precise GPS position.

@@ -1239,3 +1239,7 @@ body.kiosk .kioskSecondaryMini{ display:none; }
 
 /* Extra separation between FAQ and bottom understanding section */
 .about.card{ margin-top: 8px; }
+
+
+/* Simple button rows for learn pages */
+.buttonRow{display:flex;flex-wrap:wrap;gap:10px;margin:10px 0 0;}

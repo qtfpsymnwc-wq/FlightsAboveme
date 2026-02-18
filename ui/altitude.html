@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>FlightsAboveMe — Altitude Explained</title>
-  <link rel="stylesheet" href="./style.css?v=216">
+  <link rel="stylesheet" href="./style.css?v=217">
 </head>
 <body>
   <div id="app">
@@ -47,6 +47,31 @@
             Want the quick version?</p>
           <div class="linkPills"><a class="btnOutline" href="./learn.html#altitude">See the Learn page altitude section</a></div>
           <p>
+          </p>
+
+          <h3 style="margin:18px 0 6px; color: var(--text);">Pressure altitude, flight levels, and the “29.92” rule</h3>
+          <p style="margin:0 0 10px">
+            Above a certain altitude (called the <b>transition altitude</b>), pilots set a standard pressure reference
+            (<b>29.92 inHg / 1013.25 hPa</b>) and altitudes are expressed as <b>flight levels</b> (for example <b>FL350</b> = 35,000 ft).
+            This keeps every aircraft on the same vertical reference even when local weather pressure changes.
+          </p>
+
+          <h3 style="margin:18px 0 6px; color: var(--text);">MSL vs AGL (why a “low” altitude can still be high)</h3>
+          <p style="margin:0 0 10px">
+            Flight tracking altitude is almost always <b>MSL</b> (mean sea level). If you live at 1,200 ft elevation and an aircraft shows 5,000 ft,
+            it may be only about 3,800 ft above the ground nearby. Terrain can change quickly, so AGL is not always derivable from transponder data alone.
+          </p>
+
+          <h3 style="margin:18px 0 6px; color: var(--text);">Why your tracker might show “jumps”</h3>
+          <p style="margin:0 0 10px">
+            Many transponders report altitude in steps (often 25 ft or 100 ft increments depending on message type and decoding).
+            Combine that with message timing and receiver coverage and you can see small “stair‑step” changes during climbs/descents.
+          </p>
+
+          <h3 style="margin:18px 0 6px; color: var(--text);">Why altitude can disagree across data sources</h3>
+          <p style="margin:0 0 0">
+            Different networks may prefer barometric altitude, GPS altitude, or a filtered/averaged value. Some aircraft broadcast both.
+            FlightsAboveMe prioritizes the most common, interoperable values — but small differences are normal.
           </p>
 
         </div>
