@@ -1327,11 +1327,26 @@ body.kiosk .kioskSecondaryMini{ display:none; }
 
 
 
+.publisherIntro{ grid-area: intro; }
+  .primary{ grid-area: primary; }
+  .list{ grid-area: nearby; }
+  .kiosk-callout{ grid-area: kiosk; }
+  .learnStrip{ grid-area: learn; }
+  .faq{ grid-area: faq; }
+  .about{ grid-area: about; }
+
+  /* Ensure right-column cards don't get extra top margins from mobile flow */
+  .kiosk-callout, .list.card, .learnStrip.card{ margin-top: 0; }
+}
+
+
+
 /* ───────────── Desktop: two-column layout (does NOT affect phones) ───────────── */
 @media (min-width: 1100px){
+  /* Wider, desktop-friendly canvas */
   .layout{
     display: grid;
-    grid-template-columns: 2fr 1fr;
+    grid-template-columns: minmax(660px, 2.4fr) minmax(340px, 1fr);
     grid-template-areas:
       "intro intro"
       "primary nearby"
@@ -1342,14 +1357,23 @@ body.kiosk .kioskSecondaryMini{ display:none; }
     align-items: start;
   }
 
+  /* Explicit placement (prevents any auto-flow surprises) */
   .publisherIntro{ grid-area: intro; }
   .primary{ grid-area: primary; }
-  .list{ grid-area: nearby; }
-  .kiosk-callout{ grid-area: kiosk; }
-  .learnStrip{ grid-area: learn; }
-  .faq{ grid-area: faq; }
-  .about{ grid-area: about; }
+  section.list.card{ grid-area: nearby; }
+  section.kiosk-callout{ grid-area: kiosk; }
+  section.learnStrip{ grid-area: learn; }
+  section.faq{ grid-area: faq; }
+  section.about{ grid-area: about; }
 
-  /* Ensure right-column cards don't get extra top margins from mobile flow */
-  .kiosk-callout, .list.card, .learnStrip.card{ margin-top: 0; }
+  /* Ensure right column feels secondary */
+  section.list.card{ max-width: 480px; justify-self: end; }
+  section.learnStrip{ max-width: 480px; justify-self: end; }
+  section.kiosk-callout{ max-width: 100%; }
+
+  /* Keep kiosk + learn aligned visually */
+  section.kiosk-callout, section.learnStrip.card{
+    margin-top: 0;
+    min-height: 140px;
+  }
 }
