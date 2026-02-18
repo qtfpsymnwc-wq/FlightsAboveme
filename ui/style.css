@@ -1092,7 +1092,12 @@ body.kiosk .kioskSecondaryMini{ display:none; }
 .publisherIntro__text{
   margin: 0;
   color: var(--muted);
+  font-size: 15px;
   line-height: 1.45;
+}
+
+@media (max-width: 640px){
+  .publisherIntro__text{ font-size: 14.5px; }
 }
 
 /* About actions */
@@ -1109,4 +1114,44 @@ body.kiosk .kioskSecondaryMini{ display:none; }
 .nav-learn:hover{
   border-color: rgba(79,209,197,.55);
   background: rgba(79,209,197,.16);
+}
+
+.nav-build{
+  border-color: rgba(79,209,197,.22);
+  background: rgba(79,209,197,.06);
+}
+.nav-build:hover{
+  border-color: rgba(79,209,197,.40);
+  background: rgba(79,209,197,.12);
+}
+
+/* FAQ (publisher content block) */
+.faq.card{
+  padding: 16px 18px 14px;
+}
+.faq__title{
+  margin: 0 0 10px;
+  font-size: 16px;
+  letter-spacing: .2px;
+}
+.faq__item{
+  margin: 0 0 12px;
+  padding: 0 0 12px;
+  border-bottom: 1px solid rgba(34,52,90,.55);
+}
+.faq__item:last-child{
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.faq__q{
+  margin: 0 0 6px;
+  font-size: 14px;
+  color: rgba(234,240,255,.96);
+}
+.faq__a{
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
 }
