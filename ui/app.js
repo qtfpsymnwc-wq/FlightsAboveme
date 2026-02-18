@@ -650,22 +650,7 @@ function pumpEnrichment(renderFn){
 
 async function main(){
   enableKioskIfRequested();
-
-
-  // Publisher intro: collapse long text on mobile, expand on demand
-  const pubToggle = document.getElementById("publisherToggle");
-  const pubMore = document.getElementById("publisherMore");
-  if (pubToggle && pubMore) {
-    pubToggle.addEventListener("click", ()=>{
-      const expanded = pubToggle.getAttribute("aria-expanded") === "true";
-      pubToggle.setAttribute("aria-expanded", (!expanded).toString());
-      pubMore.hidden = expanded;
-      pubToggle.textContent = expanded ? "Read more" : "Read less";
-    });
-  }
-
-
-  const statusEl = $("statusText");
+const statusEl = $("statusText");
   if (statusEl) statusEl.textContent = "Locating…";
 
   const tierSegment = document.getElementById("tierSegment");
