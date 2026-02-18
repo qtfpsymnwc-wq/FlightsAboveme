@@ -1082,27 +1082,27 @@ body.kiosk .kioskSecondaryMini{ display:none; }
 
 /* Publisher intro (AdSense-friendly content above the main card) */
 .publisherIntro.card{
-  padding: 14px 16px 12px;
+  padding: 12px 14px 10px;
 }
 .publisherIntro__title{
-  margin: 0 0 8px;
-  font-size: 18px;
+  margin: 0 0 6px;
+  font-size: 17px;
   letter-spacing: .2px;
 }
 .publisherIntro__text{
   margin: 0;
   color: var(--muted);
-  font-size: 14px;
-  line-height: 1.42;
+  font-size: 13.5px;
+  line-height: 1.38;
 }
 
 @media (max-width: 640px){
-  .publisherIntro__text{ font-size: 13.5px; }
+  .publisherIntro__text{ font-size: 13.1px; }
 }
 
 /* About actions */
 .about-actions{
-  margin: 8px 0 4px;
+  margin: 6px 0 2px;
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
@@ -1128,6 +1128,7 @@ body.kiosk .kioskSecondaryMini{ display:none; }
 /* FAQ (publisher content block) */
 .faq.card{
   padding: 14px 16px 12px;
+  margin-bottom: 8px;
 }
 .faq__title{
   margin: 0 0 10px;
@@ -1174,3 +1175,7 @@ body.kiosk .kioskSecondaryMini{ display:none; }
   font-size: 14px;
   line-height: 1.5;
 }
+
+
+/* Extra separation between FAQ and bottom understanding section */
+.about.card{ margin-top: 8px; }
