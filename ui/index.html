@@ -90,16 +90,7 @@
 
     <div id="errBox" class="errBox hidden"></div>
 
-    <!-- ZIP fallback (main UI only): shown if location permission is denied and no last location exists -->
-    <section id="zipGate" class="zipGate hidden" role="form" aria-label="Enter ZIP code">
-      <div class="zipGate__title">Enter ZIP Code</div>
-      <div class="zipGate__desc">Location is off. Enter a 5‑digit US ZIP to see flights near you.</div>
-      <div class="zipGate__row">
-        <input id="zipInput" class="zipGate__input" inputmode="numeric" autocomplete="postal-code" maxlength="5" placeholder="e.g., 72701" aria-label="ZIP code" />
-        <button id="zipBtn" class="zipGate__btn" type="button">Use ZIP</button>
-      </div>
-      <div id="zipMsg" class="zipGate__msg" aria-live="polite"></div>
-    </section>
+    <!-- NOTE: Manual ZIP entry removed. If location is denied, we show a demo location (72704) and prompt users to enable location. -->
 
     
 
@@ -112,7 +103,7 @@
       <ul>
         <li>See the closest flights near you, including altitude, speed, distance, and direction.</li>
         <li>Tap Kiosk Mode for an ad-free, full-screen flight board for TVs and tablets.</li>
-        <li>If you don’t allow location access, you can enter a U.S. ZIP code to view flights near that area.</li>
+        <li>If you don’t allow location access, the site will show a demo area and prompt you to enable location.</li>
       </ul>
             <div class="about-actions">
         <a class="modeToggle nav-learn" href="./learn.html" aria-label="How flight tracking works">How It Works</a>

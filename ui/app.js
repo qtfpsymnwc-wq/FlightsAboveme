@@ -1,7 +1,6 @@
 // FlightsAboveMe UI
 const API_BASE = "https://flightsabove.t2hkmhgbwz.workers.dev";
 const UI_VERSION = "v193";
-const DEFAULT_ZIP = "72704"; // Fayetteville, Arkansas
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;
@@ -305,82 +304,10 @@ async function fetchJSON(url, timeoutMs=9000){
   }
 }
 
-// ZIP fallback (US-only). Used when location permission is denied and we have no last-known location.
-function loadLastZip(){
-  try { return localStorage.getItem("fabm_zip") || ""; } catch { return ""; }
-}
-function saveLastZip(zip){
-  try { localStorage.setItem("fabm_zip", zip); } catch {}
-}
-function showZipGate(show){
-  const gate = document.getElementById("zipGate");
-  if (!gate) return;
-  gate.classList.toggle("hidden", !show);
-}
-function setZipMsg(msg){
-  const el = document.getElementById("zipMsg");
-  if (el) el.textContent = msg || "";
-}
-async function lookupZip(zip){
-  const z = String(zip || "").trim();
-  if (!/^\d{5}$/.test(z)) throw new Error("Enter a valid 5-digit ZIP");
-  const controller = new AbortController();
-  const t = setTimeout(()=>controller.abort(), 4500);
-  try{
-    const res = await fetch(`/zip/${z}`, { signal: controller.signal });
-    if (res.status === 204) throw new Error("ZIP not found");
-    let j;
-    try { j = await res.json(); } catch (err) {
-      const t = await res.text().catch(()=> "");
-      throw new Error(t ? "ZIP lookup did not return JSON" : "ZIP lookup failed");
-    }
-    j.lat = Number(j.lat);
-    j.lon = Number(j.lon);
-    if (!j || j.ok !== true) throw new Error(j?.error || "ZIP lookup failed");
-    return j;
-  } finally {
-    clearTimeout(t);
-  }
-}
-function promptZipLocation(){
-  return new Promise((resolve)=>{
-    const gate = document.getElementById("zipGate");
-    const input = document.getElementById("zipInput");
-    const btn = document.getElementById("zipBtn");
-    if (!gate || !input || !btn){
-      resolve(null);
-      return;
-    }
-    showZipGate(true);
-    const lastZip = loadLastZip();
-    if (lastZip) input.value = lastZip;
-    setZipMsg("");
-    const submit = async ()=>{
-      const z = String(input.value || "").replace(/\D/g,"").slice(0,5);
-      input.value = z;
-      btn.disabled = true;
-      btn.textContent = "Looking…";
-      setZipMsg("");
-      try{
-        const r = await lookupZip(z);
-        saveLastZip(z);
-        showZipGate(false);
-        resolve({ lat: Number(r.lat), lon: Number(r.lon), accuracy: 25000, zip: z });
-      }catch(e){
-        setZipMsg(String(e?.message || e));
-        btn.disabled = false;
-        btn.textContent = "Use ZIP";
-      }
-    };
-    btn.onclick = submit;
-    input.onkeydown = (ev)=>{
-      if (ev.key === "Enter") submit();
-    };
-    input.oninput = ()=>{
-      input.value = String(input.value||"").replace(/\D/g,"").slice(0,5);
-    };
-  });
-}
+// Location-denied demo fallback.
+// If the user declines location permission, we show a demo area around Fayetteville, Arkansas (ZIP 72704).
+// Manual ZIP entry has been intentionally removed.
+const DEMO_LOC = { lat: 36.0877, lon: -94.3093, label: "Fayetteville, Arkansas", zip: "72704" };
 
 /* Portrait route formatting: show only airport codes in kiosk portrait
    IMPORTANT: Never drop destination. If we can't extract BOTH codes, return original.
@@ -765,43 +692,19 @@ async function main(){
       showErr("Location failed — using last known location");
       return { coords: { latitude: last.lat, longitude: last.lon, accuracy: last.accuracy }, __fromLast: true };
     }
-    // If we have no last-known location, fall back to ZIP (saved first, then default).
-    const savedZip = localStorage.getItem("fabm_zip");
-    const zipCandidate = (/^\d{5}$/.test(savedZip || "")) ? savedZip : DEFAULT_ZIP;
-
-    try {
-      if (statusEl) statusEl.textContent = "Loading…";
-      const j = await lookupZip(zipCandidate);
-      if (j && j.ok === true && Number.isFinite(j.lat) && Number.isFinite(j.lon)) {
-        // Only persist if the user explicitly chose a ZIP (not the default)
-        if (zipCandidate && zipCandidate !== DEFAULT_ZIP && zipCandidate !== savedZip) {
-          localStorage.setItem("fabm_zip", zipCandidate);
-        }
-        const zi = document.getElementById("zipInput");
-        if (zi) zi.value = zipCandidate;
-        showErr(zipCandidate === DEFAULT_ZIP
-          ? "Showing Fayetteville, Arkansas (72704). Enter your ZIP to change."
-          : "Using your ZIP location");
-        return { coords: { latitude: j.lat, longitude: j.lon, accuracy: 5000 }, __fromZip: true, __zip: zipCandidate, __isDefaultZip: zipCandidate === DEFAULT_ZIP };
-      }
-    } catch (_) {}
-
-    // If ZIP fallback failed, offer manual ZIP entry.
-    if (statusEl) statusEl.textContent = "Enter ZIP…";
-    showErr("Location is off — enter ZIP code to continue");
-    const zipLoc = await promptZipLocation();
-    if (zipLoc) {
-      return { coords: { latitude: zipLoc.lat, longitude: zipLoc.lon, accuracy: zipLoc.accuracy }, __fromZip: true };
-    }
-    if (statusEl) statusEl.textContent = "Location failed";
-    showErr(String(e.message || e));
-    throw e;
+    // No last-known location: use demo area and prompt user to enable location.
+    if (statusEl) statusEl.textContent = "Demo";
+    showErr(`Showing ${DEMO_LOC.label} (${DEMO_LOC.zip}) as a demo location — enable location to see flights near you.`);
+    return { coords: { latitude: DEMO_LOC.lat, longitude: DEMO_LOC.lon, accuracy: 25000 }, __fromDemo: true };
   });
 
   const lat = pos.coords.latitude;
   const lon = pos.coords.longitude;
   // v1.3.1: persist last good location to survive cellular GPS flakiness
-  saveLastLocation(lat, lon, pos?.coords?.accuracy);
+  // Do not overwrite last-known location with the demo fallback.
+  if (!pos?.__fromDemo) {
+    saveLastLocation(lat, lon, pos?.coords?.accuracy);
+  }
   const bb = bboxAround(lat, lon);
 
   if (statusEl) statusEl.textContent = "Radar…";
