@@ -23,6 +23,10 @@ const STATES_TIMEOUT_MS = 16000;
 const GEO_TIMEOUT_MS = 12000;
 const LAST_LOC_KEY = "fam_last_loc_v1";
 
+// Default ZIP (used only when: location denied/failed AND user has not set a ZIP)
+const DEFAULT_ZIP = "72704";
+const DEFAULT_LABEL = "Flights above Fayetteville, Arkansas";
+
 // Enrichment budgets (per “cycle”)
 // v1.2.9+: only enrich the closest flight (within ENRICH_MAX_MI)
 const LIST_AIRCRAFT_BUDGET = 0;
@@ -326,7 +330,9 @@ async function lookupZip(zip){
   const controller = new AbortController();
   const t = setTimeout(()=>controller.abort(), 4500);
   try{
-    const res = await fetch(`${API_BASE}/zip/${z}`, { signal: controller.signal });
+    // Use same-origin ZIP endpoint so Safari/CORS edge cases don't break.
+    // Cloudflare routes `flightsaboveme.com/zip/*` to the Worker.
+    const res = await fetch(`/zip/${z}`, { signal: controller.signal, cache: "no-store", credentials: "omit" });
     if (res.status === 204) throw new Error("ZIP not found");
     const j = await res.json();
     if (!j || j.ok !== true) throw new Error(j?.error || "ZIP lookup failed");
@@ -334,6 +340,42 @@ async function lookupZip(zip){
   } finally {
     clearTimeout(t);
   }
+}
+
+// Non-blocking ZIP UI (always allows manual override, even when using the default location).
+function initZipUI(){
+  const gate = document.getElementById("zipGate");
+  const input = document.getElementById("zipInput");
+  const btn = document.getElementById("zipBtn");
+  if (!gate || !input || !btn) return;
+
+  // Input hygiene
+  input.oninput = ()=>{
+    input.value = String(input.value||"").replace(/\D/g,"").slice(0,5);
+  };
+  input.onkeydown = (ev)=>{
+    if (ev.key === "Enter") btn.click();
+  };
+
+  // Button handler (save ZIP + reload to apply)
+  btn.onclick = async ()=>{
+    const z = String(input.value || "").replace(/\D/g, "").slice(0, 5);
+    input.value = z;
+    btn.disabled = true;
+    const oldText = btn.textContent;
+    btn.textContent = "Looking…";
+    setZipMsg("");
+    try{
+      await lookupZip(z);
+      saveLastZip(z);
+      // Reload so the app boots using the new ZIP location.
+      location.reload();
+    }catch(e){
+      setZipMsg(String(e?.message || e));
+      btn.disabled = false;
+      btn.textContent = oldText || "Use ZIP";
+    }
+  };
 }
 function promptZipLocation(){
   return new Promise((resolve)=>{
@@ -717,6 +759,9 @@ function pumpEnrichment(renderFn){
 async function main(){
   enableKioskIfRequested();
 
+  // Wire ZIP handlers early so the button always works.
+  initZipUI();
+
   const statusEl = $("statusText");
   if (statusEl) statusEl.textContent = "Locating…";
 
@@ -751,32 +796,56 @@ async function main(){
       { enableHighAccuracy:true, timeout:GEO_TIMEOUT_MS, maximumAge:5000 }
     );
   }).catch(async (e)=>{
-    // v1.3.1: On flaky cellular GPS, fall back to last known location so the app still loads.
-    const last = loadLastLocation();
-    if (last) {
-      if (statusEl) statusEl.textContent = "Using last location…";
-      showErr("Location failed — using last known location");
-      return { coords: { latitude: last.lat, longitude: last.lon, accuracy: last.accuracy }, __fromLast: true };
+    // Location denied/failed.
+    // Priority: saved ZIP -> default ZIP -> last known location.
+
+    // Always show the ZIP gate so the user can override.
+    showZipGate(true);
+
+    const savedZip = loadLastZip();
+    const chosenZip = savedZip || DEFAULT_ZIP;
+    try {
+      const r = await lookupZip(chosenZip);
+
+      // Do NOT persist the default ZIP as the user's ZIP.
+      if (!savedZip) {
+        const input = document.getElementById("zipInput");
+        if (input) input.value = DEFAULT_ZIP;
+        setZipMsg(`Showing Fayetteville, Arkansas (${DEFAULT_ZIP}). Enter your ZIP code to see flights near you.`);
+        if (statusEl) statusEl.textContent = DEFAULT_LABEL;
+      } else {
+        const input = document.getElementById("zipInput");
+        if (input) input.value = savedZip;
+        setZipMsg(`Showing ZIP ${savedZip}. Enter a different ZIP to change.`);
+        if (statusEl) statusEl.textContent = `Flights above ZIP ${savedZip}`;
+      }
+
+      showErr("Location is off — using ZIP");
+      return { coords: { latitude: Number(r.lat), longitude: Number(r.lon), accuracy: 25000 }, __fromZip: true, __zip: chosenZip };
+    } catch (zipErr) {
+      // If ZIP lookup fails, fall back to last known location (if any).
+      const last = loadLastLocation();
+      if (last) {
+        if (statusEl) statusEl.textContent = "Using last location…";
+        showErr("Location failed — using last known location");
+        return { coords: { latitude: last.lat, longitude: last.lon, accuracy: last.accuracy }, __fromLast: true };
+      }
+
+      if (statusEl) statusEl.textContent = "Enter ZIP…";
+      showErr("Location is off — enter ZIP code to continue");
+      setZipMsg(String(zipErr?.message || zipErr));
+      throw e;
     }
-    // If we have no last-known location, offer US ZIP entry on main UI.
-    if (statusEl) statusEl.textContent = "Enter ZIP…";
-    showErr("Location is off — enter ZIP code to continue");
-    const zipLoc = await promptZipLocation();
-    if (zipLoc) {
-      return { coords: { latitude: zipLoc.lat, longitude: zipLoc.lon, accuracy: zipLoc.accuracy }, __fromZip: true };
-    }
-    if (statusEl) statusEl.textContent = "Location failed";
-    showErr(String(e.message || e));
-    throw e;
   });
 
   const lat = pos.coords.latitude;
   const lon = pos.coords.longitude;
+  const lockHeaderStatus = (pos && pos.__fromZip === true);
   // v1.3.1: persist last good location to survive cellular GPS flakiness
   saveLastLocation(lat, lon, pos?.coords?.accuracy);
   const bb = bboxAround(lat, lon);
 
-  if (statusEl) statusEl.textContent = "Radar…";
+  if (statusEl && !lockHeaderStatus) statusEl.textContent = "Radar…";
 
   let nextAllowedAt = 0;
   let inFlight = false;
@@ -839,7 +908,7 @@ async function main(){
 
     const now = Date.now();
     if (now < nextAllowedAt) {
-      if (statusEl) statusEl.textContent = "Backoff…";
+      if (statusEl && !lockHeaderStatus) statusEl.textContent = "Backoff…";
       return;
     }
 
@@ -855,7 +924,7 @@ async function main(){
       lastRadarMeta = { count: states.length, showing: Math.min(states.length, 5) };
 
       if (!states.length){
-        if (statusEl) statusEl.textContent = "No flights";
+        if (statusEl && !lockHeaderStatus) statusEl.textContent = "No flights";
         lastTop = [];
         lastPrimary = {callsign:"—", icao24:"—"};
         lastSecondary = null;
@@ -896,7 +965,7 @@ async function main(){
       applyCachedEnrichment(lastPrimary);
       if (lastSecondary) applyCachedEnrichment(lastSecondary);
 
-      if (statusEl) statusEl.textContent = isKiosk() ? "Kiosk" : "Live";
+      if (statusEl && !lockHeaderStatus) statusEl.textContent = isKiosk() ? "Kiosk" : "Live";
       renderAll();
 
       // Only enrich the closest flight (primary) — stability-gated (2 cycles) to prevent churn
@@ -938,11 +1007,11 @@ async function main(){
 
       if (/^HTTP 429:/i.test(msg) || /Too many requests/i.test(msg)) {
         nextAllowedAt = Date.now() + BACKOFF_429_MS;
-        if (statusEl) statusEl.textContent = "Rate limited";
+        if (statusEl && !lockHeaderStatus) statusEl.textContent = "Rate limited";
         return;
       }
 
-      if (statusEl) statusEl.textContent = isKiosk() ? "Kiosk" : "Live";
+      if (statusEl && !lockHeaderStatus) statusEl.textContent = isKiosk() ? "Kiosk" : "Live";
     } finally {
       inFlight = false;
     }
