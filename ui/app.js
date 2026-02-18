@@ -1,6 +1,7 @@
 // FlightsAboveMe UI
 const API_BASE = "https://flightsabove.t2hkmhgbwz.workers.dev";
 const UI_VERSION = "v193";
+const DEFAULT_ZIP = "72704"; // Fayetteville, Arkansas
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;
@@ -22,7 +23,6 @@ let lastEnrichQueuedAt = 0;
 const STATES_TIMEOUT_MS = 16000;
 const GEO_TIMEOUT_MS = 12000;
 const LAST_LOC_KEY = "fam_last_loc_v1";
-const DEFAULT_ZIP = "72704"; // Fayetteville, Arkansas
 
 // Enrichment budgets (per “cycle”)
 // v1.2.9+: only enrich the closest flight (within ENRICH_MAX_MI)
@@ -48,12 +48,7 @@ function showErr(msg){
   } catch {}
 }
 window.addEventListener("error", (e)=>showErr("JS error: " + (e?.message || e)));
-// Avoid scaring users with expected geolocation denials (common on iOS).
-window.addEventListener("unhandledrejection", (e)=>{
-  const msg = String(e?.reason?.message || e?.reason || e || "");
-  if (/denied geolocation/i.test(msg) || /user denied/i.test(msg) || /location denied/i.test(msg)) return;
-  showErr("Promise rejection: " + msg);
-});
+window.addEventListener("unhandledrejection", (e)=>showErr("Promise rejection: " + (e?.reason?.message || e?.reason || e)));
 
 const nm = (v) => (v ?? "").toString().trim();
 
@@ -332,10 +327,15 @@ async function lookupZip(zip){
   const controller = new AbortController();
   const t = setTimeout(()=>controller.abort(), 4500);
   try{
-    // ZIP lookup is served from the same origin (routed to the Worker via /zip/*).
     const res = await fetch(`/zip/${z}`, { signal: controller.signal });
     if (res.status === 204) throw new Error("ZIP not found");
-    const j = await res.json();
+    let j;
+    try { j = await res.json(); } catch (err) {
+      const t = await res.text().catch(()=> "");
+      throw new Error(t ? "ZIP lookup did not return JSON" : "ZIP lookup failed");
+    }
+    j.lat = Number(j.lat);
+    j.lon = Number(j.lon);
     if (!j || j.ok !== true) throw new Error(j?.error || "ZIP lookup failed");
     return j;
   } finally {
@@ -758,59 +758,50 @@ async function main(){
       { enableHighAccuracy:true, timeout:GEO_TIMEOUT_MS, maximumAge:5000 }
     );
   }).catch(async (e)=>{
-    // Priority when geolocation fails/denied:
-    // 1) Use saved ZIP (manual override)
-    // 2) Use default ZIP (72704) so the site loads with content
-    // 3) Fall back to last-known coords (legacy behavior)
-    // 4) Finally, show the ZIP gate
-
-    const savedZip = loadLastZip();
-    if (savedZip) {
-      try {
-        if (statusEl) statusEl.textContent = `Using ZIP ${savedZip}…`;
-        const r = await lookupZip(savedZip);
-        return { coords: { latitude: Number(r.lat), longitude: Number(r.lon), accuracy: 25000 }, __fromZip: true, __zip: savedZip };
-      } catch {}
-    }
-
-    try {
-      if (statusEl) statusEl.textContent = "Using default area…";
-      const r = await lookupZip(DEFAULT_ZIP);
-      // NOTE: do NOT save DEFAULT_ZIP as the user's ZIP.
-      return { coords: { latitude: Number(r.lat), longitude: Number(r.lon), accuracy: 25000 }, __fromDefaultZip: true, __zip: DEFAULT_ZIP };
-    } catch {}
-
+    // v1.3.1: On flaky cellular GPS, fall back to last known location so the app still loads.
     const last = loadLastLocation();
     if (last) {
       if (statusEl) statusEl.textContent = "Using last location…";
       showErr("Location failed — using last known location");
       return { coords: { latitude: last.lat, longitude: last.lon, accuracy: last.accuracy }, __fromLast: true };
     }
+    // If we have no last-known location, fall back to ZIP (saved first, then default).
+    const savedZip = localStorage.getItem("fabm_zip");
+    const zipCandidate = (/^\d{5}$/.test(savedZip || "")) ? savedZip : DEFAULT_ZIP;
 
+    try {
+      if (statusEl) statusEl.textContent = "Loading…";
+      const j = await lookupZip(zipCandidate);
+      if (j && j.ok === true && Number.isFinite(j.lat) && Number.isFinite(j.lon)) {
+        // Only persist if the user explicitly chose a ZIP (not the default)
+        if (zipCandidate && zipCandidate !== DEFAULT_ZIP && zipCandidate !== savedZip) {
+          localStorage.setItem("fabm_zip", zipCandidate);
+        }
+        const zi = document.getElementById("zipInput");
+        if (zi) zi.value = zipCandidate;
+        showErr(zipCandidate === DEFAULT_ZIP
+          ? "Showing Fayetteville, Arkansas (72704). Enter your ZIP to change."
+          : "Using your ZIP location");
+        return { coords: { latitude: j.lat, longitude: j.lon, accuracy: 5000 }, __fromZip: true, __zip: zipCandidate, __isDefaultZip: zipCandidate === DEFAULT_ZIP };
+      }
+    } catch (_) {}
+
+    // If ZIP fallback failed, offer manual ZIP entry.
     if (statusEl) statusEl.textContent = "Enter ZIP…";
     showErr("Location is off — enter ZIP code to continue");
     const zipLoc = await promptZipLocation();
     if (zipLoc) {
-      return { coords: { latitude: zipLoc.lat, longitude: zipLoc.lon, accuracy: zipLoc.accuracy }, __fromZip: true, __zip: zipLoc.zip };
+      return { coords: { latitude: zipLoc.lat, longitude: zipLoc.lon, accuracy: zipLoc.accuracy }, __fromZip: true };
     }
-
     if (statusEl) statusEl.textContent = "Location failed";
-    showErr(String(e?.message || e));
-    // Do not throw; keep the app from hard-failing.
-    return null;
+    showErr(String(e.message || e));
+    throw e;
   });
-
-  if (!pos || !pos.coords) {
-    // We couldn't get a usable position. Leave the UI up with the ZIP gate.
-    return;
-  }
 
   const lat = pos.coords.latitude;
   const lon = pos.coords.longitude;
   // v1.3.1: persist last good location to survive cellular GPS flakiness
-  if (!pos.__fromZip && !pos.__fromDefaultZip) {
-    saveLastLocation(lat, lon, pos?.coords?.accuracy);
-  }
+  saveLastLocation(lat, lon, pos?.coords?.accuracy);
   const bb = bboxAround(lat, lon);
 
   if (statusEl) statusEl.textContent = "Radar…";
@@ -990,6 +981,4 @@ async function main(){
   setInterval(tick, pollMs);
 }
 
-main().catch((e)=>{
-  showErr(String(e?.message || e));
-});
+main();
