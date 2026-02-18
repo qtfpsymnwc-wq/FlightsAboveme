@@ -875,9 +875,6 @@ body.kiosk .kioskSecondaryMini{ display:none; }
 }
 .extraStats .k{ font-size: 10px; }
   .extraStats .v{ font-size: 12px; }
-}
-
-
 /* -------------------------------
    Header Logo
 -------------------------------- */
@@ -1275,6 +1272,25 @@ body.kiosk .kioskSecondaryMini{ display:none; }
   gap:10px;
 }
 
+
+
+/* Publisher intro read-more */
+.publisherIntro__toggle{
+  margin-top: 10px;
+}
+
+
+
+/* ───────────── Desktop scaling ───────────── */
+@media (min-width: 1100px){
+  /* Give the app more room on desktop */
+  .layout{
+    max-width: 1200px;
+    margin: 0 auto;
+    padding-left: 28px;
+    padding-right: 28px;
+  }
+
   /* Make cards feel less "mobile-sized" */
   .card{
     border-radius: 20px;
@@ -1292,137 +1308,7 @@ body.kiosk .kioskSecondaryMini{ display:none; }
   .publisherIntro__text{ font-size: 15px; max-width: 80ch; }
 }
 
-}
-
-
-
-/* Full-width sections */
-  .publisherIntro{ grid-column: 1 / -1; }
-  .faq{ grid-column: 1 / -1; }
-  .about{ grid-column: 1 / -1; }
-
-  /* Left column: primary flight */
-  .primary{ grid-column: 1 / 2; }
-
-  /* Right column: nearby + kiosk + learn */
-  .kiosk-callout{ grid-column: 2 / 3; }
-  .list{ grid-column: 2 / 3; }
-  .learnStrip{ grid-column: 2 / 3; }
-
-  /* Make right column cards a bit tighter */
-  .kiosk-callout, .list.card, .learnStrip.card{ margin-top: 0; }
-}
-
-
-
-.publisherIntro{ grid-area: intro; }
-  .primary{ grid-area: primary; }
-  .list{ grid-area: nearby; }
-  .kiosk-callout{ grid-area: kiosk; }
-  .learnStrip{ grid-area: learn; }
-  .faq{ grid-area: faq; }
-  .about{ grid-area: about; }
-
-  /* Ensure right-column cards don't get extra top margins from mobile flow */
-  .kiosk-callout, .list.card, .learnStrip.card{ margin-top: 0; }
-}
-
-
-
-/* Explicit placement (prevents any auto-flow surprises) */
-  .publisherIntro{ grid-area: intro; }
-  .primary{ grid-area: primary; }
-  section.list.card{ grid-area: nearby; }
-  section.kiosk-callout{ grid-area: kiosk; }
-  section.learnStrip{ grid-area: learn; }
-  section.faq{ grid-area: faq; }
-  section.about{ grid-area: about; }
-
-  /* Ensure right column feels secondary */
-  section.list.card{ max-width: 480px; justify-self: end; }
-  section.learnStrip{ max-width: 480px; justify-self: end; }
-  section.kiosk-callout{ max-width: 100%; }
-
-  /* Keep kiosk + learn aligned visually */
-  section.kiosk-callout, section.learnStrip.card{
-    margin-top: 0;
-    min-height: 140px;
-  }
-}
-
-
-
-
-  /* Stretched full-width sections */
-  .publisherIntro,
-  .faq,
-  .about{
-    grid-column: 1 / -1;
-  }
-
-  /* Row 1: hero */
-  .publisherIntro{ grid-row: 1; }
-
-  /* Row 2: primary + nearby */
-  .primary{ grid-column: 1; grid-row: 2; }
-  section.list.card{ grid-column: 2; grid-row: 2; }
-
-  /* Row 3: kiosk + learn (side by side) */
-  section.kiosk-callout{ grid-column: 1; grid-row: 3; }
-  section.learnStrip{ grid-column: 2; grid-row: 3; }
-
-  /* Row 4+: education content */
-  section.faq{ grid-row: 4; }
-  section.about{ grid-row: 5; }
-
-  /* Keep right column visually secondary */
-  section.list.card,
-  section.learnStrip{
-    max-width: 520px;
-    justify-self: end;
-  }
-
-  /* Ensure hero text uses full width of its card */
-  .publisherIntro__text{ max-width: none; }
-}
-
-
-
-/* ───────────── Desktop layout (clean) ───────────── */
-@media (min-width: 1100px){
-  /* Larger canvas on desktop */
-  .layout{
-    max-width: 1320px;
-    margin: 0 auto;
-    padding-left: 28px;
-    padding-right: 28px;
-
-    display: grid;
-    grid-template-columns: 2.35fr 1fr; /* B: right column slightly narrower */
-    grid-auto-rows: auto;
-    gap: 22px;
-    align-items: start;
-  }
-
-  /* Full-width rows */
-  .publisherIntro,
-  .faq,
-  .about{
-    grid-column: 1 / -1;
-  }
-
-  /* Row ordering */
-  .publisherIntro{ grid-row: 1; }
-
-  .primary{ grid-column: 1; grid-row: 2; }
-  section.list.card{ grid-column: 2; grid-row: 2; }
-
-  section.kiosk-callout{ grid-column: 1; grid-row: 3; }
-  section.learnStrip{ grid-column: 2; grid-row: 3; }
-
-  section.faq{ grid-row: 4; }
-  section.about{ grid-row: 5; }
-
-  /* Make sure hero text can use the full card width */
-  .publisherIntro__text{ max-width: none; }
+/* Ultra-wide: keep readable, but use more width */
+@media (min-width: 1500px){
+  .layout{ max-width: 1400px; }
 }
