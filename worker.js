@@ -611,37 +611,6 @@ export default {
 
     const parts = url.pathname.split("/").filter(Boolean);
 
-    // ZIP → lat/lon helper for the UI when geolocation is denied.
-    // UI expects: { ok:true, lat:<number>, lon:<number> } and treats 204 as "ZIP not found".
-    // Kept lightweight and dependency-free.
-    if (parts[0] === "zip" && parts[1]) {
-      const z = String(parts[1] || "").trim();
-      if (!/^\d{5}$/.test(z)) {
-        return json({ ok: false, error: "Enter a valid 5-digit ZIP" }, 400, cors);
-      }
-
-      const upstream = `https://api.zippopotam.us/us/${z}`;
-      try {
-        const res = await fetch(upstream, { cf: { cacheTtl: 86400, cacheEverything: true } });
-        if (res.status === 404) {
-          return new Response(null, { status: 204, headers: cors });
-        }
-        if (!res.ok) {
-          return json({ ok: false, error: "ZIP lookup failed" }, 502, cors);
-        }
-        const j = await res.json();
-        const place = j?.places?.[0];
-        const lat = place?.latitude;
-        const lon = place?.longitude;
-        if (lat == null || lon == null) {
-          return new Response(null, { status: 204, headers: cors });
-        }
-        return json({ ok: true, zip: z, lat: Number(lat), lon: Number(lon) }, 200, cors);
-      } catch (e) {
-        return json({ ok: false, error: "ZIP lookup failed" }, 502, cors);
-      }
-    }
-
     if (parts[0] === "opensky" && parts[1] === "states") {
       const lamin = url.searchParams.get("lamin");
       const lomin = url.searchParams.get("lomin");
