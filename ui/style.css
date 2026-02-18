@@ -1274,15 +1274,6 @@ body.kiosk .kioskSecondaryMini{ display:none; }
   flex-wrap:wrap;
   gap:10px;
 }
-/* ───────────── Desktop scaling ───────────── */
-@media (min-width: 1100px){
-  /* Give the app more room on desktop */
-  .layout{
-    max-width: 1200px;
-    margin: 0 auto;
-    padding-left: 28px;
-    padding-right: 28px;
-  }
 
   /* Make cards feel less "mobile-sized" */
   .card{
@@ -1301,9 +1292,6 @@ body.kiosk .kioskSecondaryMini{ display:none; }
   .publisherIntro__text{ font-size: 15px; max-width: 80ch; }
 }
 
-/* Ultra-wide: keep readable, but use more width */
-@media (min-width: 1500px){
-  .layout{ max-width: 1400px; }
 }
 
 
@@ -1364,14 +1352,6 @@ body.kiosk .kioskSecondaryMini{ display:none; }
 
 
 
-/* ───────────── Desktop: simple two-column layout (stretched hero) ───────────── */
-@media (min-width: 1100px){
-  .layout{
-    display: grid;
-    grid-template-columns: minmax(680px, 2.3fr) minmax(360px, 1fr);
-    gap: 22px;
-    align-items: start;
-  }
 
   /* Stretched full-width sections */
   .publisherIntro,
@@ -1403,5 +1383,46 @@ body.kiosk .kioskSecondaryMini{ display:none; }
   }
 
   /* Ensure hero text uses full width of its card */
+  .publisherIntro__text{ max-width: none; }
+}
+
+
+
+/* ───────────── Desktop layout (clean) ───────────── */
+@media (min-width: 1100px){
+  /* Larger canvas on desktop */
+  .layout{
+    max-width: 1320px;
+    margin: 0 auto;
+    padding-left: 28px;
+    padding-right: 28px;
+
+    display: grid;
+    grid-template-columns: 2.35fr 1fr; /* B: right column slightly narrower */
+    grid-auto-rows: auto;
+    gap: 22px;
+    align-items: start;
+  }
+
+  /* Full-width rows */
+  .publisherIntro,
+  .faq,
+  .about{
+    grid-column: 1 / -1;
+  }
+
+  /* Row ordering */
+  .publisherIntro{ grid-row: 1; }
+
+  .primary{ grid-column: 1; grid-row: 2; }
+  section.list.card{ grid-column: 2; grid-row: 2; }
+
+  section.kiosk-callout{ grid-column: 1; grid-row: 3; }
+  section.learnStrip{ grid-column: 2; grid-row: 3; }
+
+  section.faq{ grid-row: 4; }
+  section.about{ grid-row: 5; }
+
+  /* Make sure hero text can use the full card width */
   .publisherIntro__text{ max-width: none; }
 }
