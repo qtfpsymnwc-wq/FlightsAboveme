@@ -651,6 +651,20 @@ function pumpEnrichment(renderFn){
 async function main(){
   enableKioskIfRequested();
 
+
+  // Publisher intro: collapse long text on mobile, expand on demand
+  const pubToggle = document.getElementById("publisherToggle");
+  const pubMore = document.getElementById("publisherMore");
+  if (pubToggle && pubMore) {
+    pubToggle.addEventListener("click", ()=>{
+      const expanded = pubToggle.getAttribute("aria-expanded") === "true";
+      pubToggle.setAttribute("aria-expanded", (!expanded).toString());
+      pubMore.hidden = expanded;
+      pubToggle.textContent = expanded ? "Read more" : "Read less";
+    });
+  }
+
+
   const statusEl = $("statusText");
   if (statusEl) statusEl.textContent = "Locating…";
 
@@ -705,7 +719,18 @@ async function main(){
   if (!pos?.__fromDemo) {
     saveLastLocation(lat, lon, pos?.coords?.accuracy);
   }
-  const bb = bboxAround(lat, lon);
+  
+  // Demo / location mode badge (mobile clarity)
+  const demoBadge = document.getElementById("demoBadge");
+  if (demoBadge) {
+    if (pos?.__fromDemo) {
+      demoBadge.textContent = `Demo: ${DEMO_LOC.label} (${DEMO_LOC.zip})`;
+      demoBadge.classList.remove("hidden");
+    } else {
+      demoBadge.classList.add("hidden");
+    }
+  }
+const bb = bboxAround(lat, lon);
 
   if (statusEl) statusEl.textContent = "Radar…";
 

@@ -1243,3 +1243,41 @@ body.kiosk .kioskSecondaryMini{ display:none; }
 
 /* Simple button rows for learn pages */
 .buttonRow{display:flex;flex-wrap:wrap;gap:10px;margin:10px 0 0;}
+
+
+
+/* Demo / location mode badge */
+.demoBadge{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid rgba(120, 210, 255, 0.35);
+  background: rgba(120, 210, 255, 0.10);
+  color: var(--text);
+  font-size: .8rem;
+  font-weight: 600;
+  margin: 0 0 10px;
+}
+.demoBadge.hidden{ display:none; }
+
+
+
+/* Learn strip */
+.learnStrip__title{
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+.learnStrip__row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+}
+
+
+
+/* Publisher intro read-more */
+.publisherIntro__toggle{
+  margin-top: 10px;
+}
