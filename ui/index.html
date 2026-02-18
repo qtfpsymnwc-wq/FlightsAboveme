@@ -33,12 +33,17 @@
     <main class="layout">
       
       <section class="publisherIntro card" aria-label="About FlightsAboveMe">
-        <h1 class="publisherIntro__title">Flights above you — live, fast, and simple.</h1>
+        <h1 class="publisherIntro__title">FlightsAboveMe: live overhead aircraft tracking</h1>
                 <p class="publisherIntro__text">
-          FlightsAboveMe displays aircraft currently flying near your location using live flight tracking signals (ADS‑B) and public aviation data sources. You’ll see key details such as altitude, speed, distance, and direction in a clear, easy‑to‑read format.
-          Flight tracking coverage varies by region and aircraft equipment, so some flights may not appear and data may occasionally be delayed. This site is designed for informational and educational purposes only.
+          FlightsAboveMe is a live flight tracking display that shows aircraft currently flying near your location. Using publicly available ADS‑B (Automatic Dependent Surveillance–Broadcast) signals and aviation data networks, the site estimates aircraft position, altitude, speed, and direction in near real time.
+          Because flight tracking depends on your location, browser access to location services is required to show flights directly above you. If location access is disabled, a demonstration location in Fayetteville, Arkansas (72704) may be shown so the interface remains visible and functional.
+          Flight data coverage varies by region and aircraft equipment. Some flights may not appear, and information may occasionally be delayed or incomplete. FlightsAboveMe is provided for informational and educational purposes only.
         </p>
-      </section>
+      
+        <div class="about-actions">
+          <a class="modeToggle nav-learn" href="./learn.html" aria-label="How flight tracking works">How It Works</a>
+        </div>
+</section>
 <section class="primary card">
         <div class="primaryHeader">
           <div class="airlineHeader">
@@ -90,7 +95,16 @@
 
     <div id="errBox" class="errBox hidden"></div>
 
-    <!-- NOTE: Manual ZIP entry removed. If location is denied, we show a demo location (72704) and prompt users to enable location. -->
+    <!-- ZIP fallback (main UI only): shown if location permission is denied and no last location exists -->
+    <section id="zipGate" class="zipGate hidden" role="form" aria-label="Enter ZIP code">
+      <div class="zipGate__title">Enter ZIP Code</div>
+      <div class="zipGate__desc">Location is off. Enter a 5‑digit US ZIP to see flights near you.</div>
+      <div class="zipGate__row">
+        <input id="zipInput" class="zipGate__input" inputmode="numeric" autocomplete="postal-code" maxlength="5" placeholder="e.g., 72701" aria-label="ZIP code" />
+        <button id="zipBtn" class="zipGate__btn" type="button">Use ZIP</button>
+      </div>
+      <div id="zipMsg" class="zipGate__msg" aria-live="polite"></div>
+    </section>
 
     
 
@@ -98,18 +112,11 @@
     <!-- Kiosk mode callout (main UI only). Keep kiosk.html ad-free. -->
     
     <section class="about card" id="about">
-      <h2>What is FlightsAboveMe?</h2>
-      <p>FlightsAboveMe shows aircraft currently flying near your location using live flight tracking data. It’s designed for quick “what’s overhead?” checks and for always-on displays.</p>
-      <ul>
-        <li>See the closest flights near you, including altitude, speed, distance, and direction.</li>
-        <li>Tap Kiosk Mode for an ad-free, full-screen flight board for TVs and tablets.</li>
-        <li>If you don’t allow location access, the site will show a demo area and prompt you to enable location.</li>
-      </ul>
-            <div class="about-actions">
-        <a class="modeToggle nav-learn" href="./learn.html" aria-label="How flight tracking works">How It Works</a>
-      </div>
-
-      <p class="about-note">Data is informational and may be delayed or incomplete. Not for operational or navigation use.</p>
+      <h2>Understanding live flight data</h2>
+      <p>FlightsAboveMe uses publicly available ADS‑B (Automatic Dependent Surveillance–Broadcast) signals to estimate aircraft position and movement. Modern aircraft broadcast identity, altitude, speed, and position data, which can be received by ground stations and aggregated into live tracking networks.</p>
+      <p>Coverage depends on aircraft equipment and receiver density in a given region. Some flights may not appear, and data may occasionally be delayed or incomplete.</p>
+      <p>Aircraft identifiers such as ICAO24 codes and callsigns are technical aviation identifiers used by air traffic systems. Altitude is typically reported as barometric altitude, and vertical speed indicates whether an aircraft is climbing, descending, or cruising.</p>
+      <p>FlightsAboveMe is provided for informational and educational purposes only and should not be used for navigation or operational decisions.</p>
     </section>
 
 
