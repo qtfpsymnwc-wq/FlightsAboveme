@@ -1031,8 +1031,8 @@ body.kiosk .kioskSecondaryMini{ display:none; }
 
 /* --- Kiosk Mode callout (main UI only) --- */
 .kiosk-callout{
-  max-width: 980px;
-  margin: 14px auto 10px;
+  max-width: none;
+  margin: 0;
   padding: 14px 16px;
   border: 1px solid var(--line);
   border-radius: 14px;
@@ -1063,7 +1063,10 @@ body.kiosk .kioskSecondaryMini{ display:none; }
   font-weight: 800;
   letter-spacing: .2px;
   box-shadow: 0 10px 24px rgba(79, 209, 197, 0.18);
+  font-size: 13px;
+  line-height: 1;
 }
+
 
 .kiosk-callout__link:hover{
   filter: brightness(1.04);
@@ -1088,7 +1091,10 @@ body.kiosk .kioskSecondaryMini{ display:none; }
     width: 100%;
     justify-content: center;
     padding: 12px 14px;
-  }
+    font-size: 13px;
+  line-height: 1;
+}
+
 }
 
 /* iPhone Safari sometimes renders in “desktop viewport” mode, which can prevent max-width
@@ -1305,7 +1311,7 @@ body.kiosk .kioskSecondaryMini{ display:none; }
 
   /* Publisher intro: scale to desktop and cap line length */
   .publisherIntro__title{ font-size: 28px; }
-  .publisherIntro__text{ font-size: 15px; max-width: 80ch; }
+  .publisherIntro__text{ font-size: 15px; max-width: none; }
 }
 
 /* Ultra-wide: keep readable, but use more width */
@@ -1327,7 +1333,7 @@ body.kiosk .kioskSecondaryMini{ display:none; }
 
   /* Slightly bigger typography on desktop */
   .publisherIntro__title{ font-size: 30px; }
-  .publisherIntro__text{ font-size: 15px; max-width: 95ch; }
+  .publisherIntro__text{ font-size: 15px; max-width: none; }
 
   /* Primary card emphasis */
   .primary .airlineName{ font-size: 28px; }
