@@ -24,3 +24,24 @@ ADSBLOL_BASE = "https://api.adsb.lol"
 # (Optional legacy OpenSky basic auth if you still have it)
 #   OPENSKY_USER
 #   OPENSKY_PASS
+# ---------------------------------------------------------------------------
+# Permanent bindings lock (IMPORTANT)
+#
+# Cloudflare bindings can appear to "disappear" after deploys if they are not
+# declared in wrangler.toml. To permanently lock bindings to the repo, fill in
+# the IDs below and commit this file.
+#
+# Get IDs:
+#   npx wrangler kv namespace list
+#   npx wrangler d1 list
+#
+# Then replace the placeholder strings below with the real IDs.
+# ---------------------------------------------------------------------------
+
+kv_namespaces = [
+  { binding = "AIRCRAFT_KV", id = "71b6264513e94b99ab667fd2424ee755" }
+]
+
+d1_databases = [
+  { binding = "DB", database_name = "flights_db", database_id = "982b56a9-c663-4c88-97d5-0a5b85e85be3" }
+]
