@@ -3,7 +3,7 @@
 // Intentionally does NOT cache HTML documents or API responses.
 
 // Bump this when you ship UI/CSS/JS updates so mobile clients pull fresh assets quickly.
-const CACHE_NAME = "fab-static-v1.5.34";
+const CACHE_NAME = "fab-static-v1.5.35";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
