@@ -1,6 +1,7 @@
 // FlightsAboveMe UI
 const API_BASE = "https://flightsabove.t2hkmhgbwz.workers.dev";
-const UI_VERSION = "v233";
+// Cache-buster for static assets (CSS/JS/logos)
+const UI_VERSION = "v234";
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;
@@ -655,6 +656,10 @@ function pumpEnrichment(renderFn){
 async function main(){
   enableKioskIfRequested();
 
+  // Optional publisher intro expander (only exists on the main homepage)
+  const pubToggle = document.getElementById("pubToggle");
+  const pubMore = document.getElementById("pubMore");
+
 
   // Publisher intro: collapse long text on mobile, expand on demand
   if (pubToggle && pubMore) {
@@ -911,4 +916,9 @@ const bb = bboxAround(lat, lon);
   setInterval(tick, pollMs);
 }
 
-main();
+// Run after DOM is ready (prevents "Booting..." stuck if script loads before elements exist)
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", main);
+} else {
+  main();
+}
