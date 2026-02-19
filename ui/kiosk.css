@@ -852,3 +852,6 @@ body{
 @media (min-width: 900px){
   .topBar .siteLogo{ height: 64px; max-width: 380px; }
 }
+
+
+.kioskSub{margin-top:6px;color:rgba(180,195,220,.92);font-size:12px;letter-spacing:.2px}
