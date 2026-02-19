@@ -609,7 +609,12 @@ export default {
       return await openskyCombinedHealth(env, cors);
     }
 
-    const parts = url.pathname.split("/").filter(Boolean);
+    let parts = url.pathname.split("/").filter(Boolean);
+
+    // Allow API prefix routing: /api/<endpoint> maps to the same handlers as /<endpoint>
+    // This keeps the UI stable even when the Worker is routed only on flightsaboveme.com/api/*
+    if (parts[0] === "api") parts = parts.slice(1);
+
 
     if (parts[0] === "opensky" && parts[1] === "states") {
       const lamin = url.searchParams.get("lamin");
