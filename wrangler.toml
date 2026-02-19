@@ -24,34 +24,37 @@ ADSBLOL_BASE = "https://api.adsb.lol"
 # (Optional legacy OpenSky basic auth if you still have it)
 #   OPENSKY_USER
 #   OPENSKY_PASS
+
 # ---------------------------------------------------------------------------
 # Permanent bindings lock (IMPORTANT)
 #
-# Cloudflare bindings can appear to "disappear" after deploys if they are not
-# declared in wrangler.toml. To permanently lock bindings to the repo, fill in
-# the IDs below and commit this file.
+# The Cloudflare dashboard can show bindings "disappear" after deploys if
+# wrangler deploys a configuration that does not explicitly declare them.
 #
-# Get IDs:
-#   npx wrangler kv namespace list
-#   npx wrangler d1 list
+# To prevent drift, we declare bindings in:
+#   1) default scope (covers plain `wrangler deploy`)
+#   2) env.production scope (covers `wrangler deploy --env production`)
 #
-# Then replace the placeholder strings below with the real IDs.
+# This file uses the most compatible Wrangler TOML syntax:
+#   [[kv_namespaces]] and [[d1_databases]]
 # ---------------------------------------------------------------------------
 
-kv_namespaces = [
-  { binding = "AIRCRAFT_KV", id = "71b6264513e94b99ab667fd2424ee755" }
-]
+[[kv_namespaces]]
+binding = "AIRCRAFT_KV"
+id = "71b6264513e94b99ab667fd2424ee755"
 
-d1_databases = [
-  { binding = "DB", database_name = "flights_db", database_id = "982b56a9-c663-4c88-97d5-0a5b85e85be3" }
-]
+[[d1_databases]]
+binding = "DB"
+database_name = "flights_db"
+database_id = "982b56a9-c663-4c88-97d5-0a5b85e85be3"
 
 [env.production]
-# Duplicate bindings under production to prevent drift if your deploy uses --env production
-kv_namespaces = [
-  { binding = "AIRCRAFT_KV", id = "71b6264513e94b99ab667fd2424ee755" }
-]
 
-d1_databases = [
-  { binding = "DB", database_name = "flights_db", database_id = "982b56a9-c663-4c88-97d5-0a5b85e85be3" }
-]
+[[env.production.kv_namespaces]]
+binding = "AIRCRAFT_KV"
+id = "71b6264513e94b99ab667fd2424ee755"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "flights_db"
+database_id = "982b56a9-c663-4c88-97d5-0a5b85e85be3"
