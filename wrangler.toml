@@ -45,3 +45,13 @@ kv_namespaces = [
 d1_databases = [
   { binding = "DB", database_name = "flights_db", database_id = "982b56a9-c663-4c88-97d5-0a5b85e85be3" }
 ]
+
+[env.production]
+# Duplicate bindings under production to prevent drift if your deploy uses --env production
+kv_namespaces = [
+  { binding = "AIRCRAFT_KV", id = "71b6264513e94b99ab667fd2424ee755" }
+]
+
+d1_databases = [
+  { binding = "DB", database_name = "flights_db", database_id = "982b56a9-c663-4c88-97d5-0a5b85e85be3" }
+]
