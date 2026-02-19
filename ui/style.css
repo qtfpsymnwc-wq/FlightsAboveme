@@ -1108,8 +1108,10 @@ body.kiosk .kioskSecondaryMini{ display:none; }
 
 /* About / publisher content block (AdSense-friendly) */
 .about.card{
-  padding: 18px 18px 16px;
+  background: var(--card) !important;
+  color: var(--text);
 }
+
 .about h2{
   margin: 0 0 10px;
   font-size: 18px;

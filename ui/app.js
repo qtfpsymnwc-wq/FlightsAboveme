@@ -46,9 +46,13 @@ function showErr(msg){
     errBox.classList.remove("hidden");
   } catch {}
 }
-window.addEventListener("error", (e)=>showErr("JS error: " + (e?.message || e)));
-window.addEventListener("unhandledrejection", (e)=>showErr("Promise rejection: " + (e?.reason?.message || e?.reason || e)));
 
+// Debug-only error toasts (avoid showing 3rd-party script noise to users)
+const __DEBUG = new URLSearchParams(location.search).has("debug");
+if (__DEBUG){
+  window.addEventListener("error", (e)=>showErr("JS error: " + (e?.message || e)));
+  window.addEventListener("unhandledrejection", (e)=>showErr("Promise rejection: " + (e?.reason?.message || e?.reason || e)));
+}
 const nm = (v) => (v ?? "").toString().trim();
 
 
