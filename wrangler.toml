@@ -2,6 +2,16 @@ name = "flightsabove"
 main = "worker.js"
 compatibility_date = "2026-02-04"
 
+routes = [
+  { pattern = "flightsaboveme.com/api/*", zone_name = "flightsaboveme.com" },
+  { pattern = "flightsaboveme.com/aircraft/*", zone_name = "flightsaboveme.com" },
+  { pattern = "flightsaboveme.com/opensky/*", zone_name = "flightsaboveme.com" },
+  { pattern = "flightsaboveme.com/flight/*", zone_name = "flightsaboveme.com" },
+  { pattern = "flightsaboveme.com/ads.txt", zone_name = "flightsaboveme.com" },
+  { pattern = "flightsaboveme.com/zip/*", zone_name = "flightsaboveme.com" }
+]
+
+
 [vars]
 # AeroDataBox (RapidAPI)
 AERODATA_HOST = "aerodatabox.p.rapidapi.com"
