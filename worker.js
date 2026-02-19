@@ -575,39 +575,6 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
-    // Serve sitemap + robots as real files (AdSense/Search Console)
-    if (url.pathname === "/sitemap.xml") {
-      return new Response(`<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://flightsaboveme.com/</loc></url>
-  <url><loc>https://flightsaboveme.com/learn.html</loc></url>
-  <url><loc>https://flightsaboveme.com/altitude.html</loc></url>
-  <url><loc>https://flightsaboveme.com/squawk.html</loc></url>
-  <url><loc>https://flightsaboveme.com/build-adsb.html</loc></url>
-  <url><loc>https://flightsaboveme.com/sources.html</loc></url>
-  <url><loc>https://flightsaboveme.com/logos.html</loc></url>
-  <url><loc>https://flightsaboveme.com/about.html</loc></url>
-  <url><loc>https://flightsaboveme.com/privacy.html</loc></url>
-  <url><loc>https://flightsaboveme.com/terms.html</loc></url>
-</urlset>`, {
-        headers: {
-          "content-type": "application/xml; charset=utf-8",
-          "cache-control": "public, max-age=3600",
-        },
-      });
-    }
-    if (url.pathname === "/robots.txt") {
-      return new Response(`User-agent: *
-Allow: /
-
-Sitemap: https://flightsaboveme.com/sitemap.xml`, {
-        headers: {
-          "content-type": "text/plain; charset=utf-8",
-          "cache-control": "public, max-age=3600",
-        },
-      });
-    }
-
     // Serve ads.txt at the domain root for AdSense verification
     if (url.pathname === "/ads.txt") {
       return new Response(
