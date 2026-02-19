@@ -1,5 +1,5 @@
 // FlightsAboveMe UI
-const API_BASE = "https://flightsabove.t2hkmhgbwz.workers.dev";
+const API_BASE = window.location.origin;
 // Cache-buster for static assets (CSS/JS/logos)
 const UI_VERSION = "v234";
 
@@ -565,7 +565,7 @@ async function enrichRoute(f){
 
   const k = cacheKeyForFlight(f);
   try {
-    const data = await fetchJSON(`${API_BASE}/flight/${encodeURIComponent(cs)}`, ENRICH_TIMEOUT_MS);
+    const data = await fetchJSON(`${API_BASE}/api/flight/${encodeURIComponent(cs)}`, ENRICH_TIMEOUT_MS);
     if (data && data.ok) {
       const patch = {
         routeText: data.route || f.routeText,
@@ -586,7 +586,7 @@ async function enrichAircraft(f){
 
   const k = cacheKeyForFlight(f);
   try {
-    const data = await fetchJSON(`${API_BASE}/aircraft/icao24/${encodeURIComponent(hex)}`, ENRICH_TIMEOUT_MS);
+    const data = await fetchJSON(`${API_BASE}/api/aircraft/icao24/${encodeURIComponent(hex)}`, ENRICH_TIMEOUT_MS);
     if (!data) return;
     if (data.ok === false) return;
     if (data.found === false) return;
@@ -809,7 +809,7 @@ const bb = bboxAround(lat, lon);
     inFlight = true;
 
     try{
-      const url = new URL(`${API_BASE}/opensky/states`);
+      const url = new URL(`${API_BASE}/api/opensky/states`);
       Object.entries(bb).forEach(([k,v])=>url.searchParams.set(k,v));
 
       const data = await fetchJSON(url.toString(), STATES_TIMEOUT_MS);
