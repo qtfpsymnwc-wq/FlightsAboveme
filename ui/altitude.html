@@ -1,98 +1,142 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>FlightsAboveMe — Altitude Explained</title>
-  <link rel="stylesheet" href="/style.css?v=233">
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<title>FlightsAboveMe — Altitude Explained</title>
+<link href="/style.css?v=233" rel="stylesheet"/>
 </head>
 <body>
-  <div id="app">
-    <header class="topbar">
-      <div class="brand">
-        <a href="./index.html" aria-label="Back to FlightsAboveMe">
-          <img src="/flightsaboveme-logo-tight.png?v=220" alt="FlightsAboveMe" class="siteLogo">
-        </a>
-      </div>
-      <div class="right"></div>
+<div id="app">
+<header class="topbar">
+<div class="brand">
+<a aria-label="Back to FlightsAboveMe" href="./index.html">
+<img alt="FlightsAboveMe" class="siteLogo" src="/flightsaboveme-logo-tight.png?v=220"/>
+</a>
+</div>
+<div class="right"></div>
 </header>
-
-    <main class="wrap">
-      <section class="hero card">
-        <div class="heroTitle">How altitude is calculated</div>
-        <div class="heroHint">Barometric vs GPS, MSL vs AGL, and why trackers can differ</div>
-        <div class="heroSub" style="line-height:1.65">
-          <p style="margin-top:0">
-            Most altitudes shown on FlightsAboveMe come from the aircraft’s transponder as <b>barometric (pressure‑based) altitude</b>.
-            Air traffic control uses a standard reference pressure (29.92 inHg / 1013.25 hPa) so aircraft are all using the same baseline even when local weather pressure changes.
+<main class="wrap">
+<section class="hero card">
+<div class="heroTitle">Altitude, explained</div>
+<div class="heroHint">What you’re seeing, why it can differ, and what “FL350” means</div>
+<div class="heroSub" style="line-height:1.65">
+<p style="margin-top:0">
+            When FlightsAboveMe shows an aircraft at <b>32,000 ft</b> or <b>FL320</b>, that number usually comes from the aircraft’s transponder.
+            It’s designed for safe separation in the air — not as a perfect “feet above your backyard” measurement.
           </p>
-          <h3 style="margin:16px 0 6px; color: var(--text);">Barometric vs GPS altitude</h3>
-          <p style="margin:0 0 10px">
-            Barometric altitude is not the same as GPS height. GPS altitude can vary with satellite geometry and models, while barometric altitude varies with pressure and temperature.
-            It’s normal for different sources to disagree by a few hundred feet.
-          </p>
-          <h3 style="margin:16px 0 6px; color: var(--text);">MSL vs AGL</h3>
-          <p style="margin:0 0 10px">
-            Trackers typically display altitude above <b>mean sea level (MSL)</b>, not height above the ground (AGL). A plane at 3,000 ft MSL over a mountain may be much closer to the terrain than it looks.
-          </p>
-          <h3 style="margin:16px 0 6px; color: var(--text);">Why you may see rounded values</h3>
-          <p style="margin:0 0 10px">
-            Depending on the data feed and message type, altitude may appear rounded (for example 25–100 ft increments).
-            This is normal and not a sign of bad data.
-          </p>
-          <p style="margin:0">
-            Want the quick version?</p>
-          <div class="linkPills"><a class="btnOutline" href="./learn.html#altitude">See the Learn page altitude section</a></div>
-          <p>
-          </p>
-
-          <h3 style="margin:18px 0 6px; color: var(--text);">Pressure altitude, flight levels, and the “29.92” rule</h3>
-          <p style="margin:0 0 10px">
-            Above a certain altitude (called the <b>transition altitude</b>), pilots set a standard pressure reference
-            (<b>29.92 inHg / 1013.25 hPa</b>) and altitudes are expressed as <b>flight levels</b> (for example <b>FL350</b> = 35,000 ft).
-            This keeps every aircraft on the same vertical reference even when local weather pressure changes.
-          </p>
-
-          <h3 style="margin:18px 0 6px; color: var(--text);">MSL vs AGL (why a “low” altitude can still be high)</h3>
-          <p style="margin:0 0 10px">
-            Flight tracking altitude is almost always <b>MSL</b> (mean sea level). If you live at 1,200 ft elevation and an aircraft shows 5,000 ft,
-            it may be only about 3,800 ft above the ground nearby. Terrain can change quickly, so AGL is not always derivable from transponder data alone.
-          </p>
-
-          <h3 style="margin:18px 0 6px; color: var(--text);">Why your tracker might show “jumps”</h3>
-          <p style="margin:0 0 10px">
-            Many transponders report altitude in steps (often 25 ft or 100 ft increments depending on message type and decoding).
-            Combine that with message timing and receiver coverage and you can see small “stair‑step” changes during climbs/descents.
-          </p>
-
-          <h3 style="margin:18px 0 6px; color: var(--text);">Why altitude can disagree across data sources</h3>
-          <p style="margin:0 0 0">
-            Different networks may prefer barometric altitude, GPS altitude, or a filtered/averaged value. Some aircraft broadcast both.
-            FlightsAboveMe prioritizes the most common, interoperable values — but small differences are normal.
-          </p>
-
-        </div>
-      </section>
-    </main>
-
-    <footer class="fabm-footer">
-      <div>© 2026 FlightsAboveMe</div>
-      <div class="footerNav">
-        <a href="./index.html">Home</a>
-        
-        <a href="./altitude.html">Altitude</a>
-        
-        <a href="./squawk.html">Squawk</a>
-        
-        <a href="./privacy.html">Privacy</a>
-        <a href="./about.html">About</a>
-        <a href="./terms.html">Terms</a>
-        <a href="./sources.html">Data Sources</a>
-      </div>
-      <div class="fabm-legal">
-        <div>Flight data is provided for informational purposes only and may be delayed, incomplete, or inaccurate. Not for operational or navigation use.</div>
-      </div>
-    </footer>
-  </div>
+</div>
+</section>
+<section class="card" style="line-height:1.65">
+<h2 style="margin-top:0">Two common kinds of altitude</h2>
+<h3>1) Barometric altitude (pressure‑based)</h3>
+<p>
+          This is the standard altitude used by air traffic control.
+          The aircraft measures air pressure and converts it to an altitude value. Above a certain height, pilots set a common reference pressure
+          (called <b>standard</b>) so every aircraft is using the same baseline, even when weather pressure changes on the ground.
+        </p>
+<p>
+          That’s why you’ll often see consistent cruise altitudes like <b>33,000</b> or <b>35,000 feet</b>.
+        </p>
+<h3>2) GPS altitude (satellite‑based)</h3>
+<p>
+          GPS can also provide altitude, but it’s measured differently. Some aircraft/feeds include it, some don’t.
+          GPS altitude may be closer to the aircraft’s “true” position in space, but it isn’t the primary altitude used for separation in controlled airspace.
+        </p>
+<h2>MSL vs AGL (sea level vs ground)</h2>
+<p>
+          Altitude can be described two ways:
+        </p>
+<ul>
+<li><b>MSL</b> (Mean Sea Level): altitude above sea level. This is the common aviation reference.</li>
+<li><b>AGL</b> (Above Ground Level): height above the terrain directly below the aircraft.</li>
+</ul>
+<p>
+          Most public tracking feeds report altitude in a way that matches <b>MSL/flight levels</b>.
+          That means a plane over the Ozarks and a plane over flat farmland could both show <b>10,000 ft</b>,
+          even though the true height above the ground is different.
+        </p>
+<h2>What does FL350 mean?</h2>
+<p>
+<b>FL</b> stands for <b>Flight Level</b>. At higher altitudes, pilots use flight levels based on standard pressure.
+          <b>FL350</b> means roughly <b>35,000 feet</b> on that standard setting.
+          You’ll see flight levels more often during cruise.
+        </p>
+<h2>Why do planes cruise so high?</h2>
+<p>
+          Two big reasons: <b>efficiency</b> and <b>weather</b>.
+          Higher altitude air is thinner, so the aircraft experiences less drag and can be more fuel‑efficient.
+          Flying above much of the weather can also make flights smoother.
+        </p>
+<h2>How vertical speed fits in</h2>
+<p>
+          FlightsAboveMe also shows whether an aircraft is <b>climbing</b>, <b>descending</b>, or <b>cruising</b>.
+          That comes from vertical speed (how quickly altitude is changing). A value near zero usually means the aircraft is settled at cruise.
+        </p>
+<h2>Why trackers can disagree</h2>
+<p>
+          It’s normal to see small differences between flight tracking sites. Common reasons include:
+        </p>
+<ul>
+<li>Different sources (direct ADS‑B vs blended feeds)</li>
+<li>Different smoothing/filters for noisy points</li>
+<li>Latency (one feed is a few seconds behind another)</li>
+<li>Barometric vs GPS altitude reporting</li>
+</ul>
+<h2>Transition altitude and local pressure</h2>
+<p>
+          Closer to the ground, aircraft may use the local pressure setting (often called <b>QNH</b>) so altitude lines up with known terrain and airport elevations.
+          At higher altitudes, they switch to standard pressure and talk in flight levels.
+          This “switch point” varies by country and region.
+        </p>
+<h2>Quick examples</h2>
+<ul>
+<li><b>3,000–10,000 ft:</b> common for short hops, training flights, and smaller aircraft</li>
+<li><b>18,000 ft and up (U.S.):</b> often where flight levels begin</li>
+<li><b>30,000–40,000 ft:</b> typical airliner cruise range</li>
+</ul>
+<h2>Bottom line</h2>
+<p>
+          For everyday curiosity — “how high is that plane?” — the altitude shown is a solid approximation.
+          But because data can be delayed or filtered, and because “altitude” can be defined multiple ways,
+          FlightsAboveMe (and any tracker) should never be used for navigation or operational decisions.
+        </p>
+</section>
+<section class="card" style="line-height:1.65">
+<h2 style="margin-top:0">Quick questions</h2>
+<h3>Is altitude the same as “height above my house”?</h3>
+<p>Not exactly. Trackers usually show altitude referenced to sea level (or flight level standard), not pure height above the local terrain.</p>
+<h3>Why does the altitude jump a little?</h3>
+<p>Live feeds can update in bursts, and different sources may smooth points differently. Small jumps are common.</p>
+<h3>What’s a typical airliner cruise altitude?</h3>
+<p>Often somewhere around 30,000–40,000 feet, depending on aircraft type, route, weather, and traffic.</p>
+</section>
+<section class="card" style="line-height:1.65">
+<h2 style="margin-top:0">Related reading</h2>
+<div class="learnStrip__row" style="display:flex; gap:10px; flex-wrap:wrap">
+<a class="btnOutline" href="./learn.html">How It Works</a>
+<a class="btnOutline" href="./squawk.html">Squawk</a>
+<a class="btnOutline" href="./build-adsb.html">Build ADS‑B</a>
+<a class="btnOutline" href="./sources.html">Data Sources</a>
+</div>
+</section>
+</main>
+<footer class="fabm-footer">
+<div>© 2026 FlightsAboveMe</div>
+<div class="footerNav">
+<a href="./index.html">Home</a>
+<a href="./altitude.html">Altitude</a>
+<a href="./squawk.html">Squawk</a>
+<a href="./privacy.html">Privacy</a>
+<a href="./about.html">About</a>
+<a href="./terms.html">Terms</a>
+<a href="./sources.html">Data Sources</a>
+</div>
+<div class="fabm-legal">
+<div>Flight data is provided for informational purposes only and may be delayed, incomplete, or inaccurate. Not for operational or navigation use.</div>
+<div>FlightsAboveMe is an independent aviation education project and is not affiliated with any airline, airport, or government agency.</div></div>
+</footer>
+</div>
 </body>
 </html>

@@ -1,173 +1,168 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>FlightsAboveMe — How Flight Tracking Works</title>
-  <link rel="stylesheet" href="/style.css?v=233">
-  <link rel="stylesheet" href="/learn.css?v=233">
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<title>FlightsAboveMe — How Flight Tracking Works</title>
+<link href="/style.css?v=233" rel="stylesheet"/>
+<link href="/learn.css?v=233" rel="stylesheet"/>
 </head>
 <body class="learn">
-  <div id="app">
-    <header class="topbar">
-      <div class="brand">
-        <a href="./index.html" aria-label="Back to FlightsAboveMe">
-          <img src="/flightsaboveme-logo-tight.png?v=220" alt="FlightsAboveMe" class="siteLogo">
-        </a>
-      </div>
-      <div class="right"></div>
-    </header>
-
-    <main class="wrap">
-      <section class="card learnCard">
-        <div class="heroTop">
-          <div class="heroTitle">How Flight Tracking Works</div>
-          <div class="heroHint">A quick guide to the data you see on FlightsAboveMe</div>
-        </div>
-        <div class="learnBody">
-          <p class="learnLede">
+<div id="app">
+<header class="topbar">
+<div class="brand">
+<a aria-label="Back to FlightsAboveMe" href="./index.html">
+<img alt="FlightsAboveMe" class="siteLogo" src="/flightsaboveme-logo-tight.png?v=220"/>
+</a>
+</div>
+<div class="right"></div>
+</header>
+<main class="wrap">
+<section class="card learnCard">
+<div class="heroTop">
+<div class="heroTitle">How Flight Tracking Works</div>
+<div class="heroHint">A quick guide to the data you see on FlightsAboveMe</div>
+</div>
+<div class="learnBody">
+<p class="learnLede">
             FlightsAboveMe helps answer a simple question: <b>what aircraft is flying above me right now?</b>
             It uses live aircraft transponder broadcasts and aviation data feeds to show nearby traffic in a way that’s easy to understand.
             This page explains what you’re seeing, why some details can be missing, and how the “closest flight” is chosen.
           </p>
-
-          <div class="learnJump">
-            <b>Jump to:</b>
-            <a class="btnOutline" href="#basics">The basics</a>
-            <a class="btnOutline" href="#closest">Closest flight</a>
-            <a class="btnOutline" href="#altitude">Altitude</a>
-            <a class="btnOutline" href="#squawk">Squawk</a>
-            <a class="btnOutline" href="#coverage">Coverage</a>
-            <a class="btnOutline" href="#sources">Data sources</a>
-            <a class="btnOutline" href="./build-adsb.html">Build a receiver</a>
-          </div>
-
-          <h3 id="basics">The basics: where live tracking data comes from</h3>
-          <p>
+<div class="learnJump">
+<b>Jump to:</b>
+<a class="btnOutline" href="#basics">The basics</a>
+<a class="btnOutline" href="#closest">Closest flight</a>
+<a class="btnOutline" href="#altitude">Altitude</a>
+<a class="btnOutline" href="#squawk">Squawk</a>
+<a class="btnOutline" href="#coverage">Coverage</a>
+<a class="btnOutline" href="#sources">Data sources</a>
+<a class="btnOutline" href="./build-adsb.html">Build a receiver</a>
+</div>
+<h3 id="basics">The basics: where live tracking data comes from</h3>
+<p>
             Most modern aircraft broadcast small radio messages that include their identity and flight information.
-            The most common is <b>ADS‑B Out</b> (<i>Automatic Dependent Surveillance–Broadcast</i>), typically on <b>1090&nbsp;MHz</b>.
-            In the United States, some general aviation aircraft may use <b>978&nbsp;MHz</b> (UAT).
+            The most common is <b>ADS‑B Out</b> (<i>Automatic Dependent Surveillance–Broadcast</i>), typically on <b>1090 MHz</b>.
+            In the United States, some general aviation aircraft may use <b>978 MHz</b> (UAT).
           </p>
-          <p>
+<p>
             Receivers on the ground (often run by aviation enthusiasts) and some satellite systems pick up these broadcasts.
             Tracking networks combine those receiver reports into live “state vectors” (position, altitude, heading, speed) that apps like FlightsAboveMe can query.
           </p>
-          <p class="learnNotice">
-            <b>Important:</b> FlightsAboveMe is for informational and educational use only. It is not intended for navigation or operational decision‑making.
+<p class="learnNotice">
+<b>Important:</b> FlightsAboveMe is for informational and educational use only. It is not intended for navigation or operational decision‑making.
           </p>
-
-          <h3 id="closest">How FlightsAboveMe selects the closest flight</h3>
-          <p>
+<h3 id="closest">How FlightsAboveMe selects the closest flight</h3>
+<p>
             When you load the site, the browser may ask for location permission. If you allow it, FlightsAboveMe uses your approximate coordinates
             to find the nearest aircraft from the live feed. If you deny location, a <b>demo location</b> is used so you can still explore the experience.
           </p>
-          <ul>
-            <li><b>Live feed:</b> Fetch nearby aircraft state vectors.</li>
-            <li><b>Distance check:</b> Compute the distance from you to each aircraft.</li>
-            <li><b>Stability gate:</b> The “closest” result must persist across multiple update cycles to avoid flicker.</li>
-            <li><b>Limits:</b> Very distant or low-confidence results may be excluded.</li>
-            <li><b>Non‑blocking enrichment:</b> Extra details load in the background and never delay the main render.</li>
-          </ul>
-
-          <h3>What the fields mean (and why some hide)</h3>
-          <p>
+<ul>
+<li><b>Live feed:</b> Fetch nearby aircraft state vectors.</li>
+<li><b>Distance check:</b> Compute the distance from you to each aircraft.</li>
+<li><b>Stability gate:</b> The “closest” result must persist across multiple update cycles to avoid flicker.</li>
+<li><b>Limits:</b> Very distant or low-confidence results may be excluded.</li>
+<li><b>Non‑blocking enrichment:</b> Extra details load in the background and never delay the main render.</li>
+</ul>
+<h3>What the fields mean (and why some hide)</h3>
+<p>
             Different aircraft and different networks report different levels of detail. FlightsAboveMe intentionally hides fields that are unavailable
             rather than guessing. Common fields include:
           </p>
-          <ul>
-            <li><b>Callsign:</b> The flight identifier (often an airline flight number, but not always).</li>
-            <li><b>ICAO24:</b> A unique 24‑bit aircraft address used by Mode S transponders.</li>
-            <li><b>Altitude:</b> Usually pressure altitude; see the altitude section below.</li>
-            <li><b>Vertical speed (phase):</b> Shown as <b>Climbing</b>, <b>Descending</b>, or <b>Cruising</b> for readability.</li>
-            <li><b>Route / aircraft model:</b> Shown only when confidently available from enrichment sources.</li>
-          </ul>
-
-          <h3 id="coverage">Why trackers disagree (and why a plane may not appear)</h3>
-          <p>
+<ul>
+<li><b>Callsign:</b> The flight identifier (often an airline flight number, but not always).</li>
+<li><b>ICAO24:</b> A unique 24‑bit aircraft address used by Mode S transponders.</li>
+<li><b>Altitude:</b> Usually pressure altitude; see the altitude section below.</li>
+<li><b>Vertical speed (phase):</b> Shown as <b>Climbing</b>, <b>Descending</b>, or <b>Cruising</b> for readability.</li>
+<li><b>Route / aircraft model:</b> Shown only when confidently available from enrichment sources.</li>
+</ul>
+<h3 id="coverage">Why trackers disagree (and why a plane may not appear)</h3>
+<p>
             If you compare multiple flight tracking sites, you’ll sometimes see differences. That’s normal.
             Most disagreements come from a few real‑world factors:
           </p>
-          <ul>
-            <li><b>Receiver coverage:</b> ADS‑B is line‑of‑sight. Terrain, buildings, and distance affect what can be received.</li>
-            <li><b>Latency:</b> Feeds update at different rates and may apply different smoothing or filtering.</li>
-            <li><b>MLAT estimates:</b> If an aircraft isn’t broadcasting full position, some networks estimate position via <b>multilateration (MLAT)</b>.</li>
-            <li><b>Aircraft behavior:</b> Some aircraft transmit limited data, change callsigns, or may be filtered for privacy/security reasons.</li>
-          </ul>
-          <p>
+<ul>
+<li><b>Receiver coverage:</b> ADS‑B is line‑of‑sight. Terrain, buildings, and distance affect what can be received.</li>
+<li><b>Latency:</b> Feeds update at different rates and may apply different smoothing or filtering.</li>
+<li><b>MLAT estimates:</b> If an aircraft isn’t broadcasting full position, some networks estimate position via <b>multilateration (MLAT)</b>.</li>
+<li><b>Aircraft behavior:</b> Some aircraft transmit limited data, change callsigns, or may be filtered for privacy/security reasons.</li>
+</ul>
+<p>
             Low‑altitude aircraft can also “drop out” behind terrain, and rural areas may have fewer receivers.
             That’s why FlightsAboveMe supports a demo mode when location is unavailable.
           </p>
-
-          <h3 id="altitude">Altitude: flight levels vs “feet”</h3>
-          <p>
+<h3 id="altitude">Altitude: flight levels vs “feet”</h3>
+<p>
             Altitude in live tracking feeds is typically based on <b>pressure altitude</b> (barometric altitude), especially at higher altitudes.
             That’s why you may see values that don’t perfectly match local terrain elevation or GPS altitude.
             At cruise, aircraft often fly in standardized <b>flight levels</b> (for example, “FL350” ≈ 35,000 feet).
           </p>
-          <p>
+<p>
             Want a deeper explanation? See the dedicated page: <a href="./altitude.html">Altitude explained</a>.
           </p>
-
-          <h3 id="squawk">Squawk codes: why FlightsAboveMe shows meaning</h3>
-          <p>
+<h3 id="squawk">Squawk codes: why FlightsAboveMe shows meaning</h3>
+<p>
             A <b>squawk</b> is a four‑digit transponder code assigned by air traffic control. Some codes have special, widely known meanings
             (for example, emergency, radio failure, or unlawful interference).
           </p>
-          <p>
+<p>
             To keep the UI clear and avoid showing cryptic numbers without context, FlightsAboveMe displays the <b>meaning</b> when known,
             and hides the field when it’s not relevant.
             Learn more here: <a href="./squawk.html">Squawk codes explained</a>.
           </p>
-
-          <h3 id="sources">Data sources and enrichment</h3>
-          <p>
+<h3 id="sources">Data sources and enrichment</h3>
+<p>
             FlightsAboveMe blends multiple sources to improve reliability and add aircraft details:
           </p>
-          <ul>
-            <li><b>OpenSky Network</b> — primary live state vectors when available</li>
-            <li><b>adsb.lol</b> — fallback live aircraft state data</li>
-            <li><b>AeroDataBox</b> — aircraft enrichment (type/model/operator details)</li>
-          </ul>
-          <p>
+<ul>
+<li><b>OpenSky Network</b> — primary live state vectors when available</li>
+<li><b>adsb.lol</b> — fallback live aircraft state data</li>
+<li><b>AeroDataBox</b> — aircraft enrichment (type/model/operator details)</li>
+</ul>
+<p>
             Enrichment is intentionally conservative: if a detail isn’t available with reasonable confidence, it stays hidden.
             This keeps the experience clean and reduces incorrect assumptions.
           </p>
-          <p>
+<p>
             For a fuller transparency note (and accuracy limitations), see: <a href="./sources.html">Data Sources &amp; Accuracy</a>.
           </p>
-
-          <h3>Build your own ADS‑B receiver</h3>
-          <p>
+<h3>Build your own ADS‑B receiver</h3>
+<p>
             Want to see aircraft with your own antenna? A small USB SDR and an outdoor antenna can receive ADS‑B signals locally.
             Receivers like this are how community networks build coverage.
             Start here: <a href="./build-adsb.html">Build an ADS‑B receiver</a>.
           </p>
-
-          <h3>Important notice</h3>
-          <p class="learnNotice">
+<h3>Important notice</h3>
+<p class="learnNotice">
             Flight data is provided for informational purposes only and may be delayed, incomplete, or inaccurate.
             Not for operational or navigation use.
           </p>
-        </div>
-      </section>
-    </main>
-
-    <footer class="fabm-footer">
-      <div>© 2026 FlightsAboveMe</div>
-      <div class="footerNav">
-        <a href="./index.html">Home</a>
-        
-        <a href="./altitude.html">Altitude</a>
-        
-        <a href="./squawk.html">Squawk</a>
-        
-        <a href="./about.html">About</a>
-        
-        <a href="./privacy.html">Privacy</a>
-        <a href="./terms.html">Terms</a>
-        <a href="./sources.html">Data Sources</a>
-      </div>
-    </footer>
-  </div>
+</div>
+</section>
+<section class="card" style="line-height:1.65">
+<h2 style="margin-top:0">Keep learning</h2>
+<p style="margin-top:0">If you enjoyed the overview, these quick explainers go a level deeper.</p>
+<div class="learnStrip__row" style="display:flex; gap:10px; flex-wrap:wrap">
+<a class="btnOutline" href="./altitude.html">Altitude</a>
+<a class="btnOutline" href="./squawk.html">Squawk</a>
+<a class="btnOutline" href="./build-adsb.html">Build ADS‑B</a>
+<a class="btnOutline" href="./sources.html">Data Sources</a>
+</div>
+</section>
+</main>
+<footer class="fabm-footer">
+<div>© 2026 FlightsAboveMe</div>
+<div class="footerNav">
+<a href="./index.html">Home</a>
+<a href="./altitude.html">Altitude</a>
+<a href="./squawk.html">Squawk</a>
+<a href="./about.html">About</a>
+<a href="./privacy.html">Privacy</a>
+<a href="./terms.html">Terms</a>
+<a href="./sources.html">Data Sources</a>
+</div>
+<div class="fabm-legal"><div>FlightsAboveMe is an independent aviation education project and is not affiliated with any airline, airport, or government agency.</div></div></footer>
+</div>
 </body>
 </html>

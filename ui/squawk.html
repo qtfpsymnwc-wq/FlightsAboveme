@@ -1,118 +1,147 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>FlightsAboveMe — Squawk Codes Explained</title>
-  <link rel="stylesheet" href="/style.css?v=233">
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<title>FlightsAboveMe — Squawk Codes Explained</title>
+<link href="/style.css?v=233" rel="stylesheet"/>
 </head>
 <body>
-  <div id="app">
-    <header class="topbar">
-      <div class="brand">
-        <a href="./index.html" aria-label="Back to FlightsAboveMe">
-          <img src="/flightsaboveme-logo-tight.png?v=220" alt="FlightsAboveMe" class="siteLogo">
-        </a>
-      </div>
-      <div class="right"></div>
+<div id="app">
+<header class="topbar">
+<div class="brand">
+<a aria-label="Back to FlightsAboveMe" href="./index.html">
+<img alt="FlightsAboveMe" class="siteLogo" src="/flightsaboveme-logo-tight.png?v=220"/>
+</a>
+</div>
+<div class="right"></div>
 </header>
-
-    <main class="wrap">
-      <section class="hero card">
-        <div class="heroTitle">Squawk codes explained</div>
-        <div class="heroHint">What transponder codes mean and why they matter</div>
-        <div class="heroSub" style="line-height:1.65">
-          <p style="margin-top:0">
-            A <b>squawk</b> is a 4‑digit transponder code (Mode A) used by radar and air traffic control systems.
-            Controllers assign squawks so aircraft can be identified and tracked on ATC displays.
+<main class="wrap">
+<section class="hero card">
+<div class="heroTitle">Squawk codes, explained</div>
+<div class="heroHint">What they are, why most are routine, and what the emergency codes mean</div>
+<div class="heroSub" style="line-height:1.65">
+<p style="margin-top:0">
+            A <b>squawk</b> is a four‑digit code set in an aircraft’s transponder.
+            Air traffic control assigns these codes to help identify aircraft on their systems.
+            Most squawks are routine — like a short ID number tied to a flight’s clearance.
           </p>
-          <h3 style="margin:16px 0 6px; color: var(--text);">Common emergency squawks</h3>
-          <ul style="margin:8px 0 12px 18px">
-            <li><b>7700</b> — general emergency</li>
-            <li><b>7600</b> — radio communications failure</li>
-            <li><b>7500</b> — unlawful interference (hijacking)</li>
-          </ul>
-          <h3 style="margin:18px 0 6px; color: var(--text);">How squawks work</h3>
-          <p>
-            Squawk codes are entered on the aircraft&#39;s transponder and transmitted to ground radar/ATC systems.
-            Most squawks are <b>discrete</b> (uniquely assigned to one aircraft at a time) so controllers can correlate a radar target with a specific flight.
-          </p>
-
-          <h3 style="margin:18px 0 6px; color: var(--text);">Why the digits look &ldquo;odd&rdquo;</h3>
-          <p>
-            Squawk codes are written as four digits, but each digit is <b>octal</b> (0&ndash;7). That&#39;s why you won&#39;t see 8 or 9 in a squawk code.
-          </p>
-
-          <h3 style="margin:18px 0 6px; color: var(--text);">Mode A vs Mode C vs Mode S</h3>
-          <ul style="margin:8px 0 0 18px; padding:0; line-height:1.7">
-            <li><b>Mode A</b>: the 4‑digit squawk code</li>
-            <li><b>Mode C</b>: adds pressure altitude (often what tracking sites display as altitude)</li>
-            <li><b>Mode S / ADS‑B</b>: adds a unique aircraft address (ICAO24) and, with ADS‑B, position and other data</li>
-          </ul>
-
-          <h3 style="margin:18px 0 6px; color: var(--text);">Conspicuity codes (varies by country)</h3>
-          <p>
-            In some situations aircraft may use a standard &ldquo;conspicuity&rdquo; code when not assigned a discrete squawk.
-            These common codes vary by country and airspace rules, so FlightsAboveMe focuses on explaining the squawk when it is available rather than guessing what it should be.
-          </p>
-
-          <h3 style="margin:16px 0 6px; color: var(--text);">Why squawk may be missing</h3>
-          <p style="margin:0 0 10px">
-            Not all public feeds provide squawk consistently, and some sources omit it for privacy or data-quality reasons.
-            When it’s available, FlightsAboveMe may display it and/or a plain‑English label.
-          </p>
-          <p style="margin:0">
-            Want the quick version?</p>
-          <div class="linkPills"><a class="btnOutline" href="./learn.html#squawk">See squawk section on How It Works</a></div>
-          <p>
-          </p>
-
-          <h3 style="margin:18px 0 6px; color: var(--text);">Why squawk digits are 0–7 only</h3>
-          <p style="margin:0 0 10px">
-            Squawks are <b>octal</b> — each digit ranges from 0 to 7. That’s a historical design from early transponder systems and radar encoding.
-            So you will never see an 8 or 9 in a standard squawk.
-          </p>
-
-          <h3 style="margin:18px 0 6px; color: var(--text);">Discrete vs “conspicuity” codes</h3>
-          <p style="margin:0 0 10px">
-            A <b>discrete</b> code is assigned to a specific aircraft by ATC. A <b>conspicuity</b> code is a common code used to be visible to radar when not receiving a discrete assignment.
-            Examples include <b>1200</b> for VFR in the United States and <b>7000</b> in many European regions (rules vary by country).
-          </p>
-
-          <h3 style="margin:18px 0 6px; color: var(--text);">How squawks relate to Mode A/C/S</h3>
-          <p style="margin:0 0 10px">
-            <b>Mode A</b> carries the squawk code. <b>Mode C</b> adds altitude reporting. <b>Mode S</b> adds a unique aircraft address (ICAO24) and supports richer messaging.
-            ADS‑B builds on Mode S to broadcast position and velocity.
-          </p>
-
-          <h3 style="margin:18px 0 6px; color: var(--text);">Why squawk might be missing or change</h3>
-          <p style="margin:0 0 0">
-            Some networks suppress squawks for privacy or safety reasons, and not all receivers decode every message reliably.
-            Squawks can also change during a flight when handed off between controllers or when entering controlled airspace.
-          </p>
-
-        </div>
-      </section>
-    </main>
-
-    <footer class="fabm-footer">
-      <div>© 2026 FlightsAboveMe</div>
-      <div class="footerNav">
-        <a href="./index.html">Home</a>
-        
-        <a href="./altitude.html">Altitude</a>
-        
-        <a href="./squawk.html">Squawk</a>
-        
-        <a href="./privacy.html">Privacy</a>
-        <a href="./about.html">About</a>
-        <a href="./terms.html">Terms</a>
-        <a href="./sources.html">Data Sources</a>
-      </div>
-      <div class="fabm-legal">
-        <div>Flight data is provided for informational purposes only and may be delayed, incomplete, or inaccurate. Not for operational or navigation use.</div>
-      </div>
-    </footer>
-  </div>
+</div>
+</section>
+<section class="card" style="line-height:1.65">
+<h2 style="margin-top:0">What a transponder does (quick version)</h2>
+<p>
+          The transponder is an avionics unit that can broadcast or reply with information used for surveillance.
+          Depending on the aircraft and system, it may provide:
+        </p>
+<ul>
+<li>an identification code (the squawk)</li>
+<li>pressure altitude (often called Mode C altitude)</li>
+<li>enhanced identification features (Mode S)</li>
+</ul>
+<p>
+          FlightsAboveMe uses publicly available live data feeds. If a squawk is present in those feeds, we can show it — or, when it’s one of the big three emergency codes, we show the <b>meaning</b>.
+        </p>
+<h2>Why most squawk codes are boring (in a good way)</h2>
+<p>
+          In normal operations, squawks are just part of traffic management:
+        </p>
+<ul>
+<li>Departing flights get an assigned code</li>
+<li>Arriving flights get an assigned code</li>
+<li>Training flights may use local codes</li>
+<li>Some flights use a standard “VFR” code in their region</li>
+</ul>
+<p>
+          Seeing a squawk by itself does not mean anything is wrong. Controllers assign and change squawks all day long.
+        </p>
+<h2>Common “VFR” codes (examples)</h2>
+<p>
+          These vary by country/region, but you may see patterns:
+        </p>
+<ul>
+<li><b>1200</b> — Common VFR code in the United States</li>
+<li><b>7000</b> — Common VFR code in many European countries</li>
+</ul>
+<p>
+          FlightsAboveMe does not try to interpret every regional code because meanings can differ.
+          Instead, we focus on the widely recognized emergency codes below.
+        </p>
+<h2>The three well‑known emergency codes</h2>
+<h3>7500 — Unlawful interference (hijacking)</h3>
+<p>
+          This is associated with unlawful interference. It’s rare.
+          Public trackers may show it, but it’s important not to jump to conclusions — always rely on official reporting.
+        </p>
+<h3>7600 — Radio communication failure</h3>
+<p>
+          Indicates the aircraft may have lost radio communications. Pilots and controllers have established procedures for this scenario.
+        </p>
+<h3>7700 — General emergency</h3>
+<p>
+          A broad emergency code that can be used for many situations (medical, mechanical, smoke, or other urgent issues).
+        </p>
+<h2>Why FlightsAboveMe shows meanings (not raw codes)</h2>
+<p>
+          Raw squawk numbers can be easy to misread. Most are routine and don’t have a simple public “translation.”
+          To keep the experience clear and reduce false alarm, FlightsAboveMe focuses on <b>meaning</b> only when a code has a widely understood public interpretation.
+        </p>
+<h2>Why a squawk might be missing</h2>
+<p>
+          Sometimes a squawk won’t show up in a public feed. Common reasons include:
+        </p>
+<ul>
+<li>the source doesn’t include it for that aircraft or region</li>
+<li>the aircraft is outside good receiver coverage</li>
+<li>the data is filtered or delayed</li>
+<li>the aircraft is not broadcasting it consistently</li>
+</ul>
+<h2>“Ident” and other terms you might hear</h2>
+<p>
+          Controllers can ask a pilot to press an <b>IDENT</b> button, which can briefly highlight the aircraft on a controller’s display.
+          That’s different from changing a squawk code. Public trackers don’t always show IDENT events.
+        </p>
+<h2>A note on accuracy</h2>
+<p>
+          Live flight data can be delayed, incomplete, or filtered depending on coverage and source rules.
+          FlightsAboveMe is designed for curiosity and learning — not for operational decision‑making.
+        </p>
+</section>
+<section class="card" style="line-height:1.65">
+<h2 style="margin-top:0">Quick questions</h2>
+<h3>Does a weird squawk mean a problem?</h3>
+<p>Usually no. Many codes are routine or local. The big three emergency codes are the main ones with widely recognized meanings.</p>
+<h3>Why don’t you show every squawk code meaning?</h3>
+<p>Because most codes don’t have a single public meaning. Showing raw numbers can cause confusion, so we prioritize clarity.</p>
+<h3>Can a squawk be incorrect on a tracker?</h3>
+<p>Yes. Live feeds can be delayed or incomplete, and not every source includes every field consistently.</p>
+</section>
+<section class="card" style="line-height:1.65">
+<h2 style="margin-top:0">Related reading</h2>
+<div class="learnStrip__row" style="display:flex; gap:10px; flex-wrap:wrap">
+<a class="btnOutline" href="./learn.html">How It Works</a>
+<a class="btnOutline" href="./altitude.html">Altitude</a>
+<a class="btnOutline" href="./build-adsb.html">Build ADS‑B</a>
+<a class="btnOutline" href="./sources.html">Data Sources</a>
+</div>
+</section>
+</main>
+<footer class="fabm-footer">
+<div>© 2026 FlightsAboveMe</div>
+<div class="footerNav">
+<a href="./index.html">Home</a>
+<a href="./altitude.html">Altitude</a>
+<a href="./squawk.html">Squawk</a>
+<a href="./privacy.html">Privacy</a>
+<a href="./about.html">About</a>
+<a href="./terms.html">Terms</a>
+<a href="./sources.html">Data Sources</a>
+</div>
+<div class="fabm-legal">
+<div>Flight data is provided for informational purposes only and may be delayed, incomplete, or inaccurate. Not for operational or navigation use.</div>
+<div>FlightsAboveMe is an independent aviation education project and is not affiliated with any airline, airport, or government agency.</div></div>
+</footer>
+</div>
 </body>
 </html>

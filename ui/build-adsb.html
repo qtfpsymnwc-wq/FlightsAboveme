@@ -1,145 +1,142 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>FlightsAboveMe — Build Your Own ADS‑B Receiver</title>
-  <link rel="stylesheet" href="/style.css?v=233">
-  <link rel="stylesheet" href="/learn.css?v=233">
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<title>FlightsAboveMe — Build Your Own ADS‑B Receiver</title>
+<link href="/style.css?v=233" rel="stylesheet"/>
+<link href="/learn.css?v=233" rel="stylesheet"/>
 </head>
 <body class="learn">
-  <div id="app">
-    <header class="topbar">
-      <div class="brand">
-        <a href="./index.html" aria-label="Back to FlightsAboveMe">
-          <img src="/flightsaboveme-logo-tight.png?v=220" alt="FlightsAboveMe" class="siteLogo">
-        </a>
-      </div>
-      <div class="right"></div>
-    </header>
-
-    <main class="wrap">
-      <section class="card learnCard">
-        <div class="heroTop">
-          <div class="heroTitle">Build Your Own ADS‑B Receiver</div>
-          <div class="heroHint">A practical, beginner-friendly setup using a Raspberry Pi + RTL‑SDR</div>
-        </div>
-
-        <div class="learnBody">
-          <p class="learnLede">
-            Many aircraft broadcast their identity, altitude, speed, and position using <b>ADS‑B</b> on <b>1090&nbsp;MHz</b>.
-            With a small computer and an inexpensive radio receiver, you can collect these broadcasts yourself and
-            build a local “what’s overhead?” feed.
+<div id="app">
+<header class="topbar">
+<div class="brand">
+<a aria-label="Back to FlightsAboveMe" href="./index.html">
+<img alt="FlightsAboveMe" class="siteLogo" src="/flightsaboveme-logo-tight.png?v=220"/>
+</a>
+</div>
+<div class="right"></div>
+</header>
+<main class="wrap">
+<section class="hero card">
+<div class="heroTitle">Build your own ADS‑B receiver</div>
+<div class="heroHint">A weekend project that lets you see aircraft broadcasts with your own antenna</div>
+<div class="heroSub" style="line-height:1.65">
+<p style="margin-top:0">
+            FlightsAboveMe uses public aviation data feeds. If you want to go one step deeper, you can also
+            <b>receive ADS‑B signals yourself</b> with inexpensive hardware.
+            Many community flight‑tracking networks exist because people run small receivers at home.
           </p>
-
-          <h3>What you’ll need</h3>
-          <ul>
-            <li><b>Raspberry Pi</b> (3B+ or newer recommended)</li>
-            <li><b>MicroSD card</b> (16GB+)</li>
-            <li><b>RTL‑SDR USB dongle</b> (with a suitable oscillator/TCXO if possible)</li>
-            <li><b>1090&nbsp;MHz ADS‑B antenna</b> (or a tuned antenna designed for 1090&nbsp;MHz)</li>
-            <li><b>Coax + adapters</b> (keep cable runs short when possible)</li>
-            <li><b>Power supply</b> and (optional) a case</li>
-          </ul>
-
-          <h3>Quick setup overview (Raspberry Pi)</h3>
-          <ol>
-            <li>Install Raspberry Pi OS on a microSD card and boot the Pi.</li>
-            <li>Plug in the RTL‑SDR dongle and connect your 1090&nbsp;MHz antenna.</li>
-            <li>Install a decoder (common choices: <b>readsb</b> or <b>dump1090</b>).</li>
-            <li>Open the local web map (often available on your network at the Pi’s IP address).</li>
-            <li>Optional: feed a public network so your receiver helps improve coverage for everyone.</li>
-          </ol>
-
-          <h3>1090 MHz antenna placement tips</h3>
-          <ul>
-            <li><b>Higher is better.</b> ADS‑B is line‑of‑sight — elevation increases range dramatically.</li>
-            <li><b>Use good coax.</b> Cheap cable can lose a surprising amount of signal at 1090&nbsp;MHz.</li>
-            <li><b>Weatherproof outdoor runs.</b> If mounting outside, protect connections from water.</li>
-            <li><b>Consider filtering.</b> In dense RF areas, a 1090&nbsp;MHz filter or an LNA near the antenna can help.</li>
-          </ul>
-
-          <h3>What range should you expect?</h3>
-          <p>
-            Range depends on antenna height and local terrain. With a modest antenna indoors you may see 50–100 miles at cruise altitudes.
-            With an outdoor antenna mounted high, 150–250+ miles for high‑altitude aircraft is common.
-            Low‑altitude aircraft will always have shorter range.
-          </p>
-
-          <h3>Feeding data (optional)</h3>
-          <p>
-            Many communities and research networks accept receiver feeds. Contributing can improve coverage in rural areas and help scientific or safety projects.
-            Always review each network’s terms before sharing data.
-          </p>
-
-          <div class="buttonRow">
-            <a class="btnOutline" href="./learn.html">Back: How it works</a>
-            <a class="btnOutline" href="./altitude.html">Altitude explained</a>
-            <a class="btnOutline" href="./squawk.html">Squawk codes</a>
-          </div>
-
-
-          <h3>Placement tips (this matters a lot)</h3>
-          <ul>
-            <li><b>Higher is better:</b> a window, attic, or mast usually improves range.</li>
-            <li><b>Line of sight:</b> buildings and hills reduce reception.</li>
-            <li><b>Avoid interference:</b> keep the dongle and antenna away from noisy power supplies and routers.</li>
-          </ul>
-
-          <h3>Software options</h3>
-          <p>
-            Most DIY setups decode ADS‑B using a decoder like <b>dump1090</b> (or modern variants like <b>readsb</b>),
-            then optionally run a local web map and/or feed data to a network.
-          </p>
-          <ul>
-            <li><b>PiAware</b> (FlightAware) — guided install, good dashboards</li>
-            <li><b>readsb + tar1090</b> — lightweight local decoder + web interface</li>
-            <li><b>Docker images</b> — convenient if you’re already using containers</li>
-          </ul>
-
-          <h3>Feeding tracking networks (optional)</h3>
-          <p>
-            If you want to contribute to the community, many projects let you share your receiver data.
-            Each has its own terms and setup process.
-          </p>
-          <ul>
-            <li><b>OpenSky Network</b></li>
-            <li><b>ADSBexchange</b></li>
-            <li><b>FlightAware</b></li>
-            <li><b>Flightradar24</b></li>
-          </ul>
-
-          <h3>How this relates to FlightsAboveMe</h3>
-          <p>
-            FlightsAboveMe aggregates public aviation data feeds to show what’s flying nearby.
-            Running your own receiver is a great way to learn how ADS‑B works and understand why coverage varies.
-            In the future, personal receiver support could enable premium features like better local coverage,
-            higher refresh, or historical “what flew over me?” playback.
-          </p>
-
-          <h3>Important notice</h3>
-          <p class="learnNotice">
-            This page is educational. Always follow local laws and the terms of any network you choose to feed.
-            Do not use flight tracking data for operational or navigation decisions.
-          </p>
-        </div>
-      </section>
-    </main>
-
-    <footer class="fabm-footer">
-      <div>© 2026 FlightsAboveMe</div>
-      <div class="footerNav">
-        <a href="./index.html">Home</a>
-        
-        <a href="./learn.html">How It Works</a>
-        
-        <a href="./about.html">About</a>
-        
-        <a href="./privacy.html">Privacy</a>
-        <a href="./terms.html">Terms</a>
-        <a href="./sources.html">Data Sources</a>
-      </div>
-    </footer>
-  </div>
+</div>
+</section>
+<section class="card" style="line-height:1.65">
+<h2 style="margin-top:0">What you’ll receive</h2>
+<p>
+          ADS‑B is a broadcast system. Aircraft transmit messages over radio that can include position, altitude, speed,
+          heading, and identifiers. Your receiver simply listens — it does not transmit.
+        </p>
+<h2>1090 MHz vs 978 MHz (U.S.)</h2>
+<ul>
+<li><b>1090 MHz:</b> Common worldwide and used by most commercial aircraft.</li>
+<li><b>978 MHz (UAT):</b> Mostly U.S. general aviation at lower altitudes.</li>
+</ul>
+<p>
+          If you only choose one, <b>1090 MHz</b> is usually the best first pick for broad coverage.
+        </p>
+<h2>Starter hardware (three simple tiers)</h2>
+<h3>Tier 1 — Quick start (lowest cost)</h3>
+<ul>
+<li>USB SDR dongle (RTL‑SDR style)</li>
+<li>Basic antenna (indoor works, outdoor is better)</li>
+<li>Laptop, mini‑PC, or Raspberry Pi</li>
+</ul>
+<h3>Tier 2 — Better range (best value)</h3>
+<ul>
+<li>Outdoor antenna mounted higher (attic / roof / mast)</li>
+<li>Quality coax cable (reduces signal loss)</li>
+<li>Optional filter or LNA (helps in noisy RF environments)</li>
+</ul>
+<h3>Tier 3 — Dedicated 24/7 setup</h3>
+<ul>
+<li>Weatherproof enclosure + stable power</li>
+<li>Grounding/lightning safety considerations</li>
+<li>Small always‑on computer and monitoring</li>
+</ul>
+<h2>Why height matters most</h2>
+<p>
+          ADS‑B is line‑of‑sight radio. A higher antenna with a clearer view often improves range more than any other single change.
+          Even a few extra feet can make a noticeable difference.
+        </p>
+<h2>What range should you expect?</h2>
+<p>
+          Range depends on antenna placement, terrain, and nearby radio noise. A simple indoor antenna might see nearby aircraft,
+          while an outdoor antenna with a clear view can see much farther — especially for high‑altitude flights.
+        </p>
+<p>
+          If your results seem “thin,” don’t assume it’s broken. Try moving the antenna closer to a window, then later move it outdoors if possible.
+        </p>
+<h2>Basic setup steps (high level)</h2>
+<ol style="margin-top:0">
+<li>Connect your SDR and antenna</li>
+<li>Install a decoder app (many free options exist)</li>
+<li>Confirm you’re receiving messages</li>
+<li>Optionally visualize aircraft on a local map or feed a community network</li>
+</ol>
+<h2>Software options (plain English)</h2>
+<p>
+          You can run a decoder on a laptop or a small computer. Many people use a Raspberry Pi because it’s low‑power and can run 24/7.
+          Some setups are “plug‑and‑play” images you flash to an SD card, while others are simple packages you install.
+          The goal is the same: decode ADS‑B messages and display them.
+        </p>
+<h2>Feeding a community network (optional)</h2>
+<p>
+          If you choose to contribute your receiver data, you can help improve coverage — especially in areas where fewer antennas exist.
+          Networks typically provide setup instructions and may offer premium features in return.
+          This is optional; you can also keep your receiver for personal learning only.
+        </p>
+<h2>Legal and safety notes</h2>
+<ul>
+<li>This is <b>receive‑only</b>. You are listening to broadcasts — not transmitting.</li>
+<li>Use safe mounting practices (ladders, roofs, power lines, weather exposure).</li>
+<li>If you contribute data to a network, follow their terms of service.</li>
+</ul>
+<h2>Why this matters to FlightsAboveMe</h2>
+<p>
+          Community receivers help fill coverage gaps. That’s a big reason live tracking can work in so many places.
+          If you’ve ever wondered why data looks thinner in one region than another, receiver density is often the explanation.
+        </p>
+</section>
+<section class="card" style="line-height:1.65">
+<h2 style="margin-top:0">Quick questions</h2>
+<h3>Do I need internet for the receiver?</h3>
+<p>You can receive and view messages locally without feeding any network. Internet is only needed if you choose to share data or use online maps/services.</p>
+<h3>Will this interfere with aviation radios?</h3>
+<p>No — a basic ADS‑B receiver is receive‑only. It listens to broadcasts and does not transmit.</p>
+<h3>Is it hard?</h3>
+<p>Most people can get a first decode running in an hour. Antenna placement is the “secret sauce” for better results.</p>
+</section>
+<section class="card" style="line-height:1.65">
+<h2 style="margin-top:0">Related reading</h2>
+<div class="learnStrip__row" style="display:flex; gap:10px; flex-wrap:wrap">
+<a class="btnOutline" href="./learn.html">How It Works</a>
+<a class="btnOutline" href="./sources.html">Data Sources</a>
+<a class="btnOutline" href="./altitude.html">Altitude</a>
+<a class="btnOutline" href="./squawk.html">Squawk</a>
+</div>
+</section>
+</main>
+<footer class="fabm-footer">
+<div>© 2026 FlightsAboveMe</div>
+<div class="footerNav">
+<a href="./index.html">Home</a>
+<a href="./learn.html">How It Works</a>
+<a href="./about.html">About</a>
+<a href="./privacy.html">Privacy</a>
+<a href="./terms.html">Terms</a>
+<a href="./sources.html">Data Sources</a>
+</div>
+<div class="fabm-legal"><div>FlightsAboveMe is an independent aviation education project and is not affiliated with any airline, airport, or government agency.</div></div></footer>
+</div>
 </body>
 </html>

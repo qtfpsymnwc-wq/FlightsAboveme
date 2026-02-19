@@ -1,93 +1,84 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>FlightsAboveMe — Data Sources & Accuracy</title>
-  <link rel="stylesheet" href="/style.css?v=233">
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<title>FlightsAboveMe — Data Sources &amp; Accuracy</title>
+<link href="/style.css?v=233" rel="stylesheet"/>
 </head>
 <body>
-  <div id="app">
-    <header class="topbar">
-      <div class="brand">
-        <a href="./index.html" aria-label="Back to FlightsAboveMe">
-          <img src="/flightsaboveme-logo-tight.png?v=220" alt="FlightsAboveMe" class="siteLogo">
-        </a>
-      </div>
-      <div class="right"></div>
-    </header>
-
-    <main class="wrap">
-      <section class="hero card">
-        <div class="heroTitle">Data Sources &amp; Accuracy</div>
-        <div class="heroHint">How FlightsAboveMe gets live flight data — and why it can be delayed or incomplete</div>
-
-        <div class="heroSub" style="line-height:1.65">
-          <p style="margin-top:0">
+<div id="app">
+<header class="topbar">
+<div class="brand">
+<a aria-label="Back to FlightsAboveMe" href="./index.html">
+<img alt="FlightsAboveMe" class="siteLogo" src="/flightsaboveme-logo-tight.png?v=220"/>
+</a>
+</div>
+<div class="right"></div>
+</header>
+<main class="wrap">
+<section class="hero card">
+<div class="heroTitle">Data Sources &amp; Accuracy</div>
+<div class="heroHint">How FlightsAboveMe gets live flight data — and why it can be delayed or incomplete</div>
+<div class="heroSub" style="line-height:1.65">
+<p style="margin-top:0">
             FlightsAboveMe is a <b>read-only</b> overhead flight display. It combines public ADS‑B / transponder broadcasts with
             aviation data networks to estimate nearby aircraft position and basic flight details.
           </p>
-
-          <h3 style="margin:16px 0 6px; color: var(--text);">Primary live data</h3>
-          <ul style="margin:0 0 10px 18px">
-            <li><b>OpenSky Network</b> — primary live “state vectors” (position, altitude, velocity, callsign when available)</li>
-            <li><b>adsb.lol</b> — fallback live aircraft state data if the primary feed is unavailable or incomplete</li>
-          </ul>
-
-          <h3 style="margin:16px 0 6px; color: var(--text);">Enrichment (aircraft &amp; route details)</h3>
-          <p style="margin:0 0 10px">
+<h3 style="margin:16px 0 6px; color: var(--text);">Primary live data</h3>
+<ul style="margin:0 0 10px 18px">
+<li><b>OpenSky Network</b> — primary live “state vectors” (position, altitude, velocity, callsign when available)</li>
+<li><b>adsb.lol</b> — fallback live aircraft state data if the primary feed is unavailable or incomplete</li>
+</ul>
+<h3 style="margin:16px 0 6px; color: var(--text);">Enrichment (aircraft &amp; route details)</h3>
+<p style="margin:0 0 10px">
             When available, FlightsAboveMe may enrich the closest flight with aircraft/operator details using third-party aviation APIs.
             Enrichment is <b>non-blocking</b>: the main flight display renders first, then enrichment appears when it succeeds.
           </p>
-
-          <h3 style="margin:16px 0 6px; color: var(--text);">How “closest flight” is chosen</h3>
-          <p style="margin:0 0 10px">
+<h3 style="margin:16px 0 6px; color: var(--text);">How “closest flight” is chosen</h3>
+<p style="margin:0 0 10px">
             FlightsAboveMe calculates distance from your location (or the demo location) to nearby aircraft and selects the nearest one.
             To reduce flicker and incorrect matches, enrichment is gated behind stability checks (for example, requiring the same candidate
             across multiple update cycles) and distance limits.
           </p>
-
-          <h3 style="margin:16px 0 6px; color: var(--text);">Why flights can be missing</h3>
-          <ul style="margin:0 0 10px 18px">
-            <li>Not all aircraft broadcast full position data, and not all messages are received or decoded</li>
-            <li>Coverage varies by region, terrain, receiver density, and aircraft altitude</li>
-            <li>Some identifiers (callsign/operator) may be missing, delayed, or incorrect</li>
-            <li>Network latency can cause near-real-time delays</li>
-          </ul>
-
-          <h3 style="margin:16px 0 6px; color: var(--text);">Caching &amp; performance</h3>
-          <p style="margin:0 0 10px">
+<h3 style="margin:16px 0 6px; color: var(--text);">Why flights can be missing</h3>
+<ul style="margin:0 0 10px 18px">
+<li>Not all aircraft broadcast full position data, and not all messages are received or decoded</li>
+<li>Coverage varies by region, terrain, receiver density, and aircraft altitude</li>
+<li>Some identifiers (callsign/operator) may be missing, delayed, or incorrect</li>
+<li>Network latency can cause near-real-time delays</li>
+</ul>
+<h3 style="margin:16px 0 6px; color: var(--text);">Caching &amp; performance</h3>
+<p style="margin:0 0 10px">
             To stay fast (especially on cellular), FlightsAboveMe uses caching for aircraft details. If enrichment is rate-limited,
             the app backs off and continues showing the live track without blocking.
           </p>
-
-          <h3 style="margin:16px 0 6px; color: var(--text);">Trademarks &amp; logos</h3>
-          <p style="margin:0 0 10px">
+<h3 style="margin:16px 0 6px; color: var(--text);">Trademarks &amp; logos</h3>
+<p style="margin:0 0 10px">
             Airline names and logos are trademarks of their respective owners. FlightsAboveMe is not affiliated with any airline.
             See <a href="./logos.html">Logos &amp; Attribution</a>.
           </p>
-
-          <p style="margin:14px 0 0; opacity:.9">
-            <b>Notice:</b> Flight data is provided for informational purposes only and may be delayed, incomplete, or inaccurate.
+<p style="margin:14px 0 0; opacity:.9">
+<b>Notice:</b> Flight data is provided for informational purposes only and may be delayed, incomplete, or inaccurate.
             Not for operational or navigation use.
           </p>
-        </div>
-      </section>
-    </main>
-
-    <footer class="fabm-footer">
-      <div>© 2026 FlightsAboveMe</div>
-      <div class="footerNav">
-        <a href="./index.html">Home</a>
-        <a href="./privacy.html">Privacy</a>
-        <a href="./terms.html">Terms</a>
-        <a href="./sources.html">Data Sources</a>
-        <a href="./about.html">About</a>
-      </div>
-      <div class="fabm-legal">
-        <div>Flight data is provided for informational purposes only and may be delayed, incomplete, or inaccurate. Not for operational or navigation use.</div>
-      </div>
-    </footer>
-  </div>
+</div>
+</section>
+</main>
+<footer class="fabm-footer">
+<div>© 2026 FlightsAboveMe</div>
+<div class="footerNav">
+<a href="./index.html">Home</a>
+<a href="./privacy.html">Privacy</a>
+<a href="./terms.html">Terms</a>
+<a href="./sources.html">Data Sources</a>
+<a href="./about.html">About</a>
+</div>
+<div class="fabm-legal">
+<div>Flight data is provided for informational purposes only and may be delayed, incomplete, or inaccurate. Not for operational or navigation use.</div>
+<div>FlightsAboveMe is an independent aviation education project and is not affiliated with any airline, airport, or government agency.</div></div>
+</footer>
+</div>
 </body>
 </html>
