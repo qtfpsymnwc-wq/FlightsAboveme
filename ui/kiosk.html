@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>FlightsAboveMe — Kiosk</title>
-  <link rel="stylesheet" href="./kiosk.css?v=236">
+  <link rel="stylesheet" href="./kiosk.css?v=237">
 </head>
 
 <body class="kiosk">
@@ -117,10 +117,12 @@
       <div aria-live="polite" class="zipGate__msg" id="locMsg"></div>
     </section>
 
+    <button id="changeLoc" class="changeLoc" type="button" aria-label="Change location">change location</button>
+
 
   </div>
 
-  <script>
+  <script
     // Flag kiosk mode without changing Worker/polling behavior.
     window.__KIOSK_MODE__ = true;
 
@@ -185,6 +187,6 @@
     })();
   </script>
 
-  <script src="./app.js?v=236"></script>
+  <script src="./app.js?v=237"></script>
 </body>
 </html>

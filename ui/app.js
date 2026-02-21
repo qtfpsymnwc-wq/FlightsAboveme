@@ -1,7 +1,7 @@
 // FlightsAboveMe UI
 const API_BASE = window.location.origin;
 // Cache-buster for static assets (CSS/JS/logos)
-const UI_VERSION = "v236";
+const UI_VERSION = "v237";
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;
@@ -24,6 +24,7 @@ const STATES_TIMEOUT_MS = 16000;
 const GEO_TIMEOUT_MS = 12000;
 const LAST_LOC_KEY = "fam_last_loc_v1";
 const MANUAL_LOC_KEY = "fam_manual_loc_v1";
+const FORCE_LOC_KEY = "fam_force_loc_prompt_v1";
 
 // Enrichment budgets (per “cycle”)
 // v1.2.9+: only enrich the closest flight (within ENRICH_MAX_MI)
@@ -320,6 +321,9 @@ function loadManualLocation(){
 function clearManualLocation(){
   try { localStorage.removeItem(MANUAL_LOC_KEY); } catch {}
 }
+function clearLastLocation(){
+  try { localStorage.removeItem(LAST_LOC_KEY); } catch {}
+}
 
 // Manual location gate UI (optional). If elements aren't present on a page, this is a no-op.
 function manualGate(){
@@ -412,6 +416,21 @@ function manualGate(){
   });
 
   return { prompt, show, hide, setMsg };
+}
+
+// Kiosk-only affordance: tiny "change location" link.
+// Clears saved manual/last location, then forces the manual gate to appear on reload.
+function setupChangeLocation(){
+  const btn = document.getElementById("changeLoc");
+  if (!btn) return;
+  btn.addEventListener("click", ()=>{
+    const ok = confirm("Reset location for this display? You can enter new coordinates after this.");
+    if (!ok) return;
+    clearManualLocation();
+    clearLastLocation();
+    try { sessionStorage.setItem(FORCE_LOC_KEY, "1"); } catch {}
+    try { location.reload(); } catch { location.href = location.href; }
+  });
 }
 
 
@@ -774,6 +793,7 @@ function pumpEnrichment(renderFn){
 
 async function main(){
   enableKioskIfRequested();
+  setupChangeLocation();
 
   // Optional publisher intro expander (only exists on the main homepage)
   const pubToggle = document.getElementById("pubToggle");
@@ -824,11 +844,23 @@ async function main(){
   // 4) Manual entry prompt (if UI exists), otherwise demo fallback
   let pos = null;
 
+  // If user tapped the tiny kiosk "change location" control, force the manual gate.
+  try {
+    if (sessionStorage.getItem(FORCE_LOC_KEY) === "1") {
+      sessionStorage.removeItem(FORCE_LOC_KEY);
+      const gate = manualGate();
+      if (gate && typeof gate.prompt === "function") {
+        if (statusEl) statusEl.textContent = "Set location";
+        pos = await gate.prompt();
+      }
+    }
+  } catch {}
+
   const manual = loadManualLocation();
-  if (manual) {
+  if (!pos && manual) {
     if (statusEl) statusEl.textContent = "Using saved location…";
     pos = { coords: { latitude: manual.lat, longitude: manual.lon, accuracy: null }, __fromManual: true };
-  } else {
+  } else if (!pos) {
     pos = await new Promise((resolve, reject)=>{
       if (!navigator.geolocation) return reject(new Error("Geolocation not supported"));
       navigator.geolocation.getCurrentPosition(
