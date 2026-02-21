@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>FlightsAboveMe — Kiosk</title>
-  <link rel="stylesheet" href="./kiosk.css?v=235">
+  <link rel="stylesheet" href="./kiosk.css?v=236">
 </head>
 
 <body class="kiosk">
@@ -103,6 +103,21 @@
 
     <div id="errBox" class="errBox hidden"></div>
 
+    <!-- Manual location gate (kiosk): shown if location services are unavailable -->
+    <section aria-label="Enter coordinates" class="zipGate hidden" id="locGate" role="form">
+      <div class="zipGate__title">Set Location</div>
+      <div class="zipGate__desc">Enter latitude and longitude for this kiosk display.</div>
+      <div class="zipGate__row">
+        <input aria-label="Latitude" class="zipGate__input" id="latInput" inputmode="decimal" placeholder="Latitude (e.g., 36.08)"/>
+        <input aria-label="Longitude" class="zipGate__input" id="lonInput" inputmode="decimal" placeholder="Longitude (e.g., -94.24)"/>
+        <button class="zipGate__btn" id="locBtn" type="button">Save</button>
+        <button class="zipGate__btn" id="geoBtn" type="button">Use GPS</button>
+        <button class="zipGate__btn" id="demoBtn" type="button">Demo</button>
+      </div>
+      <div aria-live="polite" class="zipGate__msg" id="locMsg"></div>
+    </section>
+
+
   </div>
 
   <script>
@@ -170,6 +185,6 @@
     })();
   </script>
 
-  <script src="./app.js?v=235"></script>
+  <script src="./app.js?v=236"></script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 // FlightsAboveMe UI
 const API_BASE = window.location.origin;
 // Cache-buster for static assets (CSS/JS/logos)
-const UI_VERSION = "v235";
+const UI_VERSION = "v236";
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;
@@ -23,6 +23,7 @@ let lastEnrichQueuedAt = 0;
 const STATES_TIMEOUT_MS = 16000;
 const GEO_TIMEOUT_MS = 12000;
 const LAST_LOC_KEY = "fam_last_loc_v1";
+const MANUAL_LOC_KEY = "fam_manual_loc_v1";
 
 // Enrichment budgets (per “cycle”)
 // v1.2.9+: only enrich the closest flight (within ENRICH_MAX_MI)
@@ -295,6 +296,124 @@ function loadLastLocation(maxAgeMs = 1000 * 60 * 60 * 24 * 7){
   }
 }
 
+// Manual location (lat/lon) for kiosk / fixed displays.
+// Stored separately from last-known GPS so the kiosk can boot reliably without geolocation.
+function saveManualLocation(lat, lon, label="Custom"){
+  try {
+    const obj = { lat:Number(lat), lon:Number(lon), label: String(label||"Custom").slice(0,64), ts: Date.now() };
+    if (!Number.isFinite(obj.lat) || !Number.isFinite(obj.lon)) return;
+    localStorage.setItem(MANUAL_LOC_KEY, JSON.stringify(obj));
+  } catch {}
+}
+function loadManualLocation(){
+  try {
+    const raw = localStorage.getItem(MANUAL_LOC_KEY);
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    if (!obj) return null;
+    if (!Number.isFinite(Number(obj.lat)) || !Number.isFinite(Number(obj.lon))) return null;
+    return { lat: Number(obj.lat), lon: Number(obj.lon), label: obj.label || "Custom" };
+  } catch {
+    return null;
+  }
+}
+function clearManualLocation(){
+  try { localStorage.removeItem(MANUAL_LOC_KEY); } catch {}
+}
+
+// Manual location gate UI (optional). If elements aren't present on a page, this is a no-op.
+function manualGate(){
+  const gate = document.getElementById("locGate");
+  if (!gate) return null;
+
+  const latEl = document.getElementById("latInput");
+  const lonEl = document.getElementById("lonInput");
+  const saveBtn = document.getElementById("locBtn");
+  const demoBtn = document.getElementById("demoBtn");
+  const geoBtn  = document.getElementById("geoBtn");
+  const msgEl  = document.getElementById("locMsg");
+
+  const setMsg = (m)=>{ if (msgEl) msgEl.textContent = m || ""; };
+
+  const parse = ()=>{
+    const lat = Number(String(latEl?.value ?? "").trim());
+    const lon = Number(String(lonEl?.value ?? "").trim());
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+    if (lat < -90 || lat > 90) return null;
+    if (lon < -180 || lon > 180) return null;
+    return { lat, lon };
+  };
+
+  const show = ()=>{
+    gate.classList.remove("hidden");
+    try { gate.scrollIntoView({ block:"center", behavior:"smooth" }); } catch {}
+  };
+  const hide = ()=>{ gate.classList.add("hidden"); };
+
+  const prompt = ()=> new Promise((resolve)=>{
+    // Pre-fill from stored manual loc if present
+    const stored = loadManualLocation();
+    if (stored && latEl && lonEl){
+      latEl.value = String(stored.lat);
+      lonEl.value = String(stored.lon);
+    }
+
+    const cleanup = ()=>{
+      saveBtn && saveBtn.removeEventListener("click", onSave);
+      demoBtn && demoBtn.removeEventListener("click", onDemo);
+      geoBtn  && geoBtn.removeEventListener("click", onGeo);
+      gate.removeEventListener("keydown", onKey);
+    };
+
+    const done = (v)=>{
+      cleanup();
+      hide();
+      resolve(v);
+    };
+
+    const onSave = ()=>{
+      const v = parse();
+      if (!v){
+        setMsg("Enter a valid latitude (-90 to 90) and longitude (-180 to 180).");
+        return;
+      }
+      saveManualLocation(v.lat, v.lon, "Custom");
+      setMsg("");
+      done({ coords:{ latitude:v.lat, longitude:v.lon, accuracy:null }, __fromManual:true });
+    };
+
+    const onDemo = ()=>{
+      clearManualLocation();
+      setMsg("");
+      done({ coords:{ latitude:DEMO_LOC.lat, longitude:DEMO_LOC.lon, accuracy:25000 }, __fromDemo:true });
+    };
+
+    const onGeo = async ()=>{
+      setMsg("Requesting location…");
+      try{
+        if (!navigator.geolocation) throw new Error("Geolocation not supported");
+        const p = await new Promise((res, rej)=>navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy:true, timeout:GEO_TIMEOUT_MS, maximumAge:5000 }));
+        setMsg("");
+        done(p);
+      } catch(e){
+        setMsg("Location failed. Enter coordinates or use demo.");
+      }
+    };
+
+    const onKey = (e)=>{ if (e.key === "Enter") onSave(); };
+
+    saveBtn && saveBtn.addEventListener("click", onSave);
+    demoBtn && demoBtn.addEventListener("click", onDemo);
+    geoBtn  && geoBtn.addEventListener("click", onGeo);
+    gate.addEventListener("keydown", onKey);
+
+    setMsg("");
+    show();
+  });
+
+  return { prompt, show, hide, setMsg };
+}
+
 
 async function fetchJSON(url, timeoutMs=9000){
   const ctrl = new AbortController();
@@ -311,7 +430,7 @@ async function fetchJSON(url, timeoutMs=9000){
 
 // Location-denied demo fallback.
 // If the user declines location permission, we show a demo area around Fayetteville, Arkansas (ZIP 72704).
-// Manual ZIP entry has been intentionally removed.
+// Manual location entry (lat/lon) is available for kiosks and devices without reliable geolocation.
 const DEMO_LOC = { lat: 36.0877, lon: -94.3093, label: "Fayetteville, Arkansas", zip: "72704" };
 
 /* Portrait route formatting: show only airport codes in kiosk portrait
@@ -698,26 +817,45 @@ async function main(){
     syncTierButtons();
   }
 
-  const pos = await new Promise((resolve, reject)=>{
-    if (!navigator.geolocation) return reject(new Error("Geolocation not supported"));
-    navigator.geolocation.getCurrentPosition(
-      (p)=>resolve(p),
-      (e)=>reject(new Error(e.message || "Location denied")),
-      { enableHighAccuracy:true, timeout:GEO_TIMEOUT_MS, maximumAge:5000 }
-    );
-  }).catch(async (e)=>{
-    // v1.3.1: On flaky cellular GPS, fall back to last known location so the app still loads.
-    const last = loadLastLocation();
-    if (last) {
-      if (statusEl) statusEl.textContent = "Using last location…";
-      showErr("Location failed — using last known location");
-      return { coords: { latitude: last.lat, longitude: last.lon, accuracy: last.accuracy }, __fromLast: true };
-    }
-    // No last-known location: use demo area and prompt user to enable location.
-    if (statusEl) statusEl.textContent = "Demo";
-    showErr(`Showing ${DEMO_LOC.label} (${DEMO_LOC.zip}) as a demo location — enable location to see flights near you.`);
-    return { coords: { latitude: DEMO_LOC.lat, longitude: DEMO_LOC.lon, accuracy: 25000 }, __fromDemo: true };
-  });
+  // Location resolution order:
+  // 1) Saved manual location (lat/lon) for kiosks / fixed displays
+  // 2) Browser geolocation (if available)
+  // 3) Last-known good location (to survive flaky GPS/cellular)
+  // 4) Manual entry prompt (if UI exists), otherwise demo fallback
+  let pos = null;
+
+  const manual = loadManualLocation();
+  if (manual) {
+    if (statusEl) statusEl.textContent = "Using saved location…";
+    pos = { coords: { latitude: manual.lat, longitude: manual.lon, accuracy: null }, __fromManual: true };
+  } else {
+    pos = await new Promise((resolve, reject)=>{
+      if (!navigator.geolocation) return reject(new Error("Geolocation not supported"));
+      navigator.geolocation.getCurrentPosition(
+        (p)=>resolve(p),
+        (e)=>reject(new Error(e.message || "Location denied")),
+        { enableHighAccuracy:true, timeout:GEO_TIMEOUT_MS, maximumAge:5000 }
+      );
+    }).catch(async ()=>{
+      const last = loadLastLocation();
+      if (last) {
+        if (statusEl) statusEl.textContent = "Using last location…";
+        showErr("Location failed — using last known location");
+        return { coords: { latitude: last.lat, longitude: last.lon, accuracy: last.accuracy }, __fromLast: true };
+      }
+
+      const gate = manualGate();
+      if (gate && typeof gate.prompt === "function") {
+        if (statusEl) statusEl.textContent = "Location needed";
+        const picked = await gate.prompt();
+        if (picked) return picked;
+      }
+
+      if (statusEl) statusEl.textContent = "Demo";
+      showErr(`Showing ${DEMO_LOC.label} (${DEMO_LOC.zip}) as a demo location — enable location to see flights near you.`);
+      return { coords: { latitude: DEMO_LOC.lat, longitude: DEMO_LOC.lon, accuracy: 25000 }, __fromDemo: true };
+    });
+  }
 
   const lat = pos.coords.latitude;
   const lon = pos.coords.longitude;
@@ -732,6 +870,10 @@ async function main(){
   if (demoBadge) {
     if (pos?.__fromDemo) {
       demoBadge.textContent = `Demo: ${DEMO_LOC.label} (${DEMO_LOC.zip})`;
+      demoBadge.classList.remove("hidden");
+    } else if (pos?.__fromManual) {
+      const ml = loadManualLocation();
+      demoBadge.textContent = `Location: ${ml?.label || "Custom"}`;
       demoBadge.classList.remove("hidden");
     } else {
       demoBadge.classList.add("hidden");

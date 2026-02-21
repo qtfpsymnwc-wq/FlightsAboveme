@@ -5,7 +5,7 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width,initial-scale=1" name="viewport"/>
 <title>FlightsAboveMe</title>
-<link href="/style.css?v=235" rel="stylesheet"/>
+<link href="/style.css?v=236" rel="stylesheet"/>
 <script async="" crossorigin="anonymous" src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4157780114857674"></script>
 </head>
 <body>
@@ -122,15 +122,18 @@
 </section>
 </main>
 <div class="errBox hidden" id="errBox"></div>
-<!-- ZIP fallback (main UI only): shown if location permission is denied and no last location exists -->
-<section aria-label="Enter ZIP code" class="zipGate hidden" id="zipGate" role="form">
-<div class="zipGate__title">Enter ZIP Code</div>
-<div class="zipGate__desc">Location is off. Enter a 5‑digit US ZIP to see flights near you.</div>
-<div class="zipGate__row">
-<input aria-label="ZIP code" autocomplete="postal-code" class="zipGate__input" id="zipInput" inputmode="numeric" maxlength="5" placeholder="e.g., 72701"/>
-<button class="zipGate__btn" id="zipBtn" type="button">Use ZIP</button>
-</div>
-<div aria-live="polite" class="zipGate__msg" id="zipMsg"></div>
+<!-- Manual location fallback (main UI): shown if browser location is unavailable and no last location exists -->
+<section aria-label="Enter coordinates" class="zipGate hidden" id="locGate" role="form">
+  <div class="zipGate__title">Enter Coordinates</div>
+  <div class="zipGate__desc">Location is unavailable. Enter latitude and longitude to see flights near you.</div>
+  <div class="zipGate__row" style="gap:10px; flex-wrap: wrap;">
+    <input aria-label="Latitude" class="zipGate__input" id="latInput" inputmode="decimal" placeholder="Latitude (e.g., 36.08)" style="max-width: 220px;"/>
+    <input aria-label="Longitude" class="zipGate__input" id="lonInput" inputmode="decimal" placeholder="Longitude (e.g., -94.24)" style="max-width: 220px;"/>
+    <button class="zipGate__btn" id="locBtn" type="button">Save</button>
+    <button class="zipGate__btn" id="geoBtn" type="button">Use GPS</button>
+    <button class="zipGate__btn" id="demoBtn" type="button">Use Demo</button>
+  </div>
+  <div aria-live="polite" class="zipGate__msg" id="locMsg"></div>
 </section>
 <!-- Kiosk mode callout (main UI only). Keep kiosk.html ad-free. -->
 <!-- Ad slot (main UI only). Keep kiosk.html ad-free. -->
@@ -151,6 +154,6 @@
 </div>
 <!-- (Legacy) Exit link for index.html kiosk mode; harmless to keep -->
 <a aria-label="Exit kiosk mode" class="modeToggle kioskOnly" href="./index.html">Exit</a>
-<script src="/app.js?v=235"></script>
+<script src="/app.js?v=236"></script>
 </body>
 </html>

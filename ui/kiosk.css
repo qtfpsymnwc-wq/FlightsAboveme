@@ -855,3 +855,65 @@ body{
 
 
 .kioskSub{margin-top:6px;color:rgba(180,195,220,.92);font-size:12px;letter-spacing:.2px}
+
+
+/* Manual location gate (shared class names with main UI, but styled for kiosk) */
+.zipGate{
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%,-50%);
+  width: min(860px, calc(100vw - 32px));
+  padding: 18px 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(10,14,24,.92);
+  box-shadow: 0 30px 70px rgba(0,0,0,.55);
+  z-index: 9999;
+}
+.zipGate__title{
+  font-size: clamp(18px, 2.4vmin, 26px);
+  font-weight: 900;
+  letter-spacing: .6px;
+  margin-bottom: 6px;
+}
+.zipGate__desc{
+  color: rgba(255,255,255,.78);
+  font-size: clamp(14px, 2.0vmin, 20px);
+  margin-bottom: 12px;
+  line-height: 1.35;
+}
+.zipGate__row{
+  display:flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items:center;
+}
+.zipGate__input{
+  flex: 1 1 220px;
+  min-width: 200px;
+  padding: 12px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.16);
+  background: rgba(255,255,255,.06);
+  color: rgba(255,255,255,.95);
+  font-size: clamp(14px, 2.1vmin, 20px);
+  outline: none;
+}
+.zipGate__btn{
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.18);
+  background: rgba(255,255,255,.10);
+  color: rgba(255,255,255,.95);
+  font-weight: 900;
+  letter-spacing: .6px;
+  font-size: clamp(14px, 2.1vmin, 20px);
+  cursor: pointer;
+}
+.zipGate__btn:active{ transform: translateY(1px); }
+.zipGate__msg{
+  margin-top: 10px;
+  color: rgba(255,255,255,.85);
+  font-size: clamp(13px, 1.9vmin, 18px);
+}
