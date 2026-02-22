@@ -1,7 +1,7 @@
 // FlightsAboveMe UI
 const API_BASE = window.location.origin;
 // Cache-buster for static assets (CSS/JS/logos)
-const UI_VERSION = "v239";
+const UI_VERSION = "v238";
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;
@@ -214,16 +214,7 @@ function fmtVS(vr, baroAltM, distanceMi, icao24, callsign){
   // Update history (only if we have a stable key)
   if (key) {
     const prev = _phaseHist.get(key) || { t: 0, vr: NaN, altFt: NaN, d: Infinity, recentDesc: 0 };
-
-    // If OpenSky's vertical rate is missing/null for this poll, infer climb/descent from
-    // altitude change between polls. This fixes low-alt arrivals that momentarily show as "Cruising".
-    const altDeltaFt = (Number.isFinite(altFt) && Number.isFinite(prev.altFt))
-      ? (altFt - prev.altFt)
-      : NaN;
-    const inferredDesc = (!Number.isFinite(vr)) && Number.isFinite(altDeltaFt) && (altDeltaFt < -150);
-    const inferredClimb = (!Number.isFinite(vr)) && Number.isFinite(altDeltaFt) && (altDeltaFt > 150);
-
-    const isDesc = (Number.isFinite(vr) && (vr < DESC_MS)) || inferredDesc;
+    const isDesc = Number.isFinite(vr) && (vr < DESC_MS);
     // recentDesc is a simple TTL counter (poll-driven): set to 3 when descending, decay otherwise.
     let recentDesc = prev.recentDesc || 0;
     if (isDesc) recentDesc = 3;
@@ -232,20 +223,8 @@ function fmtVS(vr, baroAltM, distanceMi, icao24, callsign){
     _phaseHist.set(key, { t: now, vr, altFt, d, recentDesc });
   }
 
-  // If VR is missing, don't assume "Cruising".
-  // Use recent trend + altitude/distance to pick a more sensible label.
-  if (!Number.isFinite(vr)) {
-    if (key) {
-      const h = _phaseHist.get(key);
-      const recentDesc = (h?.recentDesc || 0) > 0;
-      const lowAlt = Number.isFinite(altFt) ? (altFt <= 12_000) : false;
-      const close = d <= 40;
-
-      if (recentDesc && lowAlt && close) return "Approaching";
-      if (Number.isFinite(altFt) && altFt < 18_000) return "Level";
-    }
-    return "Cruising";
-  }
+  // If VR is missing, fall back to cruising.
+  if (!Number.isFinite(vr)) return "Cruising";
 
   // Arrival-aware label:
   // If the aircraft recently descended and is now roughly level at lower altitude and fairly close,
