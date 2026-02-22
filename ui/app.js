@@ -1,7 +1,7 @@
 // FlightsAboveMe UI
 const API_BASE = window.location.origin;
 // Cache-buster for static assets (CSS/JS/logos)
-const UI_VERSION = "v237";
+const UI_VERSION = "v238";
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;
@@ -182,15 +182,69 @@ function fmtAltKft(m){
   return (ft/1000).toFixed(1) + "k ft";
 }
 
-// Vertical speed (m/s) → simple flight phase label
-// OpenSky may return null; treat null/near-zero as cruising.
-function fmtVS(vr){
-  // vr is meters/second (state[11])
-  if (!Number.isFinite(vr)) return "Cruising";
+// Vertical speed (m/s) → flight phase label
+// OpenSky may return null; treat null as cruising.
+// NOTE: We add a lightweight, in-memory "recent descent" hint so arrivals that level off
+// near the airport don't incorrectly show as "Cruising".
+const _phaseHist = new Map();
+let _phaseHistPruneAt = 0;
+
+function _prunePhaseHist(now){
+  if (now < _phaseHistPruneAt) return;
+  _phaseHistPruneAt = now + 60_000; // prune at most once per minute
+  const cutoff = now - 10 * 60_000; // keep 10 minutes
+  for (const [k,v] of _phaseHist.entries()) {
+    if (!v || (v.t||0) < cutoff) _phaseHist.delete(k);
+  }
+}
+
+function fmtVS(vr, baroAltM, distanceMi, icao24, callsign){
+  const now = Date.now();
+  _prunePhaseHist(now);
+
+  const key = (icao24 || "") ? String(icao24).toLowerCase() : (callsign || "").trim();
+  const altFt = Number.isFinite(baroAltM) ? (baroAltM * 3.28084) : NaN;
+  const d = Number.isFinite(distanceMi) ? distanceMi : Infinity;
 
   // Thresholds (m/s). ~0.5 m/s ≈ 100 fpm.
-  if (vr > 0.5) return "Climbing";
-  if (vr < -0.5) return "Descending";
+  const CLIMB_MS = 0.5;
+  const DESC_MS  = -0.5;
+  const LEVEL_MS = 0.35; // tighter band for "level" to reduce approach false-positives
+
+  // Update history (only if we have a stable key)
+  if (key) {
+    const prev = _phaseHist.get(key) || { t: 0, vr: NaN, altFt: NaN, d: Infinity, recentDesc: 0 };
+    const isDesc = Number.isFinite(vr) && (vr < DESC_MS);
+    // recentDesc is a simple TTL counter (poll-driven): set to 3 when descending, decay otherwise.
+    let recentDesc = prev.recentDesc || 0;
+    if (isDesc) recentDesc = 3;
+    else if (recentDesc > 0) recentDesc -= 1;
+
+    _phaseHist.set(key, { t: now, vr, altFt, d, recentDesc });
+  }
+
+  // If VR is missing, fall back to cruising.
+  if (!Number.isFinite(vr)) return "Cruising";
+
+  // Arrival-aware label:
+  // If the aircraft recently descended and is now roughly level at lower altitude and fairly close,
+  // it's much more helpful/accurate to show "Approaching" than "Cruising".
+  if (key) {
+    const h = _phaseHist.get(key);
+    const recentDesc = (h?.recentDesc || 0) > 0;
+    const levelNow = Math.abs(vr) <= LEVEL_MS;
+    const lowAlt = Number.isFinite(altFt) ? (altFt <= 12_000) : false;
+    const close = d <= 40;
+    if (recentDesc && levelNow && lowAlt && close) return "Approaching";
+  }
+
+  if (vr > CLIMB_MS) return "Climbing";
+  if (vr < DESC_MS) return "Descending";
+
+  // Prevent "Cruising" at low altitudes — it reads wrong for step-down descents.
+  // If we're roughly level below ~18k ft, show "Level" instead.
+  if (Number.isFinite(altFt) && altFt < 18_000) return "Level";
+
   return "Cruising";
 }
 
@@ -555,7 +609,7 @@ function renderPrimary(f, radarMeta){
   if ($("spd")) $("spd").textContent = compactStats ? fmtSpdCompact(f.velocity) : fmtSpd(f.velocity);
   if ($("dist")) $("dist").textContent = compactStats ? fmtMiCompact(f.distanceMi) : fmtMi(f.distanceMi);
 
-  if ($("vs")) $("vs").textContent = fmtVS(f.verticalRate);
+  if ($("vs")) $("vs").textContent = fmtVS(f.verticalRate, f.baroAlt, f.distanceMi, f.icao24, f.callsign);
   setSquawkUI(f.squawk, "squawk", "sqSep");
 
   if ($("dir")) $("dir").textContent = headingToText(
@@ -627,7 +681,7 @@ function renderSecondary(f){
   $("alt2").textContent = compactStats ? fmtAltCompact(f.baroAlt) : fmtAlt(f.baroAlt);
   $("spd2").textContent = compactStats ? fmtSpdCompact(f.velocity) : fmtSpd(f.velocity);
 
-  if ($("vs2")) $("vs2").textContent = fmtVS(f.verticalRate);
+  if ($("vs2")) $("vs2").textContent = fmtVS(f.verticalRate, f.baroAlt, f.distanceMi, f.icao24, f.callsign);
   setSquawkUI(f.squawk, "squawk2", "sqSep2");
 
   $("dir2").textContent = headingToText(
