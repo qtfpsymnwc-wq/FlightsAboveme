@@ -1,7 +1,7 @@
 // FlightsAboveMe UI
 const API_BASE = window.location.origin;
 // Cache-buster for static assets (CSS/JS/logos)
-const UI_VERSION = "v238";
+const UI_VERSION = "v240";
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;
@@ -223,8 +223,35 @@ function fmtVS(vr, baroAltM, distanceMi, icao24, callsign){
     _phaseHist.set(key, { t: now, vr, altFt, d, recentDesc });
   }
 
-  // If VR is missing, fall back to cruising.
-  if (!Number.isFinite(vr)) return "Cruising";
+  // If VR is missing, try to infer approach/departure using last sample.
+// If we can't infer (no prior sample), show a blank phase label.
+  if (!Number.isFinite(vr)) {
+    if (!key) return "";
+    const prev = _phaseHist.get(key);
+    if (!prev || !Number.isFinite(prev.altFt) || !Number.isFinite(altFt) || !Number.isFinite(prev.d) || !Number.isFinite(d)) return "";
+    const dt = (now - (prev.t || 0)) / 1000;
+    if (!Number.isFinite(dt) || dt < 2) return "";
+
+    // Rates derived from two consecutive polls.
+    const fpm = ((altFt - prev.altFt) / dt) * 60;        // feet per minute
+    const mph = ((d - prev.d) / dt) * 3600;              // miles per hour (toward/away from the user)
+
+    // Noise gates / thresholds (tuned for 8–12s polling).
+    const CLIMB_FPM = 300;
+    const DESC_FPM  = -300;
+    const TOWARD_MPH = -5;
+    const AWAY_MPH   = 5;
+
+    const close = d <= 40;
+    const lowAlt = altFt <= 12_000;
+
+    if (close && lowAlt && fpm <= DESC_FPM && mph <= TOWARD_MPH) return "Approaching";
+    if (close && lowAlt && fpm >= CLIMB_FPM && mph >= AWAY_MPH) return "Departing";
+
+    // Otherwise, avoid "Cruising" at low altitude.
+    if (Number.isFinite(altFt) && altFt < 18_000) return "Level";
+    return "Cruising";
+  }
 
   // Arrival-aware label:
   // If the aircraft recently descended and is now roughly level at lower altitude and fairly close,
