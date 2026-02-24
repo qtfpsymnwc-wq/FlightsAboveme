@@ -1,7 +1,7 @@
 // FlightsAboveMe UI
 const API_BASE = window.location.origin;
 // Cache-buster for static assets (CSS/JS/logos)
-const UI_VERSION = "v240";
+const UI_VERSION = "v241";
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;
@@ -31,7 +31,16 @@ const FORCE_LOC_KEY = "fam_force_loc_prompt_v1";
 const LIST_AIRCRAFT_BUDGET = 0;
 const LIST_ROUTE_BUDGET = 0;
 
-const enrichCache = new Map();       // key: `${hex}|${callsign}` -> {routeText, modelText, airlineName}
+const enrichCache = new Map();
+// Route cache (in-memory, short TTL) keyed by normalized callsign.
+// Purpose: make route feel instant and avoid repeated AeroDataBox calls when selection jitters.
+const routeMemCache = new Map(); // cs -> { data, ts, ok }
+const routeAttempt = new Map();  // cs -> lastAttemptMs
+const ROUTE_OK_TTL_MS = 5 * 60_000;
+const ROUTE_NF_TTL_MS = 45_000;
+const ROUTE_RETRY_MIN_MS = 15_000;
+
+       // key: `${hex}|${callsign}` -> {routeText, modelText, airlineName}
 const enrichInFlight = new Set();    // keys currently being enriched
 const enrichQueue = [];              // queue of { type, flight, key }
 let enrichPumpRunning = false;
@@ -783,9 +792,42 @@ async function enrichRoute(f){
   if (!cs) return;
 
   const k = cacheKeyForFlight(f);
+
+  // 1) Serve from in-memory cache if still fresh.
+  const cachedMem = routeMemCache.get(cs);
+  if (cachedMem) {
+    const age = Date.now() - cachedMem.ts;
+    const ttl = cachedMem.ok ? ROUTE_OK_TTL_MS : ROUTE_NF_TTL_MS;
+    if (age >= 0 && age <= ttl) {
+      if (cachedMem.ok) {
+        const patch = {
+          routeText: cachedMem.data.route || f.routeText,
+          airlineName: cachedMem.data.airlineName || f.airlineName,
+          airlineGuess: f.airlineGuess || guessAirline(f.callsign),
+        };
+        if (!f.modelText && cachedMem.data.aircraftModel) patch.modelText = cachedMem.data.aircraftModel;
+
+        enrichCache.set(k, { ...(enrichCache.get(k) || {}), ...patch });
+        Object.assign(f, patch);
+      }
+      return;
+    }
+  }
+
+  // 2) Don't hammer the route endpoint if we tried very recently.
+  const lastTry = routeAttempt.get(cs) || 0;
+  const nowMs = Date.now();
+  if (nowMs - lastTry < ROUTE_RETRY_MIN_MS) return;
+  routeAttempt.set(cs, nowMs);
+
   try {
     const data = await fetchJSON(`${API_BASE}/api/flight/${encodeURIComponent(cs)}`, ENRICH_TIMEOUT_MS);
-    if (data && data.ok) {
+    const ok = !!(data && data.ok);
+
+    // Store short-lived cache either way (ok or not found) so the UI stabilizes quickly.
+    routeMemCache.set(cs, { data: data || {}, ts: Date.now(), ok });
+
+    if (ok) {
       const patch = {
         routeText: data.route || f.routeText,
         airlineName: data.airlineName || f.airlineName,
@@ -1037,16 +1079,7 @@ const bb = bboxAround(lat, lon);
       }
     }
 
-    let routeBudget = LIST_ROUTE_BUDGET;
-    for (const f of top) {
-      if (routeBudget <= 0) break;
-      const k = cacheKeyForFlight(f);
-      const cached = enrichCache.get(k) || {};
-      if (!f.routeText && !cached.routeText) {
-        queueEnrich("route", f);
-        routeBudget--;
-      }
-    }
+    // No route enrichment for list items (avoid AeroDataBox credit spikes). Route loads only for the primary selected flight.
 
     pumpEnrichment(renderAll);
   }
@@ -1129,16 +1162,21 @@ const bb = bboxAround(lat, lon);
           const needAircraft = !lastPrimary.modelText && !cached.modelText;
           const needRoute = !lastPrimary.routeText && !cached.routeText;
 
-          const stableEnough = primaryStableCount >= 2;
+          // Route should feel fast. If verticalRate or other hints are missing, we still try route early.
+          const stableEnoughAircraft = primaryStableCount >= 2;
+          const stableEnoughRoute = primaryStableCount >= 1;
+
           const nowMs = Date.now();
           const sameAsLastQueue = lastEnrichQueuedKey === k;
-          const recentQueue = nowMs - lastEnrichQueuedAt < 60_000;
+          // Short gate: avoid spamming enrich jobs every poll, but don't block route for a full minute.
+          const recentQueue = nowMs - lastEnrichQueuedAt < 20_000;
 
           const withinEnrichRange = Number.isFinite(lastPrimary.distanceMi) && lastPrimary.distanceMi <= ENRICH_MAX_MI;
 
-          if (withinEnrichRange && stableEnough && (needAircraft || needRoute) && !(sameAsLastQueue && recentQueue)) {
-            if (needAircraft) queueEnrich("aircraft", lastPrimary);
-            if (needRoute) queueEnrich("route", lastPrimary);
+          if (withinEnrichRange && (needAircraft || needRoute) && !(sameAsLastQueue && recentQueue)) {
+            // Queue route first so it can start as early as possible. Aircraft data still renders whenever it arrives.
+            if (needRoute && stableEnoughRoute) queueEnrich("route", lastPrimary);
+            if (needAircraft && stableEnoughAircraft) queueEnrich("aircraft", lastPrimary);
 
             lastEnrichQueuedKey = k;
             lastEnrichQueuedAt = nowMs;
