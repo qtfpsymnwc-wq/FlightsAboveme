@@ -1,7 +1,7 @@
 /**
- * FlightsAboveMe API Worker (v173)
+ * FlightsAboveMe API Worker (v174)
  *
- * CHANGE (v173):
+ * CHANGE (v174):
  *  - Disable warm enrichment entirely (no AeroDataBox calls triggered by /opensky/states)
  *  - Keep /flight and /aircraft endpoints cache-first (UI should call these ONLY for closest flight)
  *
@@ -32,7 +32,7 @@
  *  - Fallback is only used when OpenSky fails (network/timeout/5xx) or returns 429.
  */
 
-const WORKER_VERSION = "v173";
+const WORKER_VERSION = "v174";
 
 const OPENSKY_STATES_URL = "https://opensky-network.org/api/states/all";
 const OPENSKY_TOKEN_URL =
@@ -923,7 +923,7 @@ export default {
               "Content-Type": "application/json; charset=utf-8",
               "Cache-Control": `public, max-age=${NEG_TTL_S}, s-maxage=${NEG_TTL_S}`,
               "X-Cache": "NEG",
-              ...adbTelemetryHeaders("aircraft", "NEG", NEG_TTL_S, nf),
+              ...adbTelemetryHeaders("flight", "NEG", NEG_TTL_S, payload),
             },
           });
           ctx.waitUntil(cache.put(ck, out.clone()));
@@ -969,7 +969,7 @@ export default {
               "Content-Type": "application/json; charset=utf-8",
               "Cache-Control": `public, max-age=${NEG_TTL_S}, s-maxage=${NEG_TTL_S}`,
               "X-Cache": "NEG",
-              ...adbTelemetryHeaders("aircraft", "NEG", NEG_TTL_S, nf),
+              ...adbTelemetryHeaders("flight", "NEG", NEG_TTL_S, payload),
             },
           });
           ctx.waitUntil(cache.put(ck, out.clone()));
