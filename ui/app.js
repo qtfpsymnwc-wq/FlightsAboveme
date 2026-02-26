@@ -1,11 +1,11 @@
 // FlightsAboveMe UI
 const API_BASE = window.location.origin;
 // Cache-buster for static assets (CSS/JS/logos)
-const UI_VERSION = "v241";
+const UI_VERSION = "v242";
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;
-const POLL_KIOSK_MS = 12000;
+const POLL_KIOSK_MS = 8000; // faster kiosk refresh (still budget-gated)
 const BACKOFF_429_MS = 60000;
 
 // Enrichment timeouts (keep short so UI never “hangs” waiting on metadata)
@@ -817,7 +817,8 @@ async function enrichRoute(f){
   // 2) Don't hammer the route endpoint if we tried very recently.
   const lastTry = routeAttempt.get(cs) || 0;
   const nowMs = Date.now();
-  if (nowMs - lastTry < ROUTE_RETRY_MIN_MS) return;
+  const retryMin = (isKiosk() ? 8000 : ROUTE_RETRY_MIN_MS);
+  if (nowMs - lastTry < retryMin) return;
   routeAttempt.set(cs, nowMs);
 
   try {
