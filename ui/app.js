@@ -1,7 +1,7 @@
 // FlightsAboveMe UI
 const API_BASE = window.location.origin;
 // Cache-buster for static assets (CSS/JS/logos)
-const UI_VERSION = "v250";
+const UI_VERSION = "v251";
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;
@@ -24,7 +24,8 @@ const KIOSK_FOCUS_LOCK_MS = 40000;
 let kioskFocusIcao24 = null;
 let kioskFocusUntilMs = 0;
 // Performance tuning (v1.3.1): allow slower cellular fetches for states
-const STATES_TIMEOUT_MS = 16000;
+const STATES_TIMEOUT_MS_MAIN = 16000;
+const STATES_TIMEOUT_MS_KIOSK = 8000; // keep kiosk snappy; prevents long "wedges" on flaky networks
 const GEO_TIMEOUT_MS = 12000;
 const LAST_LOC_KEY = "fam_last_loc_v1";
 const MANUAL_LOC_KEY = "fam_manual_loc_v1";
@@ -494,6 +495,8 @@ function manualGate(){
         setMsg("");
         done(p);
       } catch(e){
+      consecutiveStateErrors++;
+
         setMsg("Location failed. Enter coordinates or use demo.");
       }
     };
@@ -1045,6 +1048,9 @@ const bb = bboxAround(lat, lon);
 
   let nextAllowedAt = 0;
   let inFlight = false;
+  let inFlightStartedAt = 0;
+  let lastStatesOkAt = 0;
+  let consecutiveStateErrors = 0;
 
   // state for rendering
   let lastTop = [];
@@ -1091,7 +1097,15 @@ const bb = bboxAround(lat, lon);
 
   async function tick(){
     try { if (document.hidden) return; } catch {}
-    if (inFlight) return;
+    if (inFlight) {
+      // If a prior cycle got wedged (slow network / hung fetch), don't let kiosk freeze indefinitely.
+      // We allow the kiosk loop to recover by dropping the inFlight guard after a grace period.
+      if (isKiosk() && (Date.now() - inFlightStartedAt) > (STATES_TIMEOUT_MS_KIOSK + 4000)) {
+        inFlight = false;
+      } else {
+        return;
+      }
+    }
 
     const now = Date.now();
     if (now < nextAllowedAt) {
@@ -1100,6 +1114,7 @@ const bb = bboxAround(lat, lon);
     }
 
     inFlight = true;
+    inFlightStartedAt = Date.now();
 
     try{
       const url = new URL(`${API_BASE}/api/opensky/states`);
@@ -1109,8 +1124,10 @@ const bb = bboxAround(lat, lon);
       // even with cache:"no-store". This keeps the kiosk from "sticking" on a flight that should be gone.
       if (isKiosk()) url.searchParams.set("_", String(Date.now()));
 
-      const data = await fetchJSON(url.toString(), STATES_TIMEOUT_MS);
+      const data = await fetchJSON(url.toString(), isKiosk() ? STATES_TIMEOUT_MS_KIOSK : STATES_TIMEOUT_MS_MAIN);
       const states = Array.isArray(data?.states) ? data.states : [];
+      lastStatesOkAt = Date.now();
+      consecutiveStateErrors = 0;
 
       lastRadarMeta = { count: states.length, showing: Math.min(states.length, 5) };
 
@@ -1228,7 +1245,10 @@ const bb = bboxAround(lat, lon);
       pumpEnrichment(renderAll);
 
     } catch(e){
+      consecutiveStateErrors++;
+
       const msg = String(e?.message || e);
+      if (isKiosk() && consecutiveStateErrors >= 3) { kioskFocusIcao24 = null; kioskFocusUntilMs = 0; }
 
       if (/^HTTP 429:/i.test(msg) || /Too many requests/i.test(msg)) {
         nextAllowedAt = Date.now() + BACKOFF_429_MS;
