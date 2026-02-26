@@ -471,6 +471,10 @@ body{
 .tinyLabel{ color: rgba(255,255,255,.52); text-transform: uppercase; }
 .tinyValue{ color: rgba(255,255,255,.78); }
 
+/* Kiosk: hide ICAO24 line to prevent overlap with large stats (per Chris preference) */
+body.kiosk .line.tiny{ display:none; }
+
+
 /* Bottom stats */
 .bottomPane{
   padding: clamp(12px, 2.0vmin, 18px);

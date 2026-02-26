@@ -1,7 +1,7 @@
 // FlightsAboveMe UI
 const API_BASE = window.location.origin;
 // Cache-buster for static assets (CSS/JS/logos)
-const UI_VERSION = "v245";
+const UI_VERSION = "v246";
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;
