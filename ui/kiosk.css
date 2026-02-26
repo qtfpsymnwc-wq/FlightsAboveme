@@ -472,7 +472,7 @@ body{
 .tinyValue{ color: rgba(255,255,255,.78); }
 
 /* Kiosk: hide ICAO24 line to prevent overlap with large stats (per Chris preference) */
-body.kiosk .line.tiny{ display:none; }
+body.kiosk .line.tiny, #app.kioskApp .line.tiny{ display:none; }
 
 
 /* Bottom stats */
