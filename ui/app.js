@@ -1,7 +1,7 @@
 // FlightsAboveMe UI
 const API_BASE = window.location.origin;
 // Cache-buster for static assets (CSS/JS/logos)
-const UI_VERSION = "v247";
+const UI_VERSION = "v250";
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;
@@ -1105,6 +1105,10 @@ const bb = bboxAround(lat, lon);
       const url = new URL(`${API_BASE}/api/opensky/states`);
       Object.entries(bb).forEach(([k,v])=>url.searchParams.set(k,v));
 
+      // Extra cache busting for kiosk displays: some browsers / intermediaries can serve stale fetches
+      // even with cache:"no-store". This keeps the kiosk from "sticking" on a flight that should be gone.
+      if (isKiosk()) url.searchParams.set("_", String(Date.now()));
+
       const data = await fetchJSON(url.toString(), STATES_TIMEOUT_MS);
       const states = Array.isArray(data?.states) ? data.states : [];
 
@@ -1238,9 +1242,24 @@ const bb = bboxAround(lat, lon);
     }
   }
 
-  await tick();
+  // Poll loop: use setTimeout recursion instead of setInterval so a slow/hung cycle
+  // doesn't permanently block refresh (some kiosk browsers are sensitive here).
   const pollMs = isKiosk() ? POLL_KIOSK_MS : POLL_MAIN_MS;
-  setInterval(tick, pollMs);
+
+  async function pollLoop(){
+    try { await tick(); }
+    finally { setTimeout(pollLoop, pollMs); }
+  }
+
+  // Kick immediately, then keep looping.
+  await tick();
+  setTimeout(pollLoop, pollMs);
+
+  // If the browser pauses timers (screen wake / tab visibility), force a refresh on resume.
+  document.addEventListener("visibilitychange", () => {
+    try { if (!document.hidden) tick(); } catch {}
+  });
+  window.addEventListener("online", () => tick());
 }
 
 // Run after DOM is ready (prevents "Booting..." stuck if script loads before elements exist)
