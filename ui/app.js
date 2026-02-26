@@ -1,7 +1,7 @@
 // FlightsAboveMe UI
 const API_BASE = window.location.origin;
 // Cache-buster for static assets (CSS/JS/logos)
-const UI_VERSION = "v242";
+const UI_VERSION = "v243";
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;
@@ -19,6 +19,10 @@ let primaryStableCs = null;
 let primaryStableCount = 0;
 let lastEnrichQueuedKey = null;
 let lastEnrichQueuedAt = 0;
+// Kiosk focus lock: keep tracking the same closest aircraft briefly so route enrichment can complete.
+const KIOSK_FOCUS_LOCK_MS = 40000;
+let kioskFocusIcao24 = null;
+let kioskFocusUntilMs = 0;
 // Performance tuning (v1.3.1): allow slower cellular fetches for states
 const STATES_TIMEOUT_MS = 16000;
 const GEO_TIMEOUT_MS = 12000;
@@ -1141,8 +1145,37 @@ const bb = bboxAround(lat, lon);
       const shown = flights.filter(f => groupForFlight(f.callsign) === tier);
       lastTop = shown.slice(0,5);
 
-      lastPrimary = lastTop[0] || flights[0];
-      lastSecondary = lastTop[1] || null;
+      // Kiosk focus lock: keep the same aircraft selected briefly so AeroData enrichment has time to land.
+      if (isKiosk()) {
+        const nowMs = Date.now();
+        const top = lastTop[0] || flights[0];
+
+        // If we have an active lock, try to keep that same aircraft as primary (unless it left the enrichment window).
+        if (kioskFocusIcao24 && nowMs < kioskFocusUntilMs) {
+          const locked = flights.find(f => f.icao24 === kioskFocusIcao24);
+          if (locked && Number.isFinite(locked.distanceMi) && locked.distanceMi <= ENRICH_MAX_MI) {
+            lastPrimary = locked;
+          } else {
+            kioskFocusIcao24 = null;
+            kioskFocusUntilMs = 0;
+          }
+        }
+
+        // If no active lock, lock onto the current closest aircraft (only if within enrichment range).
+        if (!kioskFocusIcao24) {
+          lastPrimary = top;
+          if (lastPrimary && Number.isFinite(lastPrimary.distanceMi) && lastPrimary.distanceMi <= ENRICH_MAX_MI) {
+            kioskFocusIcao24 = lastPrimary.icao24;
+            kioskFocusUntilMs = nowMs + KIOSK_FOCUS_LOCK_MS;
+          }
+        }
+
+        // Secondary = next closest not equal to primary (optional).
+        lastSecondary = lastTop.find(f => f.icao24 !== (lastPrimary?.icao24 || "")) || null;
+      } else {
+        lastPrimary = lastTop[0] || flights[0];
+        lastSecondary = lastTop[1] || null;
+      }
 
       for (const f of lastTop) applyCachedEnrichment(f);
       applyCachedEnrichment(lastPrimary);
