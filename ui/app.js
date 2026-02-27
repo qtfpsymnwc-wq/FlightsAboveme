@@ -1,7 +1,7 @@
 // FlightsAboveMe UI
 const API_BASE = window.location.origin;
 // Cache-buster for static assets (CSS/JS/logos)
-const UI_VERSION = "v252";
+const UI_VERSION = "v253";
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;
@@ -340,6 +340,59 @@ function airlineKeyFromCallsign(callsign){
   return m ? m[1] : null;
 }
 
+// Prefer parent/marketed carrier logos for regional operators.
+// Assets are keyed by ICAO airline code (e.g., AAL, DAL, UAL) in /ui/assets/logos.
+const REGIONAL_PARENT_BY_OPERATOR = {
+  // American
+  ENY: "AAL", // Envoy
+  JIA: "AAL", // PSA
+  PDT: "AAL", // Piedmont
+  ASH: "AAL", // Mesa (often AA/UA; only used as a fallback)
+
+  // Delta
+  EDV: "DAL", // Endeavor
+
+  // United (best-effort fallbacks)
+  UCA: "UAL", // CommutAir
+  GJS: "UAL", // GoJet
+};
+
+function parentIcaoFromAirlineName(name){
+  const n = (name || "").toString().toLowerCase();
+  if (!n) return null;
+  if (n.includes("american")) return "AAL";
+  if (n.includes("delta")) return "DAL";
+  if (n.includes("united")) return "UAL";
+  if (n.includes("alaska")) return "ASA";
+  if (n.includes("southwest")) return "SWA";
+  if (n.includes("jetblue")) return "JBU";
+  if (n.includes("frontier")) return "FFT";
+  if (n.includes("spirit")) return "NKS";
+  if (n.includes("allegiant")) return "AAY";
+  return null;
+}
+
+function displayLogoKeyForFlight(f){
+  const airlineIcao = (f?.airlineIcao || "").toString().trim().toUpperCase();
+  const operatorIcao = (f?.operatorIcao || "").toString().trim().toUpperCase();
+  const csKey = airlineKeyFromCallsign(f?.callsign || "");
+
+  // 1) If AeroData gives us a marketed carrier name, prefer that.
+  const parentFromName = parentIcaoFromAirlineName(f?.airlineName || "");
+  if (parentFromName) return parentFromName;
+
+  // 2) If airlineIcao is set and not an obvious regional, use it.
+  if (airlineIcao && !REGIONAL_PARENT_BY_OPERATOR[airlineIcao]) return airlineIcao;
+
+  // 3) Map known regional operators to parent brands.
+  if (airlineIcao && REGIONAL_PARENT_BY_OPERATOR[airlineIcao]) return REGIONAL_PARENT_BY_OPERATOR[airlineIcao];
+  if (operatorIcao && REGIONAL_PARENT_BY_OPERATOR[operatorIcao]) return REGIONAL_PARENT_BY_OPERATOR[operatorIcao];
+  if (csKey && REGIONAL_PARENT_BY_OPERATOR[csKey]) return REGIONAL_PARENT_BY_OPERATOR[csKey];
+
+  // 4) Fall back to whatever we have.
+  return airlineIcao || operatorIcao || csKey || "";
+}
+
 // PNG-first → SVG fallback → generic SVG
 function logoUrlForKey(key, ext){
   const k = (key || "").toString().trim().toUpperCase();
@@ -354,9 +407,7 @@ function logoCandidatesForKey(key){
   ];
 }
 function logoCandidatesForFlight(f){
-  const key =
-    (f?.airlineIcao || f?.operatorIcao || airlineKeyFromCallsign(f?.callsign || ""))?.toUpperCase?.() ||
-    airlineKeyFromCallsign(f?.callsign || "");
+  const key = displayLogoKeyForFlight(f);
   return logoCandidatesForKey(key);
 }
 
