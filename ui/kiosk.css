@@ -126,6 +126,42 @@
     --topBar:  clamp(12px, 1.7vmin, 16px);
     --exitH:   clamp(34px, 4.6vmin, 44px);
   }
+
+
+/* ✅ Short-landscape safety (TV browsers / small landscape viewports)
+   Some TV/embedded browsers report a shorter usable height (UI chrome / overscan),
+   causing the callsign/model line to visually collide with the first stat row.
+   Fix: scale typography + stats down and tighten padding when height is constrained.
+*/
+@media (orientation: landscape) and (max-height: 720px){
+  :root{
+    --pad:    clamp(6px, 0.9vmin, 12px);
+
+    --airline: clamp(40px, 6.8vmin, 96px);
+    --route:   clamp(32px, 5.4vmin, 78px);
+    --sub:     clamp(28px, 4.6vmin, 66px);
+    --tiny:    clamp(12px, 1.8vmin, 18px);
+
+    --statV:   clamp(40px, 7.6vmin, 104px);
+
+    --topBar:  clamp(12px, 1.6vmin, 16px);
+    --exitH:   clamp(34px, 4.4vmin, 46px);
+  }
+
+  .topPane{
+    padding: clamp(10px, 1.6vmin, 14px);
+    gap: clamp(8px, 1.2vmin, 12px);
+  }
+
+  .bottomPane{
+    padding: clamp(10px, 1.6vmin, 14px);
+    gap: clamp(8px, 1.2vmin, 10px);
+  }
+
+  .mainText{ gap: clamp(6px, 0.9vmin, 10px); }
+  .routeBlock{ gap: clamp(4px, 0.8vmin, 8px); }
+  .stat{ padding: clamp(4px, 0.8vmin, 8px) 0; }
+}
 }
 
 *{ box-sizing:border-box; }
