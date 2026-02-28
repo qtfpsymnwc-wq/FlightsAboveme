@@ -1,5 +1,9 @@
 /**
- * FlightsAboveMe API Worker (v174)
+ * FlightsAboveMe API Worker (v175)
+ *
+ * CHANGE (v175):
+ *  - Fix kiosk "stuck" behavior: if cached OpenSky states are older than a threshold, do a synchronous refresh
+ *    (instead of relying only on background refresh) so a single kiosk device can keep the cache moving.
  *
  * CHANGE (v174):
  *  - Disable warm enrichment entirely (no AeroDataBox calls triggered by /opensky/states)
@@ -32,7 +36,7 @@
  *  - Fallback is only used when OpenSky fails (network/timeout/5xx) or returns 429.
  */
 
-const WORKER_VERSION = "v174";
+const WORKER_VERSION = "v175";
 
 const OPENSKY_STATES_URL = "https://opensky-network.org/api/states/all";
 const OPENSKY_TOKEN_URL =
@@ -41,6 +45,10 @@ const OPENSKY_TOKEN_URL =
 // Timeouts: token fast, states longer (cellular/routing can be slower)
 const OPENSKY_TOKEN_TIMEOUT_MS = 9000;
 const OPENSKY_STATES_TIMEOUT_MS = 18000;
+
+// If cached OpenSky states are older than this, attempt a synchronous refresh before responding.
+// This prevents "stuck" kiosk displays when only a single device is polling.
+const OPENSKY_STATES_SYNC_REFRESH_AFTER_MS = 20000;
 
 // ADSB.lol fallback
 const ADSBLOL_DEFAULT_BASE = "https://api.adsb.lol";
@@ -658,6 +666,81 @@ export default {
 
       const cached = await cache.match(cacheKey);
       if (cached) {
+        // v175 reliability patch:
+        // If the cached payload is getting old, attempt a synchronous refresh before responding.
+        // This avoids a "stuck" kiosk when only one device is polling and background refresh fails.
+        try {
+          const fetchedAt = Number(cached.headers.get("X-Fetched-At") || "0");
+          const ageMs = fetchedAt ? Date.now() - fetchedAt : Number.POSITIVE_INFINITY;
+
+          if (ageMs > OPENSKY_STATES_SYNC_REFRESH_AFTER_MS) {
+            const lockHit = await cache.match(refreshLock);
+            if (!lockHit) {
+              await cacheJson(cache, refreshLock, { ok: true, ts: Date.now() }, 6);
+
+              const buildResponse = (text, provider) =>
+                new Response(text, {
+                  status: 200,
+                  headers: {
+                    ...cors,
+                    "Content-Type": "application/json; charset=utf-8",
+                    "Cache-Control": "public, max-age=8, s-maxage=15, stale-while-revalidate=45",
+                    "X-Provider": provider || "opensky",
+                    "X-Fetched-At": String(Date.now()),
+                  },
+                });
+
+              // Try OpenSky first
+              try {
+                const headers = await buildOpenSkyHeaders(env);
+
+                let res = await fetchWithTimeout(
+                  upstream.toString(),
+                  { method: "GET", headers },
+                  OPENSKY_STATES_TIMEOUT_MS
+                );
+                let text = await res.text();
+
+                if (!res.ok && res.status === 401 && _tokenCache.mode === "oauth") {
+                  clearTokenCache();
+                  const headers2 = await buildOpenSkyHeaders(env);
+                  res = await fetchWithTimeout(
+                    upstream.toString(),
+                    { method: "GET", headers: headers2 },
+                    OPENSKY_STATES_TIMEOUT_MS
+                  );
+                  text = await res.text();
+                }
+
+                if (res.ok) {
+                  const resp = buildResponse(text, "opensky");
+                  await cache.put(cacheKey, resp.clone());
+                  return withCors(resp, cors, "MISS");
+                }
+
+                const shouldFallback =
+                  res.status === 429 || res.status === 502 || res.status === 503 || res.status === 504;
+
+                if (shouldFallback) {
+                  const adapted = await fetchADSBLOLAsOpenSky(env, { lamin, lomin, lamax, lomax });
+                  if (adapted) {
+                    const resp = buildResponse(JSON.stringify(adapted), "adsb.lol");
+                    await cache.put(cacheKey, resp.clone());
+                    return withCors(resp, cors, "MISS");
+                  }
+                }
+              } catch (e) {
+                const adapted = await fetchADSBLOLAsOpenSky(env, { lamin, lomin, lamax, lomax });
+                if (adapted) {
+                  const resp = buildResponse(JSON.stringify(adapted), "adsb.lol");
+                  await cache.put(cacheKey, resp.clone());
+                  return withCors(resp, cors, "MISS");
+                }
+              }
+            }
+          }
+        } catch {}
+
         ctx.waitUntil(
           (async () => {
             try {
@@ -675,6 +758,7 @@ export default {
                       "Content-Type": "application/json; charset=utf-8",
                       "Cache-Control": "public, max-age=8, s-maxage=15, stale-while-revalidate=45",
                       "X-Provider": provider || "opensky",
+                      "X-Fetched-At": String(Date.now()),
                     },
                   })
                 );
@@ -733,6 +817,7 @@ export default {
                           "Content-Type": "application/json; charset=utf-8",
                           "Cache-Control": "public, max-age=8, s-maxage=15, stale-while-revalidate=45",
                           "X-Provider": "adsb.lol",
+                          "X-Fetched-At": String(Date.now()),
                         },
                       })
                     );
@@ -753,6 +838,7 @@ export default {
             ...cors,
             "Content-Type": "application/json; charset=utf-8",
             "Cache-Control": "public, max-age=8, s-maxage=15, stale-while-revalidate=45",
+            "X-Fetched-At": String(Date.now()),
             ...headersExtra,
           },
         });
