@@ -1,7 +1,7 @@
 // FlightsAboveMe UI
 const API_BASE = window.location.origin;
 // Cache-buster for static assets (CSS/JS/logos)
-const UI_VERSION = "v253";
+const UI_VERSION = "v254";
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;
@@ -1172,6 +1172,10 @@ const bb = bboxAround(lat, lon);
       const url = new URL(`${API_BASE}/api/opensky/states`);
       Object.entries(bb).forEach(([k,v])=>url.searchParams.set(k,v));
 
+      // Ask the Worker for a slimmed OpenSky payload to keep Android/WebView fast.
+      url.searchParams.set("fmt","slim");
+      url.searchParams.set("limit", isKiosk() ? "140" : "220");
+
       // Extra cache busting for kiosk displays: some browsers / intermediaries can serve stale fetches
       // even with cache:"no-store". This keeps the kiosk from "sticking" on a flight that should be gone.
       if (isKiosk()) url.searchParams.set("_", String(Date.now()));
@@ -1181,7 +1185,8 @@ const bb = bboxAround(lat, lon);
       lastStatesOkAt = Date.now();
       consecutiveStateErrors = 0;
 
-      lastRadarMeta = { count: states.length, showing: Math.min(states.length, 5) };
+      const totalCount = (typeof data?.count_total === "number") ? data.count_total : states.length;
+      lastRadarMeta = { count: totalCount, showing: Math.min(states.length, 5) };
 
       if (!states.length){
         if (statusEl) statusEl.textContent = "No flights";
@@ -1193,16 +1198,22 @@ const bb = bboxAround(lat, lon);
       }
 
       const flights = states.map((s)=>{
+        // Worker may return a slimmed OpenSky row for performance:
+        // Slim row indexes: [0 icao24,1 callsign,2 lon,3 lat,4 baroAlt,5 geoAlt,6 onGround,7 velocity,8 trueTrack,9 verticalRate,10 squawk]
+        const isSlim = Array.isArray(s) && typeof s[2] === "number" && typeof s[3] === "number" && (s.length <= 12);
+
         const icao24 = nm(s[0]).toLowerCase();
         const callsign = nm(s[1]);
-        const country = nm(s[2]);
-        const lon2 = (typeof s[5] === "number") ? s[5] : NaN;
-        const lat2 = (typeof s[6] === "number") ? s[6] : NaN;
-        const baroAlt = (typeof s[7] === "number") ? s[7] : NaN;
-        const velocity = (typeof s[9] === "number") ? s[9] : NaN;
-        const trueTrack = (typeof s[10] === "number") ? s[10] : NaN;
-        const verticalRate = (typeof s[11] === "number") ? s[11] : NaN;
-        const squawk = (s[14] != null) ? String(s[14]).trim() : "";
+        const country = isSlim ? "" : nm(s[2]);
+
+        const lon2 = isSlim ? ((typeof s[2] === "number") ? s[2] : NaN) : ((typeof s[5] === "number") ? s[5] : NaN);
+        const lat2 = isSlim ? ((typeof s[3] === "number") ? s[3] : NaN) : ((typeof s[6] === "number") ? s[6] : NaN);
+
+        const baroAlt = isSlim ? ((typeof s[4] === "number") ? s[4] : NaN) : ((typeof s[7] === "number") ? s[7] : NaN);
+        const velocity = isSlim ? ((typeof s[7] === "number") ? s[7] : NaN) : ((typeof s[9] === "number") ? s[9] : NaN);
+        const trueTrack = isSlim ? ((typeof s[8] === "number") ? s[8] : NaN) : ((typeof s[10] === "number") ? s[10] : NaN);
+        const verticalRate = isSlim ? ((typeof s[9] === "number") ? s[9] : NaN) : ((typeof s[11] === "number") ? s[11] : NaN);
+        const squawk = isSlim ? ((s[10] != null) ? String(s[10]).trim() : "") : ((s[14] != null) ? String(s[14]).trim() : "");
         const distanceMi = (Number.isFinite(lat2) && Number.isFinite(lon2)) ? haversineMi(lat, lon, lat2, lon2) : Infinity;
 
         return {
