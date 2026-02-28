@@ -36,7 +36,7 @@
  *  - Fallback is only used when OpenSky fails (network/timeout/5xx) or returns 429.
  */
 
-const WORKER_VERSION = "v176";
+const WORKER_VERSION = "v177";
 
 const OPENSKY_STATES_URL = "https://opensky-network.org/api/states/all";
 const OPENSKY_TOKEN_URL =
@@ -385,6 +385,42 @@ function adbTelemetryHeaders(kind, source, ttlS, record) {
 }
 
 
+
+// ---- OpenSky payload slimming (client performance) ----
+// OpenSky "states" rows are long arrays (~17 fields). Some Android WebViews struggle parsing large payloads.
+// We return a smaller array per state, and include count_total so UI can still display radar counts.
+//
+// Slim row format (indexes):
+// 0 icao24, 1 callsign, 2 lon, 3 lat, 4 baroAlt, 5 geoAlt, 6 onGround, 7 velocity, 8 trueTrack, 9 verticalRate, 10 squawk
+function slimOpenSkyStates(rawText, limit = 0) {
+  const j = JSON.parse(rawText);
+  const states = Array.isArray(j?.states) ? j.states : [];
+  const outStates = [];
+  const n = states.length;
+
+  // Optional cap: keep the first N rows (we do NOT sort here to avoid CPU; UI sorts by distance anyway).
+  const cap = (typeof limit === "number" && limit > 0) ? Math.min(limit, n) : n;
+
+  for (let i = 0; i < cap; i++) {
+    const s = states[i];
+    if (!Array.isArray(s)) continue;
+    outStates.push([
+      s[0] ?? "",                 // icao24
+      s[1] ?? "",                 // callsign
+      (typeof s[5] === "number") ? s[5] : null,  // lon
+      (typeof s[6] === "number") ? s[6] : null,  // lat
+      (typeof s[7] === "number") ? s[7] : null,  // baroAlt
+      (typeof s[13] === "number") ? s[13] : null,// geoAlt
+      !!s[8],                     // onGround
+      (typeof s[9] === "number") ? s[9] : null,  // velocity
+      (typeof s[10] === "number") ? s[10] : null,// trueTrack
+      (typeof s[11] === "number") ? s[11] : null,// verticalRate
+      (s[14] != null) ? String(s[14]).trim() : ""// squawk
+    ]);
+  }
+
+  return JSON.stringify({ time: j?.time ?? 0, count_total: n, states: outStates });
+}
 function envInt(env, key, defVal) {
   const v = env?.[key];
   const n = parseInt(String(v ?? ""), 10);
@@ -630,6 +666,11 @@ export default {
       const lamax = url.searchParams.get("lamax");
       const lomax = url.searchParams.get("lomax");
 
+      // Client payload format: default to slim for performance (especially Android WebView).
+      // fmt=raw returns the upstream OpenSky payload unchanged.
+      const fmt = (url.searchParams.get("fmt") || "slim").toLowerCase();
+      const limit = Math.max(0, Math.min(500, parseInt(url.searchParams.get("limit") || "0", 10) || 0));
+
       if (!lamin || !lomin || !lamax || !lomax) {
         return json(
           { ok: false, error: "missing bbox params", hint: "lamin,lomin,lamax,lomax required" },
@@ -643,7 +684,7 @@ export default {
       const cacheKey = new Request(
         `${url.origin}/__cache/opensky/states?lamin=${encodeURIComponent(lamin)}&lomin=${encodeURIComponent(
           lomin
-        )}&lamax=${encodeURIComponent(lamax)}&lomax=${encodeURIComponent(lomax)}&mode=${encodeURIComponent(mode)}`,
+        )}&lamax=${encodeURIComponent(lamax)}&lomax=${encodeURIComponent(lomax)}&mode=${encodeURIComponent(mode)}&fmt=${encodeURIComponent(fmt)}&limit=${encodeURIComponent(String(limit))}`,
         { method: "GET" }
       );
 
@@ -660,7 +701,7 @@ export default {
       const refreshLock = new Request(
         `${url.origin}/__cache/opensky/states_refresh_lock?lamin=${encodeURIComponent(lamin)}&lomin=${encodeURIComponent(
           lomin
-        )}&lamax=${encodeURIComponent(lamax)}&lomax=${encodeURIComponent(lomax)}&mode=${encodeURIComponent(mode)}`,
+        )}&lamax=${encodeURIComponent(lamax)}&lomax=${encodeURIComponent(lomax)}&mode=${encodeURIComponent(mode)}&fmt=${encodeURIComponent(fmt)}&limit=${encodeURIComponent(String(limit))}`,
         { method: "GET" }
       );
 
@@ -678,8 +719,12 @@ export default {
             if (!lockHit) {
               await cacheJson(cache, refreshLock, { ok: true, ts: Date.now() }, 6);
 
-              const buildResponse = (text, provider) =>
-                new Response(text, {
+              const buildResponse = (rawText, provider) => {
+                let bodyText = rawText;
+                try {
+                  if (fmt !== "raw") bodyText = slimOpenSkyStates(rawText, limit);
+                } catch {}
+                return new Response(bodyText, {
                   status: 200,
                   headers: {
                     ...cors,
@@ -831,8 +876,12 @@ export default {
         return withCors(cached, cors, "HIT");
       }
 
-      const respondAndCache = (text, headersExtra = {}) => {
-        const out = new Response(text, {
+      const respondAndCache = (rawText, headersExtra = {}) => {
+        let bodyText = rawText;
+        try {
+          if (fmt !== "raw") bodyText = slimOpenSkyStates(rawText, limit);
+        } catch {}
+        const out = new Response(bodyText, {
           status: 200,
           headers: {
             ...cors,
@@ -862,7 +911,7 @@ export default {
 
                 await cacheJson(cache, lockReq, { ok: true, ts: Date.now() }, WARM_ENRICH_MIN_INTERVAL_S);
 
-                const j = JSON.parse(text);
+                const j = JSON.parse(rawText);
                 const states = Array.isArray(j?.states) ? j.states : [];
                 if (states.length) {
                   await warmEnrichFromStates({ origin: url.origin, env, cache, states, bboxCenter });
