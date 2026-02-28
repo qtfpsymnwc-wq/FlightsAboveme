@@ -36,7 +36,7 @@
  *  - Fallback is only used when OpenSky fails (network/timeout/5xx) or returns 429.
  */
 
-const WORKER_VERSION = "v175";
+const WORKER_VERSION = "v176";
 
 const OPENSKY_STATES_URL = "https://opensky-network.org/api/states/all";
 const OPENSKY_TOKEN_URL =
@@ -684,7 +684,7 @@ export default {
                   headers: {
                     ...cors,
                     "Content-Type": "application/json; charset=utf-8",
-                    "Cache-Control": "public, max-age=8, s-maxage=15, stale-while-revalidate=45",
+                    "Cache-Control": "no-store",
                     "X-Provider": provider || "opensky",
                     "X-Fetched-At": String(Date.now()),
                   },
@@ -756,7 +756,7 @@ export default {
                     headers: {
                       ...cors,
                       "Content-Type": "application/json; charset=utf-8",
-                      "Cache-Control": "public, max-age=8, s-maxage=15, stale-while-revalidate=45",
+                      "Cache-Control": "no-store",
                       "X-Provider": provider || "opensky",
                       "X-Fetched-At": String(Date.now()),
                     },
@@ -815,7 +815,7 @@ export default {
                         headers: {
                           ...cors,
                           "Content-Type": "application/json; charset=utf-8",
-                          "Cache-Control": "public, max-age=8, s-maxage=15, stale-while-revalidate=45",
+                          "Cache-Control": "no-store",
                           "X-Provider": "adsb.lol",
                           "X-Fetched-At": String(Date.now()),
                         },
@@ -837,7 +837,7 @@ export default {
           headers: {
             ...cors,
             "Content-Type": "application/json; charset=utf-8",
-            "Cache-Control": "public, max-age=8, s-maxage=15, stale-while-revalidate=45",
+            "Cache-Control": "no-store",
             "X-Fetched-At": String(Date.now()),
             ...headersExtra,
           },
@@ -1316,7 +1316,7 @@ async function handleOpenSkyFailure({ env, cors, cache, cacheKey, ctx, status, d
           headers: {
             ...cors,
             "Content-Type": "application/json; charset=utf-8",
-            "Cache-Control": "public, max-age=8, s-maxage=15, stale-while-revalidate=45",
+            "Cache-Control": "no-store",
             "X-Provider": "adsb.lol",
           },
         });
