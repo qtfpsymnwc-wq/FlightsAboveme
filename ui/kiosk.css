@@ -408,6 +408,33 @@ body{
 }
 .route2{ color: rgba(255,255,255,.88); }
 
+/* Controlled route wrapping (keep origin + arrow together; destination can wrap) */
+.kiosk-route{
+  font-size: var(--route);
+  font-weight: 950;
+  color: rgba(255,255,255,.92);
+  line-height: 1.04;
+
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4ch;
+  max-width: 100%;
+}
+
+.kiosk-route .origin,
+.kiosk-route .arrow{
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.kiosk-route .dest{
+  flex: 1 1 auto;
+  min-width: 12ch;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 /* ✅ Kiosk portrait: keep airport codes on ONE line */
 @media (orientation: portrait){
   body.kiosk .route{

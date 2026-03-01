@@ -1,7 +1,7 @@
 // FlightsAboveMe UI
 const API_BASE = window.location.origin;
 // Cache-buster for static assets (CSS/JS/logos)
-const UI_VERSION = "v255";
+const UI_VERSION = "v256";
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;
@@ -718,6 +718,44 @@ function renderPrimary(f, radarMeta){
   if (routeEl) {
     routeEl.textContent = routeDisp;
     routeEl.style.display = routeDisp ? "" : "none";
+  }
+
+
+  // Kiosk: controlled route wrapping (keep origin + arrow together; destination wraps)
+  const kOrigin = $("k_origin");
+  const kDest = $("k_dest");
+  if (kOrigin && kDest) {
+    const kioskRoute = kOrigin.closest(".kiosk-route");
+    const arrowEl = kioskRoute ? kioskRoute.querySelector(".arrow") : null;
+
+    const raw = routeDisp || "";
+    let origin = "";
+    let dest = "";
+
+    if (raw.includes("→")) {
+      const parts = raw.split("→");
+      origin = (parts[0] || "").trim();
+      dest = parts.slice(1).join("→").trim();
+    } else if (raw.includes("->")) {
+      const parts = raw.split("->");
+      origin = (parts[0] || "").trim();
+      dest = parts.slice(1).join("->").trim();
+    }
+
+    const softWrapSlashes = (s) => (s || "").replaceAll("/", "/\u200b");
+
+    if (kioskRoute) kioskRoute.style.display = raw ? "" : "none";
+
+    // If we can't confidently split, show the raw route as the destination and hide the arrow.
+    if (!origin || !dest) {
+      kOrigin.textContent = "";
+      kDest.textContent = softWrapSlashes(raw);
+      if (arrowEl) arrowEl.style.display = "none";
+    } else {
+      kOrigin.textContent = origin;
+      kDest.textContent = softWrapSlashes(dest);
+      if (arrowEl) arrowEl.style.display = "";
+    }
   }
 
   // Aircraft type/model: show live hint until enriched; hide when unknown
