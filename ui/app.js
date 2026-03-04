@@ -1,7 +1,7 @@
 // FlightsAboveMe UI
 const API_BASE = window.location.origin;
 // Cache-buster for static assets (CSS/JS/logos)
-const UI_VERSION = "v248";
+const UI_VERSION = "v260";
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;
@@ -20,11 +20,13 @@ let primaryStableCount = 0;
 let lastEnrichQueuedKey = null;
 let lastEnrichQueuedAt = 0;
 // Kiosk focus lock: keep tracking the same closest aircraft briefly so route enrichment can complete.
-const KIOSK_FOCUS_LOCK_MS = 40000;
+const KIOSK_FOCUS_LOCK_MS = 0;// disabled: kiosk should never appear stuck on a flight
+
 let kioskFocusIcao24 = null;
 let kioskFocusUntilMs = 0;
 // Performance tuning (v1.3.1): allow slower cellular fetches for states
-const STATES_TIMEOUT_MS = 16000;
+const STATES_TIMEOUT_MS_MAIN = 16000;
+const STATES_TIMEOUT_MS_KIOSK = 8000; // keep kiosk snappy; prevents long "wedges" on flaky networks
 const GEO_TIMEOUT_MS = 12000;
 const LAST_LOC_KEY = "fam_last_loc_v1";
 const MANUAL_LOC_KEY = "fam_manual_loc_v1";
@@ -494,6 +496,8 @@ function manualGate(){
         setMsg("");
         done(p);
       } catch(e){
+      consecutiveStateErrors++;
+
         setMsg("Location failed. Enter coordinates or use demo.");
       }
     };
@@ -529,15 +533,48 @@ function setupChangeLocation(){
 
 
 async function fetchJSON(url, timeoutMs=9000){
-  const ctrl = new AbortController();
-  const t = setTimeout(()=>ctrl.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, { signal: ctrl.signal, cache:"no-store", credentials:"omit" });
-    const text = await res.text();
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0,220)}`);
+  // Chrome/WebView can sometimes hang on res.text() even after the fetch resolves.
+  // This wrapper times out the *entire* operation (fetch + body read + JSON parse)
+  // and guarantees the polling loop can recover.
+  let ctrl = null;
+  try { ctrl = new AbortController(); } catch {}
+
+  const timeoutErr = () => new Error(`Timeout after ${timeoutMs}ms`);
+  let timeoutHandle = null;
+
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutHandle = setTimeout(() => {
+      try { ctrl && ctrl.abort(); } catch {}
+      reject(timeoutErr());
+    }, timeoutMs);
+  });
+
+  const work = (async () => {
+    const res = await fetch(url, {
+      signal: ctrl ? ctrl.signal : undefined,
+      cache: "no-store",
+      credentials: "omit",
+      headers: {
+        // Extra anti-cache hints for quirky WebViews
+        "Cache-Control": "no-store",
+        "Pragma": "no-cache",
+      },
+    });
+
+    // Ensure body read can't hang forever.
+    const text = await Promise.race([
+      res.text(),
+      new Promise((_, reject) => setTimeout(() => reject(timeoutErr()), timeoutMs)),
+    ]);
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${String(text).slice(0,220)}`);
     return JSON.parse(text);
+  })();
+
+  try {
+    return await Promise.race([work, timeoutPromise]);
   } finally {
-    clearTimeout(t);
+    if (timeoutHandle) clearTimeout(timeoutHandle)
   }
 }
 
@@ -980,12 +1017,6 @@ async function main(){
       if (gate && typeof gate.prompt === "function") {
         if (statusEl) statusEl.textContent = "Set location";
         pos = await gate.prompt();
-        if (!pos) {
-          // If user dismissed the prompt, fall back to demo instead of crashing
-          if (statusEl) statusEl.textContent = "Demo";
-          showErr(`Showing ${DEMO_LOC.label} (${DEMO_LOC.zip}) as a demo location — enable location to see flights near you.`);
-          pos = { coords: { latitude: DEMO_LOC.lat, longitude: DEMO_LOC.lon, accuracy: 25000 }, __fromDemo: true };
-        }
       }
     }
   } catch {}
@@ -1015,20 +1046,12 @@ async function main(){
         if (statusEl) statusEl.textContent = "Location needed";
         const picked = await gate.prompt();
         if (picked) return picked;
-        // If the user dismissed the prompt, continue to demo fallback below (do not return undefined).
       }
 
       if (statusEl) statusEl.textContent = "Demo";
       showErr(`Showing ${DEMO_LOC.label} (${DEMO_LOC.zip}) as a demo location — enable location to see flights near you.`);
       return { coords: { latitude: DEMO_LOC.lat, longitude: DEMO_LOC.lon, accuracy: 25000 }, __fromDemo: true };
     });
-  }
-
-  // Safety: ensure we always have a usable position (avoid blank/stuck UI)
-  if (!pos || !pos.coords || !Number.isFinite(pos.coords.latitude) || !Number.isFinite(pos.coords.longitude)) {
-    if (statusEl) statusEl.textContent = "Demo";
-    showErr(`Showing ${DEMO_LOC.label} (${DEMO_LOC.zip}) as a demo location — enable location to see flights near you.`);
-    pos = { coords: { latitude: DEMO_LOC.lat, longitude: DEMO_LOC.lon, accuracy: 25000 }, __fromDemo: true };
   }
 
   const lat = pos.coords.latitude;
@@ -1059,6 +1082,9 @@ const bb = bboxAround(lat, lon);
 
   let nextAllowedAt = 0;
   let inFlight = false;
+  let inFlightStartedAt = 0;
+  let lastStatesOkAt = 0;
+  let consecutiveStateErrors = 0;
 
   // state for rendering
   let lastTop = [];
@@ -1105,7 +1131,15 @@ const bb = bboxAround(lat, lon);
 
   async function tick(){
     try { if (document.hidden) return; } catch {}
-    if (inFlight) return;
+    if (inFlight) {
+      // If a prior cycle got wedged (slow network / hung fetch), don't let kiosk freeze indefinitely.
+      // We allow the kiosk loop to recover by dropping the inFlight guard after a grace period.
+      if (isKiosk() && (Date.now() - inFlightStartedAt) > (STATES_TIMEOUT_MS_KIOSK + 4000)) {
+        inFlight = false;
+      } else {
+        return;
+      }
+    }
 
     const now = Date.now();
     if (now < nextAllowedAt) {
@@ -1114,13 +1148,20 @@ const bb = bboxAround(lat, lon);
     }
 
     inFlight = true;
+    inFlightStartedAt = Date.now();
 
     try{
       const url = new URL(`${API_BASE}/api/opensky/states`);
       Object.entries(bb).forEach(([k,v])=>url.searchParams.set(k,v));
 
-      const data = await fetchJSON(url.toString(), STATES_TIMEOUT_MS);
+      // Extra cache busting for kiosk displays: some browsers / intermediaries can serve stale fetches
+      // even with cache:"no-store". This keeps the kiosk from "sticking" on a flight that should be gone.
+      if (isKiosk()) url.searchParams.set("_", String(Date.now()));
+
+      const data = await fetchJSON(url.toString(), isKiosk() ? STATES_TIMEOUT_MS_KIOSK : STATES_TIMEOUT_MS_MAIN);
       const states = Array.isArray(data?.states) ? data.states : [];
+      lastStatesOkAt = Date.now();
+      consecutiveStateErrors = 0;
 
       lastRadarMeta = { count: states.length, showing: Math.min(states.length, 5) };
 
@@ -1159,38 +1200,18 @@ const bb = bboxAround(lat, lon);
       const shown = flights.filter(f => groupForFlight(f.callsign) === tier);
       lastTop = shown.slice(0,5);
 
-      // Kiosk focus lock: keep the same aircraft selected briefly so AeroData enrichment has time to land.
+
+      // Kiosk: always track the current closest flight (no focus lock).
       if (isKiosk()) {
-        const nowMs = Date.now();
         const top = lastTop[0] || flights[0];
-
-        // If we have an active lock, try to keep that same aircraft as primary (unless it left the enrichment window).
-        if (kioskFocusIcao24 && nowMs < kioskFocusUntilMs) {
-          const locked = flights.find(f => f.icao24 === kioskFocusIcao24);
-          if (locked && Number.isFinite(locked.distanceMi) && locked.distanceMi <= ENRICH_MAX_MI) {
-            lastPrimary = locked;
-          } else {
-            kioskFocusIcao24 = null;
-            kioskFocusUntilMs = 0;
-          }
-        }
-
-        // If no active lock, lock onto the current closest aircraft (only if within enrichment range).
-        if (!kioskFocusIcao24) {
-          lastPrimary = top;
-          if (lastPrimary && Number.isFinite(lastPrimary.distanceMi) && lastPrimary.distanceMi <= ENRICH_MAX_MI) {
-            kioskFocusIcao24 = lastPrimary.icao24;
-            kioskFocusUntilMs = nowMs + KIOSK_FOCUS_LOCK_MS;
-          }
-        }
-
-        // Secondary = next closest not equal to primary (optional).
+        lastPrimary = top;
         lastSecondary = lastTop.find(f => f.icao24 !== (lastPrimary?.icao24 || "")) || null;
+        kioskFocusIcao24 = null;
+        kioskFocusUntilMs = 0;
       } else {
         lastPrimary = lastTop[0] || flights[0];
         lastSecondary = lastTop[1] || null;
       }
-
       for (const f of lastTop) applyCachedEnrichment(f);
       applyCachedEnrichment(lastPrimary);
       if (lastSecondary) applyCachedEnrichment(lastSecondary);
@@ -1238,7 +1259,10 @@ const bb = bboxAround(lat, lon);
       pumpEnrichment(renderAll);
 
     } catch(e){
+      consecutiveStateErrors++;
+
       const msg = String(e?.message || e);
+      if (isKiosk() && consecutiveStateErrors >= 3) { kioskFocusIcao24 = null; kioskFocusUntilMs = 0; }
 
       if (/^HTTP 429:/i.test(msg) || /Too many requests/i.test(msg)) {
         nextAllowedAt = Date.now() + BACKOFF_429_MS;
@@ -1252,9 +1276,24 @@ const bb = bboxAround(lat, lon);
     }
   }
 
-  await tick();
+  // Poll loop: use setTimeout recursion instead of setInterval so a slow/hung cycle
+  // doesn't permanently block refresh (some kiosk browsers are sensitive here).
   const pollMs = isKiosk() ? POLL_KIOSK_MS : POLL_MAIN_MS;
-  setInterval(tick, pollMs);
+
+  async function pollLoop(){
+    try { await tick(); }
+    finally { setTimeout(pollLoop, pollMs); }
+  }
+
+  // Kick immediately, then keep looping.
+  await tick();
+  setTimeout(pollLoop, pollMs);
+
+  // If the browser pauses timers (screen wake / tab visibility), force a refresh on resume.
+  document.addEventListener("visibilitychange", () => {
+    try { if (!document.hidden) tick(); } catch {}
+  });
+  window.addEventListener("online", () => tick());
 }
 
 // Run after DOM is ready (prevents "Booting..." stuck if script loads before elements exist)
