@@ -2,8 +2,8 @@
  * FlightsAboveMe API Worker (v175)
  *
  * CHANGE (v175):
- *  - Fix kiosk "stuck" behavior: if cached OpenSky states are older than a threshold, do a synchronous refresh
- *    (instead of relying only on background refresh) so a single kiosk device can keep the cache moving.
+ *  - Fail-fast OpenSky states refresh: if OpenSky is slow, treat as failure and fall back to ADSB.lol
+ *    (prevents UI stalls when OpenSky responds slowly but eventually returns 200)
  *
  * CHANGE (v174):
  *  - Disable warm enrichment entirely (no AeroDataBox calls triggered by /opensky/states)
@@ -36,7 +36,7 @@
  *  - Fallback is only used when OpenSky fails (network/timeout/5xx) or returns 429.
  */
 
-const WORKER_VERSION = "v177";
+const WORKER_VERSION = "v175";
 
 const OPENSKY_STATES_URL = "https://opensky-network.org/api/states/all";
 const OPENSKY_TOKEN_URL =
@@ -46,9 +46,10 @@ const OPENSKY_TOKEN_URL =
 const OPENSKY_TOKEN_TIMEOUT_MS = 9000;
 const OPENSKY_STATES_TIMEOUT_MS = 18000;
 
-// If cached OpenSky states are older than this, attempt a synchronous refresh before responding.
-// This prevents "stuck" kiosk displays when only a single device is polling.
-const OPENSKY_STATES_SYNC_REFRESH_AFTER_MS = 20000;
+// v175: "fail-fast" threshold for states calls.
+// If OpenSky doesn't respond quickly, we prefer ADSB.lol rather than stalling the UI.
+// Keep this comfortably below the UI poll cadence so slow OpenSky doesn't wedge clients.
+const OPENSKY_STATES_FAILFAST_MS = 6500;
 
 // ADSB.lol fallback
 const ADSBLOL_DEFAULT_BASE = "https://api.adsb.lol";
@@ -385,42 +386,6 @@ function adbTelemetryHeaders(kind, source, ttlS, record) {
 }
 
 
-
-// ---- OpenSky payload slimming (client performance) ----
-// OpenSky "states" rows are long arrays (~17 fields). Some Android WebViews struggle parsing large payloads.
-// We return a smaller array per state, and include count_total so UI can still display radar counts.
-//
-// Slim row format (indexes):
-// 0 icao24, 1 callsign, 2 lon, 3 lat, 4 baroAlt, 5 geoAlt, 6 onGround, 7 velocity, 8 trueTrack, 9 verticalRate, 10 squawk
-function slimOpenSkyStates(rawText, limit = 0) {
-  const j = JSON.parse(rawText);
-  const states = Array.isArray(j?.states) ? j.states : [];
-  const outStates = [];
-  const n = states.length;
-
-  // Optional cap: keep the first N rows (we do NOT sort here to avoid CPU; UI sorts by distance anyway).
-  const cap = (typeof limit === "number" && limit > 0) ? Math.min(limit, n) : n;
-
-  for (let i = 0; i < cap; i++) {
-    const s = states[i];
-    if (!Array.isArray(s)) continue;
-    outStates.push([
-      s[0] ?? "",                 // icao24
-      s[1] ?? "",                 // callsign
-      (typeof s[5] === "number") ? s[5] : null,  // lon
-      (typeof s[6] === "number") ? s[6] : null,  // lat
-      (typeof s[7] === "number") ? s[7] : null,  // baroAlt
-      (typeof s[13] === "number") ? s[13] : null,// geoAlt
-      !!s[8],                     // onGround
-      (typeof s[9] === "number") ? s[9] : null,  // velocity
-      (typeof s[10] === "number") ? s[10] : null,// trueTrack
-      (typeof s[11] === "number") ? s[11] : null,// verticalRate
-      (s[14] != null) ? String(s[14]).trim() : ""// squawk
-    ]);
-  }
-
-  return JSON.stringify({ time: j?.time ?? 0, count_total: n, states: outStates });
-}
 function envInt(env, key, defVal) {
   const v = env?.[key];
   const n = parseInt(String(v ?? ""), 10);
@@ -666,11 +631,6 @@ export default {
       const lamax = url.searchParams.get("lamax");
       const lomax = url.searchParams.get("lomax");
 
-      // Client payload format: default to slim for performance (especially Android WebView).
-      // fmt=raw returns the upstream OpenSky payload unchanged.
-      const fmt = (url.searchParams.get("fmt") || "slim").toLowerCase();
-      const limit = Math.max(0, Math.min(500, parseInt(url.searchParams.get("limit") || "0", 10) || 0));
-
       if (!lamin || !lomin || !lamax || !lomax) {
         return json(
           { ok: false, error: "missing bbox params", hint: "lamin,lomin,lamax,lomax required" },
@@ -684,7 +644,7 @@ export default {
       const cacheKey = new Request(
         `${url.origin}/__cache/opensky/states?lamin=${encodeURIComponent(lamin)}&lomin=${encodeURIComponent(
           lomin
-        )}&lamax=${encodeURIComponent(lamax)}&lomax=${encodeURIComponent(lomax)}&mode=${encodeURIComponent(mode)}&fmt=${encodeURIComponent(fmt)}&limit=${encodeURIComponent(String(limit))}`,
+        )}&lamax=${encodeURIComponent(lamax)}&lomax=${encodeURIComponent(lomax)}&mode=${encodeURIComponent(mode)}`,
         { method: "GET" }
       );
 
@@ -701,91 +661,12 @@ export default {
       const refreshLock = new Request(
         `${url.origin}/__cache/opensky/states_refresh_lock?lamin=${encodeURIComponent(lamin)}&lomin=${encodeURIComponent(
           lomin
-        )}&lamax=${encodeURIComponent(lamax)}&lomax=${encodeURIComponent(lomax)}&mode=${encodeURIComponent(mode)}&fmt=${encodeURIComponent(fmt)}&limit=${encodeURIComponent(String(limit))}`,
+        )}&lamax=${encodeURIComponent(lamax)}&lomax=${encodeURIComponent(lomax)}&mode=${encodeURIComponent(mode)}`,
         { method: "GET" }
       );
 
       const cached = await cache.match(cacheKey);
       if (cached) {
-        // v175 reliability patch:
-        // If the cached payload is getting old, attempt a synchronous refresh before responding.
-        // This avoids a "stuck" kiosk when only one device is polling and background refresh fails.
-        try {
-          const fetchedAt = Number(cached.headers.get("X-Fetched-At") || "0");
-          const ageMs = fetchedAt ? Date.now() - fetchedAt : Number.POSITIVE_INFINITY;
-
-          if (ageMs > OPENSKY_STATES_SYNC_REFRESH_AFTER_MS) {
-            const lockHit = await cache.match(refreshLock);
-            if (!lockHit) {
-              await cacheJson(cache, refreshLock, { ok: true, ts: Date.now() }, 6);
-
-              const buildResponse = (rawText, provider) => {
-                let bodyText = rawText;
-                try {
-                  if (fmt !== "raw") bodyText = slimOpenSkyStates(rawText, limit);
-                } catch {}
-                return new Response(bodyText, {
-                  status: 200,
-                  headers: {
-                    ...cors,
-                    "Content-Type": "application/json; charset=utf-8",
-                    "Cache-Control": "no-store",
-                    "X-Provider": provider || "opensky",
-                    "X-Fetched-At": String(Date.now()),
-                  },
-                });
-
-              // Try OpenSky first
-              try {
-                const headers = await buildOpenSkyHeaders(env);
-
-                let res = await fetchWithTimeout(
-                  upstream.toString(),
-                  { method: "GET", headers },
-                  OPENSKY_STATES_TIMEOUT_MS
-                );
-                let text = await res.text();
-
-                if (!res.ok && res.status === 401 && _tokenCache.mode === "oauth") {
-                  clearTokenCache();
-                  const headers2 = await buildOpenSkyHeaders(env);
-                  res = await fetchWithTimeout(
-                    upstream.toString(),
-                    { method: "GET", headers: headers2 },
-                    OPENSKY_STATES_TIMEOUT_MS
-                  );
-                  text = await res.text();
-                }
-
-                if (res.ok) {
-                  const resp = buildResponse(text, "opensky");
-                  await cache.put(cacheKey, resp.clone());
-                  return withCors(resp, cors, "MISS");
-                }
-
-                const shouldFallback =
-                  res.status === 429 || res.status === 502 || res.status === 503 || res.status === 504;
-
-                if (shouldFallback) {
-                  const adapted = await fetchADSBLOLAsOpenSky(env, { lamin, lomin, lamax, lomax });
-                  if (adapted) {
-                    const resp = buildResponse(JSON.stringify(adapted), "adsb.lol");
-                    await cache.put(cacheKey, resp.clone());
-                    return withCors(resp, cors, "MISS");
-                  }
-                }
-              } catch (e) {
-                const adapted = await fetchADSBLOLAsOpenSky(env, { lamin, lomin, lamax, lomax });
-                if (adapted) {
-                  const resp = buildResponse(JSON.stringify(adapted), "adsb.lol");
-                  await cache.put(cacheKey, resp.clone());
-                  return withCors(resp, cors, "MISS");
-                }
-              }
-            }
-          }
-        } catch {}
-
         ctx.waitUntil(
           (async () => {
             try {
@@ -801,9 +682,8 @@ export default {
                     headers: {
                       ...cors,
                       "Content-Type": "application/json; charset=utf-8",
-                      "Cache-Control": "no-store",
+                      "Cache-Control": "public, max-age=8, s-maxage=15, stale-while-revalidate=45",
                       "X-Provider": provider || "opensky",
-                      "X-Fetched-At": String(Date.now()),
                     },
                   })
                 );
@@ -816,7 +696,7 @@ export default {
                 let res = await fetchWithTimeout(
                   upstream.toString(),
                   { method: "GET", headers },
-                  OPENSKY_STATES_TIMEOUT_MS
+                  OPENSKY_STATES_FAILFAST_MS
                 );
                 let text = await res.text();
 
@@ -826,7 +706,7 @@ export default {
                   res = await fetchWithTimeout(
                     upstream.toString(),
                     { method: "GET", headers: headers2 },
-                    OPENSKY_STATES_TIMEOUT_MS
+                    OPENSKY_STATES_FAILFAST_MS
                   );
                   text = await res.text();
                 }
@@ -860,9 +740,8 @@ export default {
                         headers: {
                           ...cors,
                           "Content-Type": "application/json; charset=utf-8",
-                          "Cache-Control": "no-store",
+                          "Cache-Control": "public, max-age=8, s-maxage=15, stale-while-revalidate=45",
                           "X-Provider": "adsb.lol",
-                          "X-Fetched-At": String(Date.now()),
                         },
                       })
                     );
@@ -876,18 +755,13 @@ export default {
         return withCors(cached, cors, "HIT");
       }
 
-      const respondAndCache = (rawText, headersExtra = {}) => {
-        let bodyText = rawText;
-        try {
-          if (fmt !== "raw") bodyText = slimOpenSkyStates(rawText, limit);
-        } catch {}
-        const out = new Response(bodyText, {
+      const respondAndCache = (text, headersExtra = {}) => {
+        const out = new Response(text, {
           status: 200,
           headers: {
             ...cors,
             "Content-Type": "application/json; charset=utf-8",
-            "Cache-Control": "no-store",
-            "X-Fetched-At": String(Date.now()),
+            "Cache-Control": "public, max-age=8, s-maxage=15, stale-while-revalidate=45",
             ...headersExtra,
           },
         });
@@ -911,7 +785,7 @@ export default {
 
                 await cacheJson(cache, lockReq, { ok: true, ts: Date.now() }, WARM_ENRICH_MIN_INTERVAL_S);
 
-                const j = JSON.parse(rawText);
+                const j = JSON.parse(text);
                 const states = Array.isArray(j?.states) ? j.states : [];
                 if (states.length) {
                   await warmEnrichFromStates({ origin: url.origin, env, cache, states, bboxCenter });
@@ -930,7 +804,7 @@ export default {
         const res = await fetchWithTimeout(
           upstream.toString(),
           { method: "GET", headers },
-          OPENSKY_STATES_TIMEOUT_MS
+          OPENSKY_STATES_FAILFAST_MS
         );
 
         const text = await res.text();
@@ -941,7 +815,7 @@ export default {
           const res2 = await fetchWithTimeout(
             upstream.toString(),
             { method: "GET", headers: headers2 },
-            OPENSKY_STATES_TIMEOUT_MS
+            OPENSKY_STATES_FAILFAST_MS
           );
           const text2 = await res2.text();
 
@@ -1365,7 +1239,7 @@ async function handleOpenSkyFailure({ env, cors, cache, cacheKey, ctx, status, d
           headers: {
             ...cors,
             "Content-Type": "application/json; charset=utf-8",
-            "Cache-Control": "no-store",
+            "Cache-Control": "public, max-age=8, s-maxage=15, stale-while-revalidate=45",
             "X-Provider": "adsb.lol",
           },
         });
