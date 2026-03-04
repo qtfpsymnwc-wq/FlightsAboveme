@@ -4,14 +4,14 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>FlightsAboveMe — Kiosk</title>
-  <link rel="stylesheet" href="./kiosk.css?v=256">
+  <link rel="stylesheet" href="./kiosk.css?v=247">
 </head>
 
 <body class="kiosk">
   <div id="app" class="kioskApp">
 
     <header class="topBar">
-      <div class="appName"><img src="flightsaboveme-logo-tight.png?v=256" alt="FlightsAboveMe" class="siteLogo"></div>
+      <div class="appName"><img src="flightsaboveme-logo-tight.png?v=220" alt="FlightsAboveMe" class="siteLogo"></div>
       <a class="exitBtn" href="./index.html" aria-label="Exit kiosk mode">Exit</a>
     </header>
 
@@ -25,10 +25,13 @@
         <div class="mainText">
           <div id="airline" class="line airline">—</div>
 
-          <div class="kiosk-route" aria-label="Route">
-            <span id="k_origin" class="origin"></span>
-            <span class="arrow">→</span>
-            <span id="k_dest" class="dest"></span>
+          <!-- Route forced to 2 lines:
+               Line 1: ORIGIN →     Line 2: DESTINATION
+               (We do this with tiny UI-only JS below.)
+          -->
+          <div class="routeBlock">
+            <div id="routeLine1" class="line route route1"></div>
+            <div id="routeLine2" class="line route route2"></div>
           </div>
 
           <div class="line sub">
@@ -122,8 +125,68 @@
   <script>
     // Flag kiosk mode without changing Worker/polling behavior.
     window.__KIOSK_MODE__ = true;
-</script>
 
-  <script src="./app.js?v=256"></script>
+    // UI-only: force route into two consistent lines (Origin → / Destination)
+    (function() {
+      const src = document.getElementById('route');
+      const l1 = document.getElementById('routeLine1');
+      const l2 = document.getElementById('routeLine2');
+      const block = l1 && l1.parentElement ? l1.parentElement : null;
+
+      if (!src || !l1 || !l2) return;
+
+      const splitRoute = () => {
+        const raw = (src.textContent || '').trim();
+        if (!raw || raw === '—') {
+          if (block) block.style.display = 'none';
+          l1.textContent = '';
+          l2.textContent = '';
+          return;
+        }
+        if (block) block.style.display = '';
+
+        // Code-only route (e.g. "ORD → LAX"): render on ONE line.
+        // IMPORTANT: check this FIRST so kiosk portrait (which hides line 2)
+        // never drops the destination.
+        const m = raw.match(/^\s*([A-Z0-9]{2,4})\s*(?:→|->|-|–|—|to)\s*([A-Z0-9]{2,4})\s*$/i);
+        if (m) {
+          l1.textContent = `${m[1].toUpperCase()} \u2192 ${m[2].toUpperCase()}`;
+          l2.textContent = '';
+          return;
+        }
+
+        // Preferred: split on a route separator if present.
+        // Works for both short codes ("ORD → LAX") and long airport strings
+        // ("New York (LGA) → Fayetteville (XNA)")
+        const sepMatch = raw.match(/\s*(→|->|\s-\s|\s–\s|\s—\s|\sto\s)\s*/i);
+        if (sepMatch) {
+          const sep = sepMatch[1];
+          const parts = raw.split(new RegExp(`\\s*${sep.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\s*`, 'i'));
+          if (parts.length >= 2) {
+            const left = (parts[0] || '').trim();
+            const right = parts.slice(1).join(' ').trim();
+            // Always render arrow at the end of line 1
+            l1.textContent = left ? `${left} \u2192` : '\u2192';
+            l2.textContent = right;
+            return;
+          }
+        }
+
+        // Fallback: split near the middle, but prefer splitting at the nearest space.
+        const mid = Math.max(1, Math.floor(raw.length / 2));
+        let cut = raw.lastIndexOf(' ', mid);
+        if (cut < 0) cut = mid;
+        l1.textContent = raw.slice(0, cut).trim();
+        l2.textContent = raw.slice(cut).trim();
+      };
+
+      // Initial + observe changes from app.js updates
+      splitRoute();
+      const obs = new MutationObserver(splitRoute);
+      obs.observe(src, { childList: true, characterData: true, subtree: true });
+    })();
+  </script>
+
+  <script src="./app.js?v=248"></script>
 </body>
 </html>

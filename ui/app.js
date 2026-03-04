@@ -1,7 +1,7 @@
 // FlightsAboveMe UI
 const API_BASE = window.location.origin;
 // Cache-buster for static assets (CSS/JS/logos)
-const UI_VERSION = "v256";
+const UI_VERSION = "v248";
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;
@@ -20,13 +20,11 @@ let primaryStableCount = 0;
 let lastEnrichQueuedKey = null;
 let lastEnrichQueuedAt = 0;
 // Kiosk focus lock: keep tracking the same closest aircraft briefly so route enrichment can complete.
-const KIOSK_FOCUS_LOCK_MS = 0;// disabled: kiosk should never appear stuck on a flight
-
+const KIOSK_FOCUS_LOCK_MS = 40000;
 let kioskFocusIcao24 = null;
 let kioskFocusUntilMs = 0;
 // Performance tuning (v1.3.1): allow slower cellular fetches for states
-const STATES_TIMEOUT_MS_MAIN = 16000;
-const STATES_TIMEOUT_MS_KIOSK = 8000; // keep kiosk snappy; prevents long "wedges" on flaky networks
+const STATES_TIMEOUT_MS = 16000;
 const GEO_TIMEOUT_MS = 12000;
 const LAST_LOC_KEY = "fam_last_loc_v1";
 const MANUAL_LOC_KEY = "fam_manual_loc_v1";
@@ -340,59 +338,6 @@ function airlineKeyFromCallsign(callsign){
   return m ? m[1] : null;
 }
 
-// Prefer parent/marketed carrier logos for regional operators.
-// Assets are keyed by ICAO airline code (e.g., AAL, DAL, UAL) in /ui/assets/logos.
-const REGIONAL_PARENT_BY_OPERATOR = {
-  // American
-  ENY: "AAL", // Envoy
-  JIA: "AAL", // PSA
-  PDT: "AAL", // Piedmont
-  ASH: "AAL", // Mesa (often AA/UA; only used as a fallback)
-
-  // Delta
-  EDV: "DAL", // Endeavor
-
-  // United (best-effort fallbacks)
-  UCA: "UAL", // CommutAir
-  GJS: "UAL", // GoJet
-};
-
-function parentIcaoFromAirlineName(name){
-  const n = (name || "").toString().toLowerCase();
-  if (!n) return null;
-  if (n.includes("american")) return "AAL";
-  if (n.includes("delta")) return "DAL";
-  if (n.includes("united")) return "UAL";
-  if (n.includes("alaska")) return "ASA";
-  if (n.includes("southwest")) return "SWA";
-  if (n.includes("jetblue")) return "JBU";
-  if (n.includes("frontier")) return "FFT";
-  if (n.includes("spirit")) return "NKS";
-  if (n.includes("allegiant")) return "AAY";
-  return null;
-}
-
-function displayLogoKeyForFlight(f){
-  const airlineIcao = (f?.airlineIcao || "").toString().trim().toUpperCase();
-  const operatorIcao = (f?.operatorIcao || "").toString().trim().toUpperCase();
-  const csKey = airlineKeyFromCallsign(f?.callsign || "");
-
-  // 1) If AeroData gives us a marketed carrier name, prefer that.
-  const parentFromName = parentIcaoFromAirlineName(f?.airlineName || "");
-  if (parentFromName) return parentFromName;
-
-  // 2) If airlineIcao is set and not an obvious regional, use it.
-  if (airlineIcao && !REGIONAL_PARENT_BY_OPERATOR[airlineIcao]) return airlineIcao;
-
-  // 3) Map known regional operators to parent brands.
-  if (airlineIcao && REGIONAL_PARENT_BY_OPERATOR[airlineIcao]) return REGIONAL_PARENT_BY_OPERATOR[airlineIcao];
-  if (operatorIcao && REGIONAL_PARENT_BY_OPERATOR[operatorIcao]) return REGIONAL_PARENT_BY_OPERATOR[operatorIcao];
-  if (csKey && REGIONAL_PARENT_BY_OPERATOR[csKey]) return REGIONAL_PARENT_BY_OPERATOR[csKey];
-
-  // 4) Fall back to whatever we have.
-  return airlineIcao || operatorIcao || csKey || "";
-}
-
 // PNG-first → SVG fallback → generic SVG
 function logoUrlForKey(key, ext){
   const k = (key || "").toString().trim().toUpperCase();
@@ -407,7 +352,9 @@ function logoCandidatesForKey(key){
   ];
 }
 function logoCandidatesForFlight(f){
-  const key = displayLogoKeyForFlight(f);
+  const key =
+    (f?.airlineIcao || f?.operatorIcao || airlineKeyFromCallsign(f?.callsign || ""))?.toUpperCase?.() ||
+    airlineKeyFromCallsign(f?.callsign || "");
   return logoCandidatesForKey(key);
 }
 
@@ -547,8 +494,6 @@ function manualGate(){
         setMsg("");
         done(p);
       } catch(e){
-      consecutiveStateErrors++;
-
         setMsg("Location failed. Enter coordinates or use demo.");
       }
     };
@@ -718,44 +663,6 @@ function renderPrimary(f, radarMeta){
   if (routeEl) {
     routeEl.textContent = routeDisp;
     routeEl.style.display = routeDisp ? "" : "none";
-  }
-
-
-  // Kiosk: controlled route wrapping (keep origin + arrow together; destination wraps)
-  const kOrigin = $("k_origin");
-  const kDest = $("k_dest");
-  if (kOrigin && kDest) {
-    const kioskRoute = kOrigin.closest(".kiosk-route");
-    const arrowEl = kioskRoute ? kioskRoute.querySelector(".arrow") : null;
-
-    const raw = routeDisp || "";
-    let origin = "";
-    let dest = "";
-
-    if (raw.includes("→")) {
-      const parts = raw.split("→");
-      origin = (parts[0] || "").trim();
-      dest = parts.slice(1).join("→").trim();
-    } else if (raw.includes("->")) {
-      const parts = raw.split("->");
-      origin = (parts[0] || "").trim();
-      dest = parts.slice(1).join("->").trim();
-    }
-
-    const softWrapSlashes = (s) => (s || "").replaceAll("/", "/\u200b");
-
-    if (kioskRoute) kioskRoute.style.display = raw ? "" : "none";
-
-    // If we can't confidently split, show the raw route as the destination and hide the arrow.
-    if (!origin || !dest) {
-      kOrigin.textContent = "";
-      kDest.textContent = softWrapSlashes(raw);
-      if (arrowEl) arrowEl.style.display = "none";
-    } else {
-      kOrigin.textContent = origin;
-      kDest.textContent = softWrapSlashes(dest);
-      if (arrowEl) arrowEl.style.display = "";
-    }
   }
 
   // Aircraft type/model: show live hint until enriched; hide when unknown
@@ -1073,6 +980,12 @@ async function main(){
       if (gate && typeof gate.prompt === "function") {
         if (statusEl) statusEl.textContent = "Set location";
         pos = await gate.prompt();
+        if (!pos) {
+          // If user dismissed the prompt, fall back to demo instead of crashing
+          if (statusEl) statusEl.textContent = "Demo";
+          showErr(`Showing ${DEMO_LOC.label} (${DEMO_LOC.zip}) as a demo location — enable location to see flights near you.`);
+          pos = { coords: { latitude: DEMO_LOC.lat, longitude: DEMO_LOC.lon, accuracy: 25000 }, __fromDemo: true };
+        }
       }
     }
   } catch {}
@@ -1102,12 +1015,20 @@ async function main(){
         if (statusEl) statusEl.textContent = "Location needed";
         const picked = await gate.prompt();
         if (picked) return picked;
+        // If the user dismissed the prompt, continue to demo fallback below (do not return undefined).
       }
 
       if (statusEl) statusEl.textContent = "Demo";
       showErr(`Showing ${DEMO_LOC.label} (${DEMO_LOC.zip}) as a demo location — enable location to see flights near you.`);
       return { coords: { latitude: DEMO_LOC.lat, longitude: DEMO_LOC.lon, accuracy: 25000 }, __fromDemo: true };
     });
+  }
+
+  // Safety: ensure we always have a usable position (avoid blank/stuck UI)
+  if (!pos || !pos.coords || !Number.isFinite(pos.coords.latitude) || !Number.isFinite(pos.coords.longitude)) {
+    if (statusEl) statusEl.textContent = "Demo";
+    showErr(`Showing ${DEMO_LOC.label} (${DEMO_LOC.zip}) as a demo location — enable location to see flights near you.`);
+    pos = { coords: { latitude: DEMO_LOC.lat, longitude: DEMO_LOC.lon, accuracy: 25000 }, __fromDemo: true };
   }
 
   const lat = pos.coords.latitude;
@@ -1138,9 +1059,6 @@ const bb = bboxAround(lat, lon);
 
   let nextAllowedAt = 0;
   let inFlight = false;
-  let inFlightStartedAt = 0;
-  let lastStatesOkAt = 0;
-  let consecutiveStateErrors = 0;
 
   // state for rendering
   let lastTop = [];
@@ -1187,15 +1105,7 @@ const bb = bboxAround(lat, lon);
 
   async function tick(){
     try { if (document.hidden) return; } catch {}
-    if (inFlight) {
-      // If a prior cycle got wedged (slow network / hung fetch), don't let kiosk freeze indefinitely.
-      // We allow the kiosk loop to recover by dropping the inFlight guard after a grace period.
-      if (isKiosk() && (Date.now() - inFlightStartedAt) > (STATES_TIMEOUT_MS_KIOSK + 4000)) {
-        inFlight = false;
-      } else {
-        return;
-      }
-    }
+    if (inFlight) return;
 
     const now = Date.now();
     if (now < nextAllowedAt) {
@@ -1204,27 +1114,15 @@ const bb = bboxAround(lat, lon);
     }
 
     inFlight = true;
-    inFlightStartedAt = Date.now();
 
     try{
       const url = new URL(`${API_BASE}/api/opensky/states`);
       Object.entries(bb).forEach(([k,v])=>url.searchParams.set(k,v));
 
-      // Ask the Worker for a slimmed OpenSky payload to keep Android/WebView fast.
-      url.searchParams.set("fmt","slim");
-      url.searchParams.set("limit", isKiosk() ? "140" : "220");
-
-      // Extra cache busting for kiosk displays: some browsers / intermediaries can serve stale fetches
-      // even with cache:"no-store". This keeps the kiosk from "sticking" on a flight that should be gone.
-      if (isKiosk()) url.searchParams.set("_", String(Date.now()));
-
-      const data = await fetchJSON(url.toString(), isKiosk() ? STATES_TIMEOUT_MS_KIOSK : STATES_TIMEOUT_MS_MAIN);
+      const data = await fetchJSON(url.toString(), STATES_TIMEOUT_MS);
       const states = Array.isArray(data?.states) ? data.states : [];
-      lastStatesOkAt = Date.now();
-      consecutiveStateErrors = 0;
 
-      const totalCount = (typeof data?.count_total === "number") ? data.count_total : states.length;
-      lastRadarMeta = { count: totalCount, showing: Math.min(states.length, 5) };
+      lastRadarMeta = { count: states.length, showing: Math.min(states.length, 5) };
 
       if (!states.length){
         if (statusEl) statusEl.textContent = "No flights";
@@ -1236,22 +1134,16 @@ const bb = bboxAround(lat, lon);
       }
 
       const flights = states.map((s)=>{
-        // Worker may return a slimmed OpenSky row for performance:
-        // Slim row indexes: [0 icao24,1 callsign,2 lon,3 lat,4 baroAlt,5 geoAlt,6 onGround,7 velocity,8 trueTrack,9 verticalRate,10 squawk]
-        const isSlim = Array.isArray(s) && typeof s[2] === "number" && typeof s[3] === "number" && (s.length <= 12);
-
         const icao24 = nm(s[0]).toLowerCase();
         const callsign = nm(s[1]);
-        const country = isSlim ? "" : nm(s[2]);
-
-        const lon2 = isSlim ? ((typeof s[2] === "number") ? s[2] : NaN) : ((typeof s[5] === "number") ? s[5] : NaN);
-        const lat2 = isSlim ? ((typeof s[3] === "number") ? s[3] : NaN) : ((typeof s[6] === "number") ? s[6] : NaN);
-
-        const baroAlt = isSlim ? ((typeof s[4] === "number") ? s[4] : NaN) : ((typeof s[7] === "number") ? s[7] : NaN);
-        const velocity = isSlim ? ((typeof s[7] === "number") ? s[7] : NaN) : ((typeof s[9] === "number") ? s[9] : NaN);
-        const trueTrack = isSlim ? ((typeof s[8] === "number") ? s[8] : NaN) : ((typeof s[10] === "number") ? s[10] : NaN);
-        const verticalRate = isSlim ? ((typeof s[9] === "number") ? s[9] : NaN) : ((typeof s[11] === "number") ? s[11] : NaN);
-        const squawk = isSlim ? ((s[10] != null) ? String(s[10]).trim() : "") : ((s[14] != null) ? String(s[14]).trim() : "");
+        const country = nm(s[2]);
+        const lon2 = (typeof s[5] === "number") ? s[5] : NaN;
+        const lat2 = (typeof s[6] === "number") ? s[6] : NaN;
+        const baroAlt = (typeof s[7] === "number") ? s[7] : NaN;
+        const velocity = (typeof s[9] === "number") ? s[9] : NaN;
+        const trueTrack = (typeof s[10] === "number") ? s[10] : NaN;
+        const verticalRate = (typeof s[11] === "number") ? s[11] : NaN;
+        const squawk = (s[14] != null) ? String(s[14]).trim() : "";
         const distanceMi = (Number.isFinite(lat2) && Number.isFinite(lon2)) ? haversineMi(lat, lon, lat2, lon2) : Infinity;
 
         return {
@@ -1267,18 +1159,38 @@ const bb = bboxAround(lat, lon);
       const shown = flights.filter(f => groupForFlight(f.callsign) === tier);
       lastTop = shown.slice(0,5);
 
-
-      // Kiosk: always track the current closest flight (no focus lock).
+      // Kiosk focus lock: keep the same aircraft selected briefly so AeroData enrichment has time to land.
       if (isKiosk()) {
+        const nowMs = Date.now();
         const top = lastTop[0] || flights[0];
-        lastPrimary = top;
+
+        // If we have an active lock, try to keep that same aircraft as primary (unless it left the enrichment window).
+        if (kioskFocusIcao24 && nowMs < kioskFocusUntilMs) {
+          const locked = flights.find(f => f.icao24 === kioskFocusIcao24);
+          if (locked && Number.isFinite(locked.distanceMi) && locked.distanceMi <= ENRICH_MAX_MI) {
+            lastPrimary = locked;
+          } else {
+            kioskFocusIcao24 = null;
+            kioskFocusUntilMs = 0;
+          }
+        }
+
+        // If no active lock, lock onto the current closest aircraft (only if within enrichment range).
+        if (!kioskFocusIcao24) {
+          lastPrimary = top;
+          if (lastPrimary && Number.isFinite(lastPrimary.distanceMi) && lastPrimary.distanceMi <= ENRICH_MAX_MI) {
+            kioskFocusIcao24 = lastPrimary.icao24;
+            kioskFocusUntilMs = nowMs + KIOSK_FOCUS_LOCK_MS;
+          }
+        }
+
+        // Secondary = next closest not equal to primary (optional).
         lastSecondary = lastTop.find(f => f.icao24 !== (lastPrimary?.icao24 || "")) || null;
-        kioskFocusIcao24 = null;
-        kioskFocusUntilMs = 0;
       } else {
         lastPrimary = lastTop[0] || flights[0];
         lastSecondary = lastTop[1] || null;
       }
+
       for (const f of lastTop) applyCachedEnrichment(f);
       applyCachedEnrichment(lastPrimary);
       if (lastSecondary) applyCachedEnrichment(lastSecondary);
@@ -1326,10 +1238,7 @@ const bb = bboxAround(lat, lon);
       pumpEnrichment(renderAll);
 
     } catch(e){
-      consecutiveStateErrors++;
-
       const msg = String(e?.message || e);
-      if (isKiosk() && consecutiveStateErrors >= 3) { kioskFocusIcao24 = null; kioskFocusUntilMs = 0; }
 
       if (/^HTTP 429:/i.test(msg) || /Too many requests/i.test(msg)) {
         nextAllowedAt = Date.now() + BACKOFF_429_MS;
@@ -1343,24 +1252,9 @@ const bb = bboxAround(lat, lon);
     }
   }
 
-  // Poll loop: use setTimeout recursion instead of setInterval so a slow/hung cycle
-  // doesn't permanently block refresh (some kiosk browsers are sensitive here).
-  const pollMs = isKiosk() ? POLL_KIOSK_MS : POLL_MAIN_MS;
-
-  async function pollLoop(){
-    try { await tick(); }
-    finally { setTimeout(pollLoop, pollMs); }
-  }
-
-  // Kick immediately, then keep looping.
   await tick();
-  setTimeout(pollLoop, pollMs);
-
-  // If the browser pauses timers (screen wake / tab visibility), force a refresh on resume.
-  document.addEventListener("visibilitychange", () => {
-    try { if (!document.hidden) tick(); } catch {}
-  });
-  window.addEventListener("online", () => tick());
+  const pollMs = isKiosk() ? POLL_KIOSK_MS : POLL_MAIN_MS;
+  setInterval(tick, pollMs);
 }
 
 // Run after DOM is ready (prevents "Booting..." stuck if script loads before elements exist)
