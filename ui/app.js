@@ -1,7 +1,7 @@
 // FlightsAboveMe UI
 const API_BASE = window.location.origin;
 // Cache-buster for static assets (CSS/JS/logos)
-const UI_VERSION = "v275";
+const UI_VERSION = "v276";
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;
@@ -314,16 +314,14 @@ function setSquawkUI(sq, squawkId, sepId){
   const squawkEl = $(squawkId);
   if (!squawkEl) return;
   const sepEl = sepId ? $(sepId) : null;
-
-  const meaning = fmtSquawkMeaning(sq);
-  if (!meaning) {
+  const s = (sq ?? "").toString().trim();
+  if (!s || s === "0000") {
     squawkEl.textContent = "";
     squawkEl.style.display = "none";
     if (sepEl) sepEl.style.display = "none";
     return;
   }
-
-  squawkEl.textContent = meaning;
+  squawkEl.textContent = `Squawk ${s}`;
   squawkEl.style.display = "";
   if (sepEl) sepEl.style.display = "";
 }
@@ -653,7 +651,8 @@ function renderPrimary(f, radarMeta){
   if ($("spd")) $("spd").textContent = compactStats ? fmtSpdCompact(f.velocity) : fmtSpd(f.velocity);
   if ($("dist")) $("dist").textContent = compactStats ? fmtMiCompact(f.distanceMi) : fmtMi(f.distanceMi);
 
-  if ($("vs")) $("vs").textContent = fmtVS(f.verticalRate, f.baroAlt, f.distanceMi, f.icao24, f.callsign);
+  const phaseText = fmtVS(f.verticalRate, f.baroAlt, f.distanceMi, f.icao24, f.callsign) || (f.onGround ? "Ground" : "Cruising");
+  if ($("vs")) $("vs").textContent = phaseText;
   setSquawkUI(f.squawk, "squawk", "sqSep");
 
   if ($("dir")) $("dir").textContent = headingToText(
