@@ -126,6 +126,42 @@
     --topBar:  clamp(12px, 1.7vmin, 16px);
     --exitH:   clamp(34px, 4.6vmin, 44px);
   }
+
+
+/* ✅ Short-landscape safety (TV browsers / small landscape viewports)
+   Some TV/embedded browsers report a shorter usable height (UI chrome / overscan),
+   causing the callsign/model line to visually collide with the first stat row.
+   Fix: scale typography + stats down and tighten padding when height is constrained.
+*/
+@media (orientation: landscape) and (max-height: 720px){
+  :root{
+    --pad:    clamp(6px, 0.9vmin, 12px);
+
+    --airline: clamp(40px, 6.8vmin, 96px);
+    --route:   clamp(32px, 5.4vmin, 78px);
+    --sub:     clamp(28px, 4.6vmin, 66px);
+    --tiny:    clamp(12px, 1.8vmin, 18px);
+
+    --statV:   clamp(40px, 7.6vmin, 104px);
+
+    --topBar:  clamp(12px, 1.6vmin, 16px);
+    --exitH:   clamp(34px, 4.4vmin, 46px);
+  }
+
+  .topPane{
+    padding: clamp(10px, 1.6vmin, 14px);
+    gap: clamp(8px, 1.2vmin, 12px);
+  }
+
+  .bottomPane{
+    padding: clamp(10px, 1.6vmin, 14px);
+    gap: clamp(8px, 1.2vmin, 10px);
+  }
+
+  .mainText{ gap: clamp(6px, 0.9vmin, 10px); }
+  .routeBlock{ gap: clamp(4px, 0.8vmin, 8px); }
+  .stat{ padding: clamp(4px, 0.8vmin, 8px) 0; }
+}
 }
 
 *{ box-sizing:border-box; }
@@ -371,6 +407,33 @@ body{
   word-break: break-word;
 }
 .route2{ color: rgba(255,255,255,.88); }
+
+/* Controlled route wrapping (keep origin + arrow together; destination can wrap) */
+.kiosk-route{
+  font-size: var(--route);
+  font-weight: 950;
+  color: rgba(255,255,255,.92);
+  line-height: 1.04;
+
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4ch;
+  max-width: 100%;
+}
+
+.kiosk-route .origin,
+.kiosk-route .arrow{
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.kiosk-route .dest{
+  flex: 1 1 auto;
+  min-width: 12ch;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
 
 /* ✅ Kiosk portrait: keep airport codes on ONE line */
 @media (orientation: portrait){
@@ -940,106 +1003,44 @@ body.kiosk .line.tiny, #app.kioskApp .line.tiny{ display:none; }
 .changeLoc:active{ opacity: 0.75; }
 
 
-/* v264 kiosk restore — open display, large type, no boxes */
-body.kiosk .board{
-  display:flex;
-  flex-direction:column;
-  justify-content:flex-start;
-  gap: clamp(12px, 1.8vmin, 22px);
-  padding-bottom: calc(var(--safeBottom) + 18px);
+/* v266 kiosk tablet/tv fill-screen rebalance */
+@media (orientation: landscape) and (min-width: 900px) and (max-width: 1400px) and (min-height: 560px){
+  :root{
+    --airline: clamp(70px, 8.8vmin, 126px);
+    --route: clamp(40px, 5.0vmin, 70px);
+    --sub: clamp(28px, 3.5vmin, 44px);
+    --statV: clamp(74px, 9.2vmin, 132px);
+    --k-extras-size: clamp(34px, 4.0vmin, 52px);
+  }
+  .topPane{
+    padding: clamp(10px, 1.4vmin, 14px) clamp(14px, 2.0vmin, 18px) clamp(4px, .8vmin, 8px);
+    gap: clamp(12px, 1.8vmin, 18px);
+  }
+  .logo{
+    width: clamp(140px, 18vmin, 200px);
+    height: clamp(140px, 18vmin, 200px);
+  }
+  .mainText{ gap: clamp(6px, 0.8vmin, 10px); }
+  .routeBlock{ gap: clamp(2px, 0.4vmin, 6px); }
+  .sub{ gap: 10px; }
+  .bottomPane{
+    padding-top: clamp(4px, 0.8vmin, 8px);
+    gap: clamp(8px, 1.0vmin, 12px);
+  }
+  .kioskExtras{ margin-top: clamp(2px, 0.6vmin, 6px); }
 }
-body.kiosk .topPane{
-  align-items:flex-start;
-  gap: clamp(14px, 2.2vmin, 24px);
-  padding: clamp(10px, 1.6vmin, 16px) clamp(12px, 2.0vmin, 18px) 0;
-}
-body.kiosk .logo{
-  width: clamp(120px, 16vmin, 185px);
-  height: clamp(120px, 16vmin, 185px);
-  padding: clamp(8px, 1.2vmin, 12px);
-  border-radius: 20px;
-}
-body.kiosk .mainText{
-  gap: clamp(6px, 1.0vmin, 12px);
-}
-body.kiosk .airline{
-  font-size: clamp(52px, 7.8vmin, 94px);
-  line-height: 1.02;
-}
+
+/* Make route and aircraft line more prominent everywhere in kiosk */
 body.kiosk .route{
-  display:block !important;
-  font-size: clamp(30px, 4.8vmin, 54px);
-  line-height: 1.08;
-  white-space: normal !important;
-  word-break: keep-all;
-  overflow-wrap: anywhere;
-  max-width: 100%;
+  font-weight: 950;
+  letter-spacing: .2px;
 }
 body.kiosk .sub{
-  font-size: clamp(26px, 3.8vmin, 42px);
-  line-height: 1.08;
-  gap: 10px;
-  flex-wrap: wrap;
+  font-weight: 900;
+  color: rgba(255,255,255,.94);
 }
-body.kiosk .bottomPane{
-  background: transparent !important;
-  padding: 0 clamp(10px, 1.8vmin, 18px);
-  gap: clamp(8px, 1.2vmin, 12px);
-}
-body.kiosk .statsRow{
-  padding-inline: 0;
-  column-gap: clamp(28px, 7vw, 90px);
-  row-gap: clamp(6px, 1vmin, 12px);
-}
-body.kiosk .stat{
-  padding: 0;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-body.kiosk .stat .v{
-  font-size: clamp(42px, 7.2vmin, 88px);
-  line-height: 0.96;
-}
-body.kiosk .kioskExtras{
-  margin-top: clamp(2px, 0.6vmin, 8px);
-}
+
+/* Keep phase+squawk readable but not oversized */
 body.kiosk .kioskExtras .xv{
-  font-size: clamp(30px, 4.4vmin, 48px) !important;
-  letter-spacing: 0.02em !important;
-}
-body.kiosk .kioskExtras .xDot{
-  font-size: clamp(30px, 4.4vmin, 48px) !important;
-  margin: 0 12px !important;
-}
-body.kiosk .changeLoc{
-  opacity: .75;
-}
-body.kiosk .statusLine{ display:none !important; }
-
-/* Tablet landscape override */
-@media (orientation: landscape) and (min-width: 900px) and (max-width: 1400px){
-  body.kiosk .airline{ font-size: clamp(60px, 8.6vmin, 104px); }
-  body.kiosk .route{ font-size: clamp(34px, 5.2vmin, 58px); }
-  body.kiosk .sub{ font-size: clamp(28px, 4.0vmin, 44px); }
-  body.kiosk .stat .v{ font-size: clamp(54px, 8.2vmin, 96px); }
-  body.kiosk .kioskExtras .xv,
-  body.kiosk .kioskExtras .xDot{ font-size: clamp(34px, 4.8vmin, 52px) !important; }
-}
-
-/* Phone portrait kiosk still needs to fit */
-@media (orientation: portrait){
-  body.kiosk .topPane{
-    grid-template-columns: 1fr;
-    justify-items: center;
-    text-align: center;
-  }
-  body.kiosk .logoPane{ justify-content:center; }
-  body.kiosk .mainText{ align-items:center; }
-  body.kiosk .airline{ font-size: clamp(34px, 7.4vmin, 58px); }
-  body.kiosk .route{ font-size: clamp(18px, 4.6vmin, 30px); }
-  body.kiosk .sub{ font-size: clamp(16px, 4.2vmin, 24px); justify-content:center; }
-  body.kiosk .statsRow{ grid-template-columns: repeat(2,minmax(0,1fr)); column-gap: 24px; }
-  body.kiosk .stat .v{ font-size: clamp(34px, 8.8vmin, 60px); }
-  body.kiosk .kioskExtras .xv,
-  body.kiosk .kioskExtras .xDot{ font-size: clamp(18px, 4.6vmin, 28px) !important; }
+  letter-spacing: .03em !important;
 }
