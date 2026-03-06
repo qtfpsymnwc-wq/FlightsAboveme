@@ -1100,3 +1100,18 @@ body.kiosk .line.tiny, #app.kioskApp .line.tiny{ display:none; }
     padding-top: clamp(12px, 1.6vh, 20px);
   }
 }
+
+
+/* Landscape tablet typography bump (Chris requested)
+   Only strengthens the top text block on medium landscape tablets.
+   Stats and bottom line remain unchanged. */
+@media (orientation: landscape) and (min-width: 900px) and (max-width: 1400px) and (min-height: 620px) and (max-height: 950px){
+  :root{
+    --route: clamp(50px, 6.9vmin, 114px);
+    --sub:   clamp(46px, 5.9vmin, 92px);
+  }
+
+  body.kiosk .routeBlock{ gap: clamp(8px, 1.1vmin, 12px); }
+  body.kiosk .sub{ gap: 16px; }
+  body.kiosk .sub .model{ font-size: 0.98em; }
+}
