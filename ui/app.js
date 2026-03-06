@@ -155,8 +155,7 @@ function headingToText(deg, opts={}){
   const d = Math.round(deg);
 
   if (opts && opts.short === true) return card;
-  if (opts && opts.compact === true) return `${card} • ${d}°`;
-  return card + ` (${d}°)`;
+  return card + ` • ${d}°`;
 }
 
 /* Normal (non-compact) formatters */
@@ -646,8 +645,6 @@ function renderPrimary(f, radarMeta){
   }
 
   const compactStats = (isKiosk() && isPortrait() && window.innerWidth <= 430);
-  const kioskLandscapeReadable = (isKiosk() && !isPortrait() && window.innerWidth >= 700);
-
   if ($("alt")) $("alt").textContent = compactStats ? fmtAltCompact(f.baroAlt) : fmtAlt(f.baroAlt);
   if ($("spd")) $("spd").textContent = compactStats ? fmtSpdCompact(f.velocity) : fmtSpd(f.velocity);
   if ($("dist")) $("dist").textContent = compactStats ? fmtMiCompact(f.distanceMi) : fmtMi(f.distanceMi);
@@ -658,7 +655,7 @@ function renderPrimary(f, radarMeta){
 
   if ($("dir")) $("dir").textContent = headingToText(
     f.trueTrack,
-    { short: (isKiosk() && isPortrait()), compact: kioskLandscapeReadable }
+    { short: (isKiosk() && isPortrait()) }
   );
 
   // Route: hide when not available (no placeholder dashes)
@@ -677,8 +674,6 @@ function renderPrimary(f, radarMeta){
     modelEl.style.display = modelDisp ? "" : "none";
   }
 
-  if ($("radarLine")) $("radarLine").textContent =
-    `Radar: ${radarMeta.count} flights • Showing: ${radarMeta.showing}`;
 }
 
 function renderSecondary(f){

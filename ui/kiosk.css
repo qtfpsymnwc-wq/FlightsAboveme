@@ -53,13 +53,16 @@ body.kiosk::before{
 .board{
   min-height: calc(100svh - max(68px, calc(var(--safeTop) + 44px)) - max(16px, var(--safeBottom)));
   display:grid;
-  grid-template-rows: auto minmax(0,1fr);
-  align-items:start;
+  grid-template-rows:auto 1fr;
+  align-items:stretch;
   padding: 2px max(16px, calc(var(--safeRight) + 14px)) max(18px, calc(var(--safeBottom) + 14px)) max(16px, calc(var(--safeLeft) + 14px));
   gap: 8px;
 }
 .topPane{
-  display:grid; grid-template-columns: auto 1fr; gap: clamp(18px, 2.4vmin, 28px); align-items:start;
+  display:grid;
+  grid-template-columns: auto 1fr;
+  gap: clamp(16px, 2.2vmin, 24px);
+  align-items:start;
 }
 .logo{
   width: clamp(120px, 16vmin, 210px); height: clamp(120px, 16vmin, 210px); object-fit:contain;
@@ -67,20 +70,37 @@ body.kiosk::before{
   box-shadow: 0 18px 36px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.9);
 }
 .mainText{display:flex; flex-direction:column; gap: 4px; min-width:0;}
-.line{text-shadow:0 0 12px var(--glowA),0 0 28px var(--glowB);}
+.line{text-shadow:0 0 12px var(--glowA),0 0 28px var(--glowB); margin:0;}
 .airline{font-size:var(--airline); font-weight:950; line-height:1.02; letter-spacing:.4px; max-width:100%;}
-.route{font-size:var(--route); font-weight:900; line-height:1.04; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.sub{font-size:var(--sub); font-weight:900; color:var(--muted); display:flex; flex-wrap:wrap; align-items:baseline; gap:10px; line-height:1.02;}
+.route{font-size:var(--route); font-weight:900; line-height:1.02; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.sub{font-size:var(--sub); font-weight:900; color:var(--muted); display:flex; flex-wrap:wrap; align-items:baseline; gap:12px; line-height:1.02;}
 .sep{color:rgba(255,255,255,.45)}
 .tiny{display:none !important;}
-.bottomPane{display:grid; grid-template-rows:minmax(0,1fr) auto auto; align-content:stretch; gap: 4px; margin-top: 0; min-height:0;}
-.statsGrid{display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); column-gap: clamp(34px, 5vw, 72px); row-gap: 0; align-items:center; align-self:center; min-height:0;}
-.stat{display:flex; align-items:center; min-width:0;}.statsGrid > .stat:nth-child(odd){justify-content:flex-start; text-align:left;}.statsGrid > .stat:nth-child(even){justify-content:flex-end; text-align:right;}
-.stat .v{font-size:var(--statV); font-weight:950; line-height:1.0; white-space:nowrap; text-align:center; text-shadow:0 0 12px rgba(255,255,255,.15),0 0 28px rgba(255,255,255,.08);}
-.kioskExtras{display:flex; justify-content:center; align-items:center; gap:12px; margin-top: 0;}
-.kioskExtras .xv{font-size:var(--bottom); font-weight:950; line-height:1.05; white-space:nowrap;}
+.bottomPane{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  flex:1 1 auto;
+  min-height:0;
+  gap: 10px;
+  margin-top: 0;
+}
+.statsGrid{
+  display:grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  column-gap: clamp(56px, 8vw, 120px);
+  row-gap: 6px;
+  align-items:center;
+  flex:0 1 auto;
+}
+.stat{display:flex; align-items:center; min-width:0;}
+.stat:nth-child(odd){justify-content:flex-start;}
+.stat:nth-child(even){justify-content:flex-end;}
+.stat .v{font-size:clamp(64px, 8.8vmin, 132px); font-weight:950; line-height:.94; white-space:nowrap; text-align:center; text-shadow:0 0 12px rgba(255,255,255,.15),0 0 28px rgba(255,255,255,.08);}
+.kioskExtras{display:flex; justify-content:center; align-items:center; gap:14px; margin-top: 2px;}
+.kioskExtras .xv{font-size:clamp(34px, 4.2vmin, 58px); font-weight:950; line-height:1.0; white-space:nowrap;}
 .kioskExtras .xDot{font-size:var(--bottom); color:rgba(255,255,255,.48); line-height:1;}
-.statusLine{display:flex; justify-content:flex-start; font-size:clamp(13px, 1.6vmin, 18px); color:rgba(255,255,255,.68);}
+.statusLine{display:none !important;}
 .compatHidden{position:absolute; width:1px; height:1px; overflow:hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space:nowrap;}
 .errBox{position:fixed; left:16px; right:16px; bottom:16px; background:rgba(60,16,26,.95); border:1px solid rgba(255,138,160,.35); color:#ffd7de; padding:14px 16px; border-radius:16px; font-size:16px; font-weight:800; z-index:999;}
 .changeLoc{position:fixed; right:max(16px, calc(var(--safeRight) + 12px)); bottom:max(16px, calc(var(--safeBottom) + 8px)); background:transparent; border:0; color:rgba(255,255,255,.55); font-size:clamp(12px, 1.4vmin, 16px);}
@@ -102,9 +122,9 @@ body.kiosk::before{
 
 @media (orientation: portrait){
   :root{ --airline: clamp(40px, 5.2vmin, 66px); --route: clamp(26px, 3.6vmin, 42px); --sub: clamp(22px, 3.0vmin, 34px); --statV: clamp(38px, 4.8vmin, 62px); --bottom: clamp(22px, 2.8vmin, 34px);} 
-  .board{gap:10px;}
+  .board{gap:12px;}
   .topPane{grid-template-columns: auto 1fr; gap: 14px;}
   .logo{ width: clamp(92px, 12vmin, 140px); height: clamp(92px, 12vmin, 140px); }
-  .route{ white-space:normal; overflow:visible; text-overflow:clip; text-wrap:pretty; }
-  .statsGrid{ row-gap: 2px; column-gap: 26px; }
+  .route{ white-space:normal; overflow:visible; text-overflow:clip; }
+  .statsGrid{ row-gap: 8px; column-gap: 28px; }
 }
