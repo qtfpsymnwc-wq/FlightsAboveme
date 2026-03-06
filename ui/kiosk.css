@@ -128,6 +128,46 @@
   }
 }
 
+/* Phone landscape compact override
+   Keep kiosk usable on short phone browsers without blowing up the stats. */
+@media (orientation: landscape) and (max-height: 500px) and (max-width: 950px){
+  :root{
+    --pad:   clamp(6px, 0.9vmin, 10px);
+    --airline: clamp(28px, 5.0vmin, 48px);
+    --route:   clamp(18px, 3.6vmin, 30px);
+    --sub:     clamp(16px, 3.1vmin, 24px);
+    --tiny:    clamp(11px, 1.6vmin, 14px);
+    --statV:   clamp(36px, 7.2vmin, 64px);
+    --topBar:  clamp(11px, 1.5vmin, 14px);
+    --exitH:   clamp(32px, 4.2vmin, 40px);
+  }
+
+  #app.kioskApp{ gap: 6px; }
+  .board{ grid-template-rows: auto 1fr; }
+  .topPane{
+    padding: 8px 10px 4px;
+    gap: 10px;
+    align-items: start;
+  }
+  .logo{
+    width: clamp(84px, 14vmin, 118px);
+    height: clamp(84px, 14vmin, 118px);
+    padding: 8px;
+    border-radius: 16px;
+  }
+  .mainText{ gap: 4px; }
+  .airline{ line-height: 0.98; }
+  .routeBlock{ gap: 2px; }
+  .route{ line-height: 1.02; }
+  .sub{ gap: 8px; line-height: 1.02; }
+  .bottomPane{ padding: 4px 10px 8px; gap: 6px; }
+  .statsRow{ column-gap: 20px; row-gap: 6px; padding-inline: 0; }
+  .kioskExtras{ margin-top: 2px; }
+  .kioskExtras .xv{ font-size: clamp(22px, 4.2vmin, 34px); }
+  .kioskExtras .xDot{ font-size: clamp(16px, 3.0vmin, 24px); }
+  .statusLine{ display:none !important; }
+}
+
 *{ box-sizing:border-box; }
 html, body{ height:100%; }
 body{
@@ -382,6 +422,12 @@ body{
   }
 }
 
+
+@media (orientation: landscape) and (max-height: 500px) and (max-width: 950px){
+  body.kiosk .route{ white-space: nowrap; word-break: keep-all; }
+  body.kiosk .route2{ display:none; }
+  body.kiosk .sub .model{ font-size: 0.92em; }
+}
 /* Callsign + model */
 .sub{
   font-size: var(--sub);
