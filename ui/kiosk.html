@@ -4,14 +4,14 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>FlightsAboveMe — Kiosk</title>
-  <link rel="stylesheet" href="./kiosk.css?v=260">
+  <link rel="stylesheet" href="./kiosk.css?v=261">
 </head>
 
 <body class="kiosk">
   <div id="app" class="kioskApp">
 
     <header class="topBar">
-      <div class="appName"><img src="flightsaboveme-logo-tight.png?v=252" alt="FlightsAboveMe" class="siteLogo"></div>
+      <div class="appName"><img src="flightsaboveme-logo-tight.png?v=261" alt="FlightsAboveMe" class="siteLogo"></div>
       <a class="exitBtn" href="./index.html" aria-label="Exit kiosk mode">Exit</a>
     </header>
 
@@ -25,13 +25,10 @@
         <div class="mainText">
           <div id="airline" class="line airline">—</div>
 
-          <!-- Route forced to 2 lines:
-               Line 1: ORIGIN →     Line 2: DESTINATION
-               (We do this with tiny UI-only JS below.)
-          -->
-          <div class="routeBlock">
-            <div id="routeLine1" class="line route route1"></div>
-            <div id="routeLine2" class="line route route2"></div>
+          <div id="kioskRoute" class="kiosk-route" aria-label="Route">
+            <span id="routeOrigin" class="origin"></span>
+            <span id="routeArrow" class="arrow">→</span>
+            <span id="routeDest" class="dest"></span>
           </div>
 
           <div class="line sub">
