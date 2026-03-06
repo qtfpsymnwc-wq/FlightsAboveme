@@ -1114,3 +1114,49 @@ body.kiosk .line.tiny, #app.kioskApp .line.tiny{ display:none; }
   body.kiosk .sub{ gap: 14px; }
   body.kiosk .sub .model{ font-size: 0.98em; }
 }
+
+
+/* Tablet / iPad landscape typography rebalance
+   Keep kiosk refresh logic untouched; only adjust visual ratios and spacing. */
+@media (orientation: landscape) and (min-width: 900px) and (max-width: 1500px) and (max-height: 950px){
+  :root{
+    --route: clamp(48px, 6.4vmin, 94px);
+    --sub: clamp(40px, 5.1vmin, 76px);
+    --statV: clamp(58px, 7.8vmin, 122px);
+  }
+
+  .mainText{ gap: clamp(4px, 0.7vmin, 8px); }
+  .routeBlock{ margin-bottom: clamp(0px, 0.2vmin, 2px); }
+  .sub{ gap: 10px; line-height: 1.02; }
+
+  .bottomPane{
+    gap: clamp(4px, 0.8vmin, 8px);
+    padding-top: clamp(6px, 1.0vmin, 10px);
+    padding-bottom: clamp(8px, 1.2vmin, 12px);
+  }
+
+  .statsRow{
+    row-gap: clamp(2px, 0.5vmin, 6px);
+    column-gap: clamp(20px, 3.4vmin, 30px);
+    padding-inline: clamp(4px, 0.8vmin, 8px);
+  }
+
+  .stat{
+    padding: clamp(2px, 0.4vmin, 6px) 0;
+    gap: 2px;
+  }
+
+  .kioskExtras{
+    margin-top: clamp(2px, 0.4vmin, 6px);
+    gap: 10px;
+  }
+
+  .kioskExtras .xv{
+    font-size: clamp(34px, 4.0vmin, 56px) !important;
+  }
+
+  .kioskExtras .xDot{
+    font-size: clamp(28px, 3.2vmin, 46px) !important;
+    margin: 0 10px !important;
+  }
+}
