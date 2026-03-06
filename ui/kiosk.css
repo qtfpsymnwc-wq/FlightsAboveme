@@ -126,42 +126,6 @@
     --topBar:  clamp(12px, 1.7vmin, 16px);
     --exitH:   clamp(34px, 4.6vmin, 44px);
   }
-
-
-/* ✅ Short-landscape safety (TV browsers / small landscape viewports)
-   Some TV/embedded browsers report a shorter usable height (UI chrome / overscan),
-   causing the callsign/model line to visually collide with the first stat row.
-   Fix: scale typography + stats down and tighten padding when height is constrained.
-*/
-@media (orientation: landscape) and (max-height: 720px){
-  :root{
-    --pad:    clamp(6px, 0.9vmin, 12px);
-
-    --airline: clamp(40px, 6.8vmin, 96px);
-    --route:   clamp(32px, 5.4vmin, 78px);
-    --sub:     clamp(28px, 4.6vmin, 66px);
-    --tiny:    clamp(12px, 1.8vmin, 18px);
-
-    --statV:   clamp(40px, 7.6vmin, 104px);
-
-    --topBar:  clamp(12px, 1.6vmin, 16px);
-    --exitH:   clamp(34px, 4.4vmin, 46px);
-  }
-
-  .topPane{
-    padding: clamp(10px, 1.6vmin, 14px);
-    gap: clamp(8px, 1.2vmin, 12px);
-  }
-
-  .bottomPane{
-    padding: clamp(10px, 1.6vmin, 14px);
-    gap: clamp(8px, 1.2vmin, 10px);
-  }
-
-  .mainText{ gap: clamp(6px, 0.9vmin, 10px); }
-  .routeBlock{ gap: clamp(4px, 0.8vmin, 8px); }
-  .stat{ padding: clamp(4px, 0.8vmin, 8px) 0; }
-}
 }
 
 *{ box-sizing:border-box; }
@@ -407,33 +371,6 @@ body{
   word-break: break-word;
 }
 .route2{ color: rgba(255,255,255,.88); }
-
-/* Controlled route wrapping (keep origin + arrow together; destination can wrap) */
-.kiosk-route{
-  font-size: var(--route);
-  font-weight: 950;
-  color: rgba(255,255,255,.92);
-  line-height: 1.04;
-
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.4ch;
-  max-width: 100%;
-}
-
-.kiosk-route .origin,
-.kiosk-route .arrow{
-  white-space: nowrap;
-  flex: 0 0 auto;
-}
-
-.kiosk-route .dest{
-  flex: 1 1 auto;
-  min-width: 12ch;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
 
 /* ✅ Kiosk portrait: keep airport codes on ONE line */
 @media (orientation: portrait){
@@ -1003,84 +940,117 @@ body.kiosk .line.tiny, #app.kioskApp .line.tiny{ display:none; }
 .changeLoc:active{ opacity: 0.75; }
 
 
-/* v266 kiosk tablet/tv fill-screen rebalance */
-@media (orientation: landscape) and (min-width: 900px) and (max-width: 1400px) and (min-height: 560px){
+/* v268 kiosk row-based stabilization */
+:root{
+  --airline: clamp(60px, 7.4vh, 126px);
+  --route: clamp(42px, 5.4vh, 88px);
+  --sub: clamp(28px, 3.6vh, 58px);
+  --statV: clamp(64px, 8.8vh, 148px);
+}
+
+.board{
+  grid-template-rows: auto 1fr;
+}
+
+.topPane{
+  align-items:start;
+  gap: clamp(14px, 1.8vh, 22px);
+  padding-top: clamp(10px, 1.4vh, 18px);
+  padding-bottom: clamp(8px, 1.2vh, 14px);
+}
+
+.logo{
+  width: clamp(138px, 15vh, 220px);
+  height: clamp(138px, 15vh, 220px);
+}
+
+.mainText{
+  gap: clamp(8px, 1vh, 14px);
+}
+
+.airline{
+  font-size: var(--airline);
+  line-height: 0.98;
+}
+
+.routeBlock{
+  gap: clamp(4px, 0.5vh, 8px);
+}
+
+.route{
+  font-size: var(--route);
+  line-height: 1.02;
+}
+
+.sub{
+  font-size: var(--sub);
+  line-height: 1.02;
+  gap: clamp(10px, 1vw, 16px);
+}
+
+.bottomPane{
+  align-content: start;
+  gap: clamp(14px, 1.7vh, 24px);
+  padding-top: clamp(18px, 2.2vh, 30px);
+  padding-bottom: clamp(10px, 1.6vh, 18px);
+  background: linear-gradient(180deg, rgba(0,0,0,.02), rgba(0,0,0,.10));
+}
+
+.statsRow{
+  align-items: center;
+  column-gap: clamp(36px, 5.2vw, 80px);
+  row-gap: clamp(12px, 1.5vh, 18px);
+  padding-inline: clamp(10px, 1vw, 18px);
+}
+
+.stat{
+  min-width: 0;
+}
+
+.stat .v{
+  font-size: var(--statV);
+  line-height: 0.94;
+}
+
+.kioskExtras{
+  margin-top: clamp(6px, 1vh, 12px);
+  justify-content: center;
+}
+.kioskExtras .xv{
+  font-size: clamp(32px, 4.2vh, 62px);
+}
+.kioskExtras .xDot{
+  font-size: clamp(24px, 3.6vh, 44px);
+}
+
+.statusLine{ display:none; }
+
+@media (orientation: landscape) and (min-height: 700px){
   :root{
-    --airline: clamp(70px, 8.8vmin, 126px);
-    --route: clamp(40px, 5.0vmin, 70px);
-    --sub: clamp(28px, 3.5vmin, 44px);
-    --statV: clamp(74px, 9.2vmin, 132px);
-    --k-extras-size: clamp(34px, 4.0vmin, 52px);
-  }
-  .topPane{
-    padding: clamp(10px, 1.4vmin, 14px) clamp(14px, 2.0vmin, 18px) clamp(4px, .8vmin, 8px);
-    gap: clamp(12px, 1.8vmin, 18px);
+    --airline: clamp(74px, 8.6vh, 156px);
+    --route: clamp(52px, 6.1vh, 110px);
+    --sub: clamp(34px, 4.1vh, 68px);
+    --statV: clamp(86px, 10.6vh, 186px);
   }
   .logo{
-    width: clamp(140px, 18vmin, 200px);
-    height: clamp(140px, 18vmin, 200px);
+    width: clamp(170px, 18vh, 250px);
+    height: clamp(170px, 18vh, 250px);
   }
-  .mainText{ gap: clamp(6px, 0.8vmin, 10px); }
-  .routeBlock{ gap: clamp(2px, 0.4vmin, 6px); }
-  .sub{ gap: 10px; }
-  .bottomPane{
-    padding-top: clamp(4px, 0.8vmin, 8px);
-    gap: clamp(8px, 1.0vmin, 12px);
-  }
-  .kioskExtras{ margin-top: clamp(2px, 0.6vmin, 6px); }
 }
 
-/* Make route and aircraft line more prominent everywhere in kiosk */
-body.kiosk .route{
-  font-weight: 950;
-  letter-spacing: .2px;
-}
-body.kiosk .sub{
-  font-weight: 900;
-  color: rgba(255,255,255,.94);
-}
-
-/* Keep phase+squawk readable but not oversized */
-body.kiosk .kioskExtras .xv{
-  letter-spacing: .03em !important;
-}
-
-
-/* Large / tall landscape displays: use more vertical real estate */
-@media (orientation: landscape) and (min-width: 1100px) and (min-height: 700px){
+@media (orientation: landscape) and (max-height: 650px){
   :root{
-    --airline: clamp(74px, 10.0vmin, 168px);
-    --route:   clamp(58px, 8.0vmin, 128px);
-    --sub:     clamp(48px, 6.4vmin, 96px);
-    --statV:   clamp(88px, 12.4vmin, 198px);
+    --airline: clamp(52px, 6.4vh, 98px);
+    --route: clamp(36px, 4.4vh, 68px);
+    --sub: clamp(24px, 3.0vh, 42px);
+    --statV: clamp(58px, 7.2vh, 116px);
   }
-
-  .topPane{
-    gap: clamp(14px, 1.8vmin, 22px);
-    padding: clamp(16px, 2.4vmin, 24px) clamp(18px, 2.8vmin, 28px);
-  }
-
   .logo{
-    width: clamp(180px, 24vmin, 310px);
-    height: clamp(180px, 24vmin, 310px);
+    width: clamp(120px, 13vh, 180px);
+    height: clamp(120px, 13vh, 180px);
   }
-
-  .mainText{ gap: clamp(10px, 1.4vmin, 16px); }
-  .routeBlock{ gap: clamp(8px, 1.2vmin, 12px); }
-
   .bottomPane{
-    padding: clamp(16px, 2.4vmin, 24px) clamp(18px, 2.8vmin, 28px);
-    gap: clamp(12px, 1.8vmin, 18px);
-  }
-
-  .statsRow{
-    column-gap: clamp(34px, 6.0vmin, 64px);
-    row-gap: clamp(14px, 2.0vmin, 20px);
-    padding-inline: clamp(18px, 2.6vmin, 28px);
-  }
-
-  .kioskExtras .xv,
-  .kioskExtras .xDot{
-    font-size: clamp(26px, 3.6vmin, 42px);
+    gap: clamp(10px, 1.2vh, 16px);
+    padding-top: clamp(12px, 1.6vh, 20px);
   }
 }
