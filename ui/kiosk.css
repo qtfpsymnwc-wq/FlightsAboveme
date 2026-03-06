@@ -1160,3 +1160,72 @@ body.kiosk .line.tiny, #app.kioskApp .line.tiny{ display:none; }
     margin: 0 10px !important;
   }
 }
+
+
+/* v274 kiosk route + typography rebalance */
+.route{
+  display:block;
+  white-space: normal !important;
+  word-break: normal;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+  font-size: clamp(32px, 5.0vmin, 60px);
+  line-height: 1.02;
+  margin-bottom: clamp(4px, 0.7vmin, 8px);
+}
+
+.sub{
+  font-size: clamp(30px, 4.3vmin, 52px);
+  line-height: 1.03;
+  gap: clamp(10px, 1.2vmin, 14px);
+  margin-top: 0;
+}
+.sub .model{font-size: 1em;}
+
+.bottomPane{
+  gap: clamp(6px, 1.0vmin, 10px);
+  padding-top: clamp(8px, 1.4vmin, 12px);
+}
+.statsRow{
+  row-gap: clamp(4px, 0.8vmin, 8px);
+  column-gap: clamp(18px, 3.0vmin, 30px);
+}
+.stat{
+  padding: clamp(2px, 0.4vmin, 6px) 0;
+  gap: clamp(0px, 0.2vmin, 2px);
+}
+.stat .v{
+  font-size: clamp(48px, 7.4vmin, 96px);
+  line-height: .94;
+}
+.kioskExtras{
+  margin-top: clamp(2px, 0.5vmin, 6px);
+  gap: clamp(10px, 1.6vmin, 16px);
+}
+.kioskExtras .xv,
+.kioskExtras .xDot{
+  font-size: clamp(34px, 5.0vmin, 60px) !important;
+  line-height: 1.0;
+}
+.kioskExtras .xDot{margin: 0 clamp(6px, 1.0vmin, 12px) !important;}
+
+/* Balanced medium-landscape tablet/iPad */
+@media (orientation: landscape) and (min-width: 900px) and (max-width: 1400px){
+  :root{
+    --airline: clamp(52px, 6.4vmin, 88px);
+  }
+  .route{ font-size: clamp(36px, 4.6vmin, 56px); }
+  .sub{ font-size: clamp(28px, 3.8vmin, 44px); }
+  .stat .v{ font-size: clamp(50px, 6.6vmin, 84px); }
+  .kioskExtras .xv,
+  .kioskExtras .xDot{ font-size: clamp(34px, 4.2vmin, 52px) !important; }
+}
+
+/* Short landscape phones / very short browsers keep compact but readable */
+@media (orientation: landscape) and (max-height: 500px) and (max-width: 950px){
+  .route{ font-size: clamp(18px, 3.2vmin, 24px); }
+  .sub{ font-size: clamp(16px, 2.9vmin, 22px); }
+  .stat .v{ font-size: clamp(32px, 6.0vmin, 52px); }
+  .kioskExtras .xv,
+  .kioskExtras .xDot{ font-size: clamp(22px, 4.0vmin, 30px) !important; }
+}

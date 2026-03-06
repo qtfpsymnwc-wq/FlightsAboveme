@@ -4,14 +4,14 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>FlightsAboveMe — Kiosk</title>
-  <link rel="stylesheet" href="./kiosk.css?v=273">
+  <link rel="stylesheet" href="./kiosk.css?v=274">
 </head>
 
 <body class="kiosk">
   <div id="app" class="kioskApp">
 
     <header class="topBar">
-      <div class="appName"><img src="flightsaboveme-logo-tight.png?v=273" alt="FlightsAboveMe" class="siteLogo"></div>
+      <div class="appName"><img src="flightsaboveme-logo-tight.png?v=274" alt="FlightsAboveMe" class="siteLogo"></div>
       <a class="exitBtn" href="./index.html" aria-label="Exit kiosk mode">Exit</a>
     </header>
 
@@ -25,10 +25,7 @@
         <div class="mainText">
           <div id="airline" class="line airline">—</div>
 
-          <div class="routeBlock">
-            <div id="routeLine1" class="line route route1"></div>
-            <div id="routeLine2" class="line route route2"></div>
-          </div>
+          <div id="route" class="line route"></div>
 
           <div class="line sub">
             <span id="callsign" class="callsign">—</span>
@@ -79,8 +76,6 @@
 
       <!-- Compatibility nodes kept for existing JS expectations -->
       <section class="compatHidden" aria-hidden="true">
-        <div id="route">—</div>
-
         <img id="airlineLogo2" class="hidden" alt="" />
         <div id="airline2">—</div>
         <div id="callsign2">—</div>
@@ -119,6 +114,6 @@
   </div>
   <script>window.__KIOSK_MODE__ = true;</script>
 
-  <script src="./app.js?v=273"></script>
+  <script src="./app.js?v=274"></script>
 </body>
 </html>
