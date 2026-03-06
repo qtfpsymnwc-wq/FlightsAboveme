@@ -155,7 +155,7 @@ function headingToText(deg, opts={}){
   const d = Math.round(deg);
 
   if (opts && opts.short === true) return card;
-  return card + ` (${d}°)`;
+  return `${card} • ${d}°`;
 }
 
 /* Normal (non-compact) formatters */
@@ -645,9 +645,8 @@ function renderPrimary(f, radarMeta){
   }
 
   const compactStats = (isKiosk() && isPortrait() && window.innerWidth <= 430);
-  const kioskTabletAlt = (isKiosk() && window.innerWidth >= 700);
 
-  if ($("alt")) $("alt").textContent = compactStats ? fmtAltCompact(f.baroAlt) : (kioskTabletAlt ? fmtAltKft(f.baroAlt) : fmtAlt(f.baroAlt));
+  if ($("alt")) $("alt").textContent = compactStats ? fmtAltCompact(f.baroAlt) : fmtAlt(f.baroAlt);
   if ($("spd")) $("spd").textContent = compactStats ? fmtSpdCompact(f.velocity) : fmtSpd(f.velocity);
   if ($("dist")) $("dist").textContent = compactStats ? fmtMiCompact(f.distanceMi) : fmtMi(f.distanceMi);
 
