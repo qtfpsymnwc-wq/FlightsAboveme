@@ -1,7 +1,7 @@
 // FlightsAboveMe UI
 const API_BASE = window.location.origin;
 // Cache-buster for static assets (CSS/JS/logos)
-const UI_VERSION = "v274";
+const UI_VERSION = "v275";
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;
@@ -245,9 +245,9 @@ function fmtVS(vr, baroAltM, distanceMi, icao24, callsign){
   if (!Number.isFinite(vr)) {
     if (!key) return "";
     const prev = _phaseHist.get(key);
-    if (!prev || !Number.isFinite(prev.altFt) || !Number.isFinite(altFt) || !Number.isFinite(prev.d) || !Number.isFinite(d)) return (Number.isFinite(altFt) && altFt <= 12000 && d <= 40) ? "Approaching" : "Cruising";
+    if (!prev || !Number.isFinite(prev.altFt) || !Number.isFinite(altFt) || !Number.isFinite(prev.d) || !Number.isFinite(d)) return "";
     const dt = (now - (prev.t || 0)) / 1000;
-    if (!Number.isFinite(dt) || dt < 2) return (Number.isFinite(altFt) && altFt <= 12000 && d <= 40) ? "Approaching" : "Cruising";
+    if (!Number.isFinite(dt) || dt < 2) return "";
 
     // Rates derived from two consecutive polls.
     const fpm = ((altFt - prev.altFt) / dt) * 60;        // feet per minute
@@ -298,7 +298,16 @@ function fmtVS(vr, baroAltM, distanceMi, icao24, callsign){
 function fmtSquawkMeaning(sq){
   const s = (sq ?? "").toString().trim();
   if (!s || s === "0000") return null;
-  return `Squawk ${s}`;
+
+  // Emergency squawks
+  if (s === "7500") return "Hijacking";
+  if (s === "7600") return "Radio Failure";
+  if (s === "7700") return "Emergency";
+
+  // Common VFR codes (region-dependent, but useful as a friendly label)
+  if (s === "1200" || s === "7000") return "VFR";
+
+  return "ATC Assigned";
 }
 
 function setSquawkUI(sq, squawkId, sepId){
