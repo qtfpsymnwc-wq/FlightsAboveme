@@ -1,7 +1,7 @@
 // FlightsAboveMe UI
 const API_BASE = window.location.origin;
 // Cache-buster for static assets (CSS/JS/logos)
-const UI_VERSION = "v263";
+const UI_VERSION = "v264";
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;
@@ -20,7 +20,7 @@ let primaryStableCount = 0;
 let lastEnrichQueuedKey = null;
 let lastEnrichQueuedAt = 0;
 // Kiosk focus lock: keep tracking the same closest aircraft briefly so route enrichment can complete.
-const KIOSK_FOCUS_LOCK_MS = 40000;
+const KIOSK_FOCUS_LOCK_MS = 0;
 let kioskFocusIcao24 = null;
 let kioskFocusUntilMs = 0;
 // If we stop receiving fresh radar data, clear stale kiosk display so flights don't "stick".
@@ -292,22 +292,12 @@ function fmtVS(vr, baroAltM, distanceMi, icao24, callsign){
   return "Cruising";
 }
 
-// Squawk (transponder) definitions.
-// OpenSky may return "" / null / "0000"; treat as not set.
-// Replace code with a definition (no raw code shown).
-function fmtSquawkMeaning(sq){
+// Squawk display for kiosk/main bottom line.
+// Show the actual code when available so the display is more aviation-useful.
+function fmtSquawkDisplay(sq){
   const s = (sq ?? "").toString().trim();
   if (!s || s === "0000") return null;
-
-  // Emergency squawks
-  if (s === "7500") return "Hijacking";
-  if (s === "7600") return "Radio Failure";
-  if (s === "7700") return "Emergency";
-
-  // Common VFR codes (region-dependent, but useful as a friendly label)
-  if (s === "1200" || s === "7000") return "VFR";
-
-  return "ATC Assigned";
+  return `Squawk ${s}`;
 }
 
 function setSquawkUI(sq, squawkId, sepId){
@@ -315,15 +305,15 @@ function setSquawkUI(sq, squawkId, sepId){
   if (!squawkEl) return;
   const sepEl = sepId ? $(sepId) : null;
 
-  const meaning = fmtSquawkMeaning(sq);
-  if (!meaning) {
+  const text = fmtSquawkDisplay(sq);
+  if (!text) {
     squawkEl.textContent = "";
     squawkEl.style.display = "none";
     if (sepEl) sepEl.style.display = "none";
     return;
   }
 
-  squawkEl.textContent = meaning;
+  squawkEl.textContent = text;
   squawkEl.style.display = "";
   if (sepEl) sepEl.style.display = "";
 }
