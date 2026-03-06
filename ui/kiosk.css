@@ -393,9 +393,8 @@ body{
 
 /* Route block */
 .routeBlock{
-  display:flex;
-  flex-direction:column;
-  gap: clamp(6px, 1.0vmin, 10px);
+  display:block;
+  margin-bottom: clamp(2px, 0.5vmin, 6px);
 }
 
 .route{
@@ -410,7 +409,7 @@ body{
   white-space: normal;
   word-break: break-word;
 }
-.route2{ color: rgba(255,255,255,.88); }
+.route2{ display:none; color: rgba(255,255,255,.88); }
 
 /* ✅ Kiosk portrait: keep airport codes on ONE line */
 @media (orientation: portrait){
@@ -1045,7 +1044,7 @@ body.kiosk .line.tiny, #app.kioskApp .line.tiny{ display:none; }
 .statsRow{
   align-items: center;
   column-gap: clamp(36px, 5.2vw, 80px);
-  row-gap: clamp(12px, 1.5vh, 18px);
+  row-gap: clamp(6px, 0.9vh, 10px);
   padding-inline: clamp(10px, 1vw, 18px);
 }
 
@@ -1059,7 +1058,7 @@ body.kiosk .line.tiny, #app.kioskApp .line.tiny{ display:none; }
 }
 
 .kioskExtras{
-  margin-top: clamp(6px, 1vh, 12px);
+  margin-top: clamp(2px, 0.4vh, 6px);
   justify-content: center;
 }
 .kioskExtras .xv{
@@ -1096,8 +1095,8 @@ body.kiosk .line.tiny, #app.kioskApp .line.tiny{ display:none; }
     height: clamp(120px, 13vh, 180px);
   }
   .bottomPane{
-    gap: clamp(10px, 1.2vh, 16px);
-    padding-top: clamp(12px, 1.6vh, 20px);
+    gap: clamp(6px, 0.9vh, 12px);
+    padding-top: clamp(8px, 1.1vh, 14px);
   }
 }
 
