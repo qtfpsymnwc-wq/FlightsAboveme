@@ -4,97 +4,60 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>FlightsAboveMe — Kiosk</title>
-  <link rel="stylesheet" href="./kiosk.css?v=262">
+  <link rel="stylesheet" href="./kiosk.css?v=263">
 </head>
-
 <body class="kiosk">
   <div id="app" class="kioskApp">
-
     <header class="topBar">
-      <div class="appName"><img src="flightsaboveme-logo-tight.png?v=220" alt="FlightsAboveMe" class="siteLogo"></div>
+      <div class="appName"><img src="flightsaboveme-logo-tight.png?v=263" alt="FlightsAboveMe" class="siteLogo"></div>
       <a class="exitBtn" href="./index.html" aria-label="Exit kiosk mode">Exit</a>
     </header>
 
     <main class="board" aria-label="Flight kiosk display">
-
-      <section class="topPane">
-        <div class="logoPane">
-          <img id="airlineLogo" class="logo hidden" alt="Airline logo" loading="lazy" />
-        </div>
-
-        <div class="mainText">
-          <div id="airline" class="line airline">—</div>
-
-          <div id="route" class="line route routeSingle"></div>
-
-          <div class="line sub">
-            <span id="callsign" class="callsign">—</span>
-            <span class="sep">•</span>
-            <span id="model" class="model">—</span>
+      <section class="heroCard">
+        <div class="topPane">
+          <div class="logoPane">
+            <img id="airlineLogo" class="logo hidden" alt="Airline logo" loading="lazy" />
           </div>
 
-          <div class="line tiny">
-            <span class="tinyLabel">ICAO24</span>
-            <span id="icao24" class="tinyValue">—</span>
+          <div class="mainText">
+            <div id="airline" class="line airline">—</div>
+            <div id="route" class="line route">—</div>
+            <div class="line sub">
+              <span id="callsign" class="callsign">—</span>
+              <span class="sep">•</span>
+              <span id="model" class="model">—</span>
+            </div>
+            <div class="line tiny hiddenCompat" aria-hidden="true">
+              <span class="tinyLabel">ICAO24</span>
+              <span id="icao24" class="tinyValue">—</span>
+            </div>
           </div>
         </div>
+
+        <section class="bottomPane">
+          <div class="statsGrid">
+            <div class="stat"><div class="k">ALT</div><div class="v" id="alt">—</div></div>
+            <div class="stat"><div class="k">SPD</div><div class="v" id="spd">—</div></div>
+            <div class="stat"><div class="k">DIR</div><div class="v" id="dir">—</div></div>
+            <div class="stat"><div class="k">DIST</div><div class="v" id="dist">—</div></div>
+          </div>
+
+          <div class="kioskExtras" aria-label="Phase and squawk">
+            <span id="vs" class="xv">—</span>
+            <span id="sqSep" class="xDot">•</span>
+            <span id="squawk" class="xv">—</span>
+          </div>
+
+          <div class="statusLine">
+            <span id="radarLine">Radar: —</span>
+          </div>
+        </section>
       </section>
-
-      <section class="bottomPane">
-        <div class="statsRow">
-          <div class="stat">
-            <div class="k">ALT</div>
-            <div class="v" id="alt">—</div>
-          </div>
-          <div class="stat">
-            <div class="k">SPD</div>
-            <div class="v" id="spd">—</div>
-          </div>
-        </div>
-
-        <div class="statsRow">
-          <div class="stat">
-            <div class="k">TRK</div>
-            <div class="v" id="dir">—</div>
-          </div>
-          <div class="stat">
-            <div class="k">DIST</div>
-            <div class="v" id="dist">—</div>
-          </div>
-        </div>
-
-        <div class="kioskExtras" aria-label="Phase and squawk">
-          <span id="vs" class="xv">—</span>
-          <span id="sqSep" class="xDot">•</span>
-          <span id="squawk" class="xv">—</span>
-        </div>
-
-        <div class="statusLine">
-          <span id="radarLine">Radar: —</span>
-          <span class="dot">•</span>        </div>
-      </section>
-
-      <!-- Compatibility nodes kept for existing JS expectations -->
-      <section class="compatHidden" aria-hidden="true">
-        <img id="airlineLogo2" class="hidden" alt="" />
-        <div id="airline2">—</div>
-        <div id="callsign2">—</div>
-        <div id="route2">—</div>
-        <div id="model2">—</div>
-        <div id="icao242">—</div>
-        <div id="alt2">—</div>
-        <div id="spd2">—</div>
-        <div id="dir2">—</div>
-        <div id="dist2">—</div>
-        <div id="vs2">—</div>
-        <div id="squawk2">—</div>
-      </section>
-
     </main>
 
     <div id="errBox" class="errBox hidden"></div>
 
-    <!-- Manual location gate (kiosk): shown if location services are unavailable -->
     <section aria-label="Enter coordinates" class="zipGate hidden" id="locGate" role="form">
       <div class="zipGate__title">Set Location</div>
       <div class="zipGate__desc">Enter latitude and longitude for this kiosk display.</div>
@@ -109,12 +72,11 @@
     </section>
 
     <button id="changeLoc" class="changeLoc" type="button" aria-label="Change location">change location</button>
-
-
   </div>
 
-  <script>window.__KIOSK_MODE__ = true;</script>
-
-  <script src="./app.js?v=262"></script>
+  <script>
+    window.__KIOSK_MODE__ = true;
+  </script>
+  <script src="./app.js?v=263"></script>
 </body>
 </html>
