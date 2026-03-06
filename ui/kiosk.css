@@ -13,11 +13,11 @@
   --safeBottom: env(safe-area-inset-bottom);
   --safeLeft: env(safe-area-inset-left);
 
-  --airline: clamp(54px, 7.2vmin, 98px);
-  --route: clamp(34px, 4.6vmin, 64px);
-  --sub: clamp(30px, 3.7vmin, 52px);
-  --statV: clamp(56px, 7.0vmin, 104px);
-  --bottom: clamp(30px, 3.8vmin, 54px);
+  --airline: clamp(58px, 7.6vmin, 104px);
+  --route: clamp(36px, 4.8vmin, 66px);
+  --sub: clamp(32px, 3.9vmin, 54px);
+  --statV: clamp(84px, 10.8vmin, 164px);
+  --bottom: clamp(40px, 4.8vmin, 68px);
   --tiny: clamp(12px, 1.4vmin, 16px);
 }
 html,body{height:100%;margin:0}
@@ -52,53 +52,37 @@ body.kiosk::before{
 }
 .board{
   min-height: calc(100svh - max(68px, calc(var(--safeTop) + 44px)) - max(16px, var(--safeBottom)));
-  display:grid;
-  grid-template-rows:auto 1fr;
-  align-items:stretch;
-  padding: 2px max(16px, calc(var(--safeRight) + 14px)) max(18px, calc(var(--safeBottom) + 14px)) max(16px, calc(var(--safeLeft) + 14px));
-  gap: 8px;
+  display:grid; grid-template-rows:auto 1fr; align-items:stretch;
+  padding: 6px max(16px, calc(var(--safeRight) + 14px)) max(18px, calc(var(--safeBottom) + 14px)) max(16px, calc(var(--safeLeft) + 14px));
+  gap: clamp(10px, 1.8vmin, 22px);
 }
 .topPane{
-  display:grid;
-  grid-template-columns: auto 1fr;
-  gap: clamp(16px, 2.2vmin, 24px);
-  align-items:start;
+  display:grid; grid-template-columns: auto 1fr; gap: clamp(18px, 2.4vmin, 28px); align-items:start;
 }
 .logo{
   width: clamp(120px, 16vmin, 210px); height: clamp(120px, 16vmin, 210px); object-fit:contain;
   padding: 12px; border-radius:24px; background:#fff; border:1px solid rgba(0,0,0,.12);
   box-shadow: 0 18px 36px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.9);
 }
-.mainText{display:flex; flex-direction:column; gap: 4px; min-width:0;}
-.line{text-shadow:0 0 12px var(--glowA),0 0 28px var(--glowB); margin:0;}
+.mainText{display:flex; flex-direction:column; gap: 8px; min-width:0;}
+.line{text-shadow:0 0 12px var(--glowA),0 0 28px var(--glowB);}
 .airline{font-size:var(--airline); font-weight:950; line-height:1.02; letter-spacing:.4px; max-width:100%;}
-.route{font-size:var(--route); font-weight:900; line-height:1.02; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.sub{font-size:var(--sub); font-weight:900; color:var(--muted); display:flex; flex-wrap:wrap; align-items:baseline; gap:12px; line-height:1.02;}
+.route{font-size:var(--route); font-weight:900; line-height:1.08; color:var(--muted); white-space:normal; word-break:break-word; text-wrap:balance;}
+.sub{font-size:var(--sub); font-weight:900; color:var(--muted); display:flex; flex-wrap:wrap; align-items:baseline; gap:12px; line-height:1.08;}
 .sep{color:rgba(255,255,255,.45)}
 .tiny{display:none !important;}
-.bottomPane{
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-  flex:1 1 auto;
-  min-height:0;
-  gap: 10px;
-  margin-top: 0;
-}
-.statsGrid{
-  display:grid;
-  grid-template-columns: repeat(2, minmax(0,1fr));
-  column-gap: clamp(56px, 8vw, 120px);
-  row-gap: 6px;
-  align-items:center;
-  flex:0 1 auto;
-}
+.bottomPane{display:grid; grid-template-rows:auto auto; align-content:center; gap: clamp(12px, 1.8vmin, 24px); margin-top: 0; min-height:0;}
+.statsGrid{display:grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); grid-template-areas:"alt spd" "dir dist"; width:min(100%, 1220px); margin:0 auto; column-gap: clamp(36px, 5vw, 84px); row-gap: clamp(4px, .9vmin, 14px); align-items:center;}
 .stat{display:flex; align-items:center; min-width:0;}
-.stat:nth-child(odd){justify-content:flex-start;}
-.stat:nth-child(even){justify-content:flex-end;}
-.stat .v{font-size:clamp(64px, 8.8vmin, 132px); font-weight:950; line-height:.94; white-space:nowrap; text-align:center; text-shadow:0 0 12px rgba(255,255,255,.15),0 0 28px rgba(255,255,255,.08);}
-.kioskExtras{display:flex; justify-content:center; align-items:center; gap:14px; margin-top: 2px;}
-.kioskExtras .xv{font-size:clamp(34px, 4.2vmin, 58px); font-weight:950; line-height:1.0; white-space:nowrap;}
+.stat:nth-child(1){grid-area:alt; justify-content:flex-start;}
+.stat:nth-child(2){grid-area:spd; justify-content:flex-end;}
+.stat:nth-child(3){grid-area:dir; justify-content:flex-start;}
+.stat:nth-child(4){grid-area:dist; justify-content:flex-end;}
+.stat .v{font-size:var(--statV); font-weight:950; line-height:.92; white-space:nowrap; text-shadow:0 0 12px rgba(255,255,255,.15),0 0 28px rgba(255,255,255,.08);}
+#alt,#dir{text-align:left;}
+#spd,#dist{text-align:right;}
+.kioskExtras{display:flex; justify-content:center; align-items:center; gap:14px; margin-top: 0;}
+.kioskExtras .xv{font-size:var(--bottom); font-weight:950; line-height:1.05; white-space:nowrap;}
 .kioskExtras .xDot{font-size:var(--bottom); color:rgba(255,255,255,.48); line-height:1;}
 .statusLine{display:none !important;}
 .compatHidden{position:absolute; width:1px; height:1px; overflow:hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space:nowrap;}
@@ -108,12 +92,12 @@ body.kiosk::before{
 .zipGate__title{font-size:20px; font-weight:900; margin-bottom:6px}.zipGate__desc{font-size:14px; color:rgba(255,255,255,.75); margin-bottom:12px}.zipGate__row{display:flex; gap:8px; flex-wrap:wrap}.zipGate__input{flex:1 1 180px; background:#0f1831; color:#fff; border:1px solid rgba(255,255,255,.14); border-radius:12px; padding:12px 14px}.zipGate__btn{background:#162448;color:#fff;border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:12px 14px;font-weight:800}.zipGate__msg{margin-top:10px;color:#a8c7ff;font-size:14px}
 
 @media (max-width: 900px){
-  :root{ --airline: clamp(42px, 6.6vmin, 74px); --route: clamp(28px, 4.2vmin, 48px); --sub: clamp(24px, 3.3vmin, 38px); --statV: clamp(42px, 6.0vmin, 74px); --bottom: clamp(26px, 3.6vmin, 40px);} 
+  :root{ --airline: clamp(44px, 6.8vmin, 76px); --route: clamp(30px, 4.3vmin, 50px); --sub: clamp(26px, 3.4vmin, 40px); --statV: clamp(60px, 8.8vmin, 98px); --bottom: clamp(30px, 4.0vmin, 46px);} 
   .logo{ width: clamp(106px, 15vmin, 170px); height: clamp(106px, 15vmin, 170px);} 
 }
 
 @media (max-height: 520px){
-  :root{ --airline: clamp(34px, 6.2vmin, 58px); --route: clamp(22px, 3.8vmin, 38px); --sub: clamp(20px, 3.0vmin, 30px); --statV: clamp(34px, 5.2vmin, 58px); --bottom: clamp(20px, 3.2vmin, 32px);} 
+  :root{ --airline: clamp(34px, 6.2vmin, 58px); --route: clamp(22px, 3.8vmin, 38px); --sub: clamp(20px, 3.0vmin, 30px); --statV: clamp(42px, 6.0vmin, 68px); --bottom: clamp(22px, 3.4vmin, 34px);} 
   .logo{ width: clamp(84px, 13vmin, 120px); height: clamp(84px, 13vmin, 120px); padding:8px; border-radius:18px;}
   .topPane{ gap: 14px; }
   .mainText{ gap: 4px; }
@@ -121,10 +105,10 @@ body.kiosk::before{
 }
 
 @media (orientation: portrait){
-  :root{ --airline: clamp(40px, 5.2vmin, 66px); --route: clamp(26px, 3.6vmin, 42px); --sub: clamp(22px, 3.0vmin, 34px); --statV: clamp(38px, 4.8vmin, 62px); --bottom: clamp(22px, 2.8vmin, 34px);} 
-  .board{gap:12px;}
+  :root{ --airline: clamp(40px, 5.2vmin, 66px); --route: clamp(26px, 3.6vmin, 42px); --sub: clamp(22px, 3.0vmin, 34px); --statV: clamp(46px, 6.2vmin, 78px); --bottom: clamp(24px, 3.2vmin, 38px);} 
+  .board{gap:16px;}
   .topPane{grid-template-columns: auto 1fr; gap: 14px;}
   .logo{ width: clamp(92px, 12vmin, 140px); height: clamp(92px, 12vmin, 140px); }
-  .route{ white-space:normal; overflow:visible; text-overflow:clip; }
-  .statsGrid{ row-gap: 8px; column-gap: 28px; }
+  .route{ text-wrap: pretty; }
+  .statsGrid{ row-gap: 6px; column-gap: 26px; width:100%; }
 }
