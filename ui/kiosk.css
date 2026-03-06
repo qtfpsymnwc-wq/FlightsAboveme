@@ -945,7 +945,7 @@ body.kiosk .board{
   display:flex;
   flex-direction:column;
   justify-content:flex-start;
-  gap: clamp(10px, 1.4vmin, 18px);
+  gap: clamp(12px, 1.8vmin, 22px);
   padding-bottom: calc(var(--safeBottom) + 18px);
 }
 body.kiosk .topPane{
@@ -960,23 +960,23 @@ body.kiosk .logo{
   border-radius: 20px;
 }
 body.kiosk .mainText{
-  gap: clamp(4px, 0.8vmin, 10px);
+  gap: clamp(6px, 1.0vmin, 12px);
 }
 body.kiosk .airline{
-  font-size: clamp(42px, 7.0vmin, 86px);
+  font-size: clamp(52px, 7.8vmin, 94px);
   line-height: 1.02;
 }
 body.kiosk .route{
   display:block !important;
-  font-size: clamp(22px, 3.8vmin, 42px);
-  line-height: 1.1;
+  font-size: clamp(30px, 4.8vmin, 54px);
+  line-height: 1.08;
   white-space: normal !important;
   word-break: keep-all;
   overflow-wrap: anywhere;
   max-width: 100%;
 }
 body.kiosk .sub{
-  font-size: clamp(18px, 2.9vmin, 34px);
+  font-size: clamp(26px, 3.8vmin, 42px);
   line-height: 1.08;
   gap: 10px;
   flex-wrap: wrap;
@@ -1004,11 +1004,11 @@ body.kiosk .kioskExtras{
   margin-top: clamp(2px, 0.6vmin, 8px);
 }
 body.kiosk .kioskExtras .xv{
-  font-size: clamp(22px, 3.8vmin, 40px) !important;
+  font-size: clamp(30px, 4.4vmin, 48px) !important;
   letter-spacing: 0.02em !important;
 }
 body.kiosk .kioskExtras .xDot{
-  font-size: clamp(22px, 3.8vmin, 40px) !important;
+  font-size: clamp(30px, 4.4vmin, 48px) !important;
   margin: 0 12px !important;
 }
 body.kiosk .changeLoc{
@@ -1018,12 +1018,12 @@ body.kiosk .statusLine{ display:none !important; }
 
 /* Tablet landscape override */
 @media (orientation: landscape) and (min-width: 900px) and (max-width: 1400px){
-  body.kiosk .airline{ font-size: clamp(54px, 7.8vmin, 92px); }
-  body.kiosk .route{ font-size: clamp(26px, 4.2vmin, 44px); }
-  body.kiosk .sub{ font-size: clamp(20px, 3.2vmin, 36px); }
+  body.kiosk .airline{ font-size: clamp(60px, 8.6vmin, 104px); }
+  body.kiosk .route{ font-size: clamp(34px, 5.2vmin, 58px); }
+  body.kiosk .sub{ font-size: clamp(28px, 4.0vmin, 44px); }
   body.kiosk .stat .v{ font-size: clamp(54px, 8.2vmin, 96px); }
   body.kiosk .kioskExtras .xv,
-  body.kiosk .kioskExtras .xDot{ font-size: clamp(26px, 4.2vmin, 44px) !important; }
+  body.kiosk .kioskExtras .xDot{ font-size: clamp(34px, 4.8vmin, 52px) !important; }
 }
 
 /* Phone portrait kiosk still needs to fit */

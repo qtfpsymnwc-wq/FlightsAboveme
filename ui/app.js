@@ -1,7 +1,7 @@
 // FlightsAboveMe UI
 const API_BASE = window.location.origin;
 // Cache-buster for static assets (CSS/JS/logos)
-const UI_VERSION = "v264";
+const UI_VERSION = "v265";
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;
@@ -241,13 +241,22 @@ function fmtVS(vr, baroAltM, distanceMi, icao24, callsign){
   }
 
   // If VR is missing, try to infer approach/departure using last sample.
-// If we can't infer (no prior sample), show a blank phase label.
+  // If we can't infer yet, prefer a stable phase label instead of blanking the line.
   if (!Number.isFinite(vr)) {
-    if (!key) return "";
+    if (!key) {
+      if (Number.isFinite(altFt) && altFt < 18_000) return "Level";
+      return "Cruising";
+    }
     const prev = _phaseHist.get(key);
-    if (!prev || !Number.isFinite(prev.altFt) || !Number.isFinite(altFt) || !Number.isFinite(prev.d) || !Number.isFinite(d)) return "";
+    if (!prev || !Number.isFinite(prev.altFt) || !Number.isFinite(altFt) || !Number.isFinite(prev.d) || !Number.isFinite(d)) {
+      if (Number.isFinite(altFt) && altFt < 18_000) return "Level";
+      return "Cruising";
+    }
     const dt = (now - (prev.t || 0)) / 1000;
-    if (!Number.isFinite(dt) || dt < 2) return "";
+    if (!Number.isFinite(dt) || dt < 2) {
+      if (Number.isFinite(altFt) && altFt < 18_000) return "Level";
+      return "Cruising";
+    }
 
     // Rates derived from two consecutive polls.
     const fpm = ((altFt - prev.altFt) / dt) * 60;        // feet per minute
@@ -316,6 +325,18 @@ function setSquawkUI(sq, squawkId, sepId){
   squawkEl.textContent = text;
   squawkEl.style.display = "";
   if (sepEl) sepEl.style.display = "";
+}
+
+function syncBottomLine(phaseId, squawkId, sepId){
+  const phaseEl = $(phaseId);
+  const squawkEl = $(squawkId);
+  const sepEl = $(sepId);
+  if (!phaseEl || !squawkEl || !sepEl) return;
+
+  const hasPhase = !!(phaseEl.textContent || "").trim() && phaseEl.style.display !== "none";
+  const hasSquawk = !!(squawkEl.textContent || "").trim() && squawkEl.style.display !== "none";
+
+  sepEl.style.display = (hasPhase && hasSquawk) ? "" : "none";
 }
 
 
@@ -645,6 +666,7 @@ function renderPrimary(f, radarMeta){
 
   if ($("vs")) $("vs").textContent = fmtVS(f.verticalRate, f.baroAlt, f.distanceMi, f.icao24, f.callsign);
   setSquawkUI(f.squawk, "squawk", "sqSep");
+  syncBottomLine("vs", "squawk", "sqSep");
 
   if ($("dir")) $("dir").textContent = headingToText(
     f.trueTrack,
@@ -717,6 +739,7 @@ function renderSecondary(f){
 
   if ($("vs2")) $("vs2").textContent = fmtVS(f.verticalRate, f.baroAlt, f.distanceMi, f.icao24, f.callsign);
   setSquawkUI(f.squawk, "squawk2", "sqSep2");
+  syncBottomLine("vs2", "squawk2", "sqSep2");
 
   $("dir2").textContent = headingToText(
     f.trueTrack,
