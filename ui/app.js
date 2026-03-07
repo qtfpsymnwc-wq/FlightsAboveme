@@ -667,6 +667,7 @@ function renderPrimary(f, radarMeta){
     routeEl.textContent = routeDisp;
     routeEl.style.display = routeDisp ? "" : "none";
   }
+  document.body.classList.toggle("no-route", !routeDisp);
 
   // Aircraft type/model: show live hint until enriched; hide when unknown
   const modelDisp = f.modelText || f.modelHint || "";
@@ -675,6 +676,8 @@ function renderPrimary(f, radarMeta){
     modelEl.textContent = modelDisp;
     modelEl.style.display = modelDisp ? "" : "none";
   }
+  const sepEl = document.querySelector('.sub .sep');
+  if (sepEl) sepEl.style.display = modelDisp ? "" : "none";
 
   if ($("radarLine")) $("radarLine").textContent =
     `Radar: ${radarMeta.count} flights • Showing: ${radarMeta.showing}`;
