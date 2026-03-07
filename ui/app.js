@@ -1,7 +1,7 @@
 // FlightsAboveMe UI
 const API_BASE = window.location.origin;
 // Cache-buster for static assets (CSS/JS/logos)
-const UI_VERSION = "v262";
+const UI_VERSION = "v260";
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;
@@ -290,13 +290,22 @@ function fmtVS(vr, baroAltM, distanceMi, icao24, callsign){
   return "Cruising";
 }
 
-// Squawk (transponder) display.
+// Squawk (transponder) definitions.
 // OpenSky may return "" / null / "0000"; treat as not set.
-// Show the actual assigned code so aviation users can see it directly.
-function fmtSquawkDisplay(sq){
+// Replace code with a definition (no raw code shown).
+function fmtSquawkMeaning(sq){
   const s = (sq ?? "").toString().trim();
   if (!s || s === "0000") return null;
-  return `Squawk ${s}`;
+
+  // Emergency squawks
+  if (s === "7500") return "Hijacking";
+  if (s === "7600") return "Radio Failure";
+  if (s === "7700") return "Emergency";
+
+  // Common VFR codes (region-dependent, but useful as a friendly label)
+  if (s === "1200" || s === "7000") return "VFR";
+
+  return "ATC Assigned";
 }
 
 function setSquawkUI(sq, squawkId, sepId){
@@ -304,15 +313,15 @@ function setSquawkUI(sq, squawkId, sepId){
   if (!squawkEl) return;
   const sepEl = sepId ? $(sepId) : null;
 
-  const display = fmtSquawkDisplay(sq);
-  if (!display) {
+  const meaning = fmtSquawkMeaning(sq);
+  if (!meaning) {
     squawkEl.textContent = "";
     squawkEl.style.display = "none";
     if (sepEl) sepEl.style.display = "none";
     return;
   }
 
-  squawkEl.textContent = display;
+  squawkEl.textContent = meaning;
   squawkEl.style.display = "";
   if (sepEl) sepEl.style.display = "";
 }
@@ -344,33 +353,8 @@ function logoCandidatesForKey(key){
     logoUrlForKey("", "svg"),
   ];
 }
-function logoKeyFromAirlineName(name){
-  const n = (name || "").toString().trim().toLowerCase();
-  if (!n) return null;
-
-  const rules = [
-    [/american|american eagle/, "AAL"],
-    [/alaska|horizon air/, "ASA"],
-    [/allegiant/, "AAY"],
-    [/delta|delta connection/, "DAL"],
-    [/frontier/, "FFT"],
-    [/jetblue/, "JBU"],
-    [/spirit/, "NKS"],
-    [/southwest/, "SWA"],
-    [/united|united express/, "UAL"],
-    [/fedex/, "FDX"],
-  ];
-
-  for (const [re, key] of rules) {
-    if (re.test(n)) return key;
-  }
-  return null;
-}
-
 function logoCandidatesForFlight(f){
-  const keyFromName = logoKeyFromAirlineName(f?.airlineName || f?.airlineGuess || "");
   const key =
-    keyFromName ||
     (f?.airlineIcao || f?.operatorIcao || airlineKeyFromCallsign(f?.callsign || ""))?.toUpperCase?.() ||
     airlineKeyFromCallsign(f?.callsign || "");
   return logoCandidatesForKey(key);
@@ -644,36 +628,11 @@ function routeCodesOnly(text){
   return raw;
 }
 
-const LONG_ROUTE_SIDE_MAX = 15;
-
-function truncateRouteSide(sideText, maxChars = LONG_ROUTE_SIDE_MAX){
-  const raw = nm(sideText).replace(/\s+/g, " ").trim();
-  if (!raw || raw.length <= maxChars) return raw;
-
-  const codeMatch = raw.match(/\(([A-Z0-9]{3,4})\)\s*$/i);
-  if (!codeMatch) return raw;
-
-  const code = codeMatch[1].toUpperCase();
-  const label = raw.slice(0, codeMatch.index).replace(/[\s,-]+$/, "").trim();
-  if (!label) return `(${code})`;
-  if (label.length <= maxChars) return `${label} (${code})`;
-
-  return `${label.slice(0, maxChars).trimEnd()}… (${code})`;
-}
-
 function formatRouteForDisplay(routeText){
   const t = nm(routeText);
   if (!t) return "";
   if (isKiosk() && isPortrait()) return routeCodesOnly(t);
-
-  const parts = t.replace(/\s+/g, " ").trim().split(/\s*(?:→|->)\s*/);
-  if (parts.length >= 2) {
-    const left = truncateRouteSide(parts[0]);
-    const right = truncateRouteSide(parts.slice(1).join(" "));
-    return `${left} → ${right}`;
-  }
-
-  return truncateRouteSide(t);
+  return t;
 }
 
 // -------------------- Rendering --------------------
