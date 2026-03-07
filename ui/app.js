@@ -1,7 +1,7 @@
 // FlightsAboveMe UI
 const API_BASE = window.location.origin;
 // Cache-buster for static assets (CSS/JS/logos)
-const UI_VERSION = "v264";
+const UI_VERSION = "v262";
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;
@@ -344,8 +344,33 @@ function logoCandidatesForKey(key){
     logoUrlForKey("", "svg"),
   ];
 }
+function logoKeyFromAirlineName(name){
+  const n = (name || "").toString().trim().toLowerCase();
+  if (!n) return null;
+
+  const rules = [
+    [/american|american eagle/, "AAL"],
+    [/alaska|horizon air/, "ASA"],
+    [/allegiant/, "AAY"],
+    [/delta|delta connection/, "DAL"],
+    [/frontier/, "FFT"],
+    [/jetblue/, "JBU"],
+    [/spirit/, "NKS"],
+    [/southwest/, "SWA"],
+    [/united|united express/, "UAL"],
+    [/fedex/, "FDX"],
+  ];
+
+  for (const [re, key] of rules) {
+    if (re.test(n)) return key;
+  }
+  return null;
+}
+
 function logoCandidatesForFlight(f){
+  const keyFromName = logoKeyFromAirlineName(f?.airlineName || f?.airlineGuess || "");
   const key =
+    keyFromName ||
     (f?.airlineIcao || f?.operatorIcao || airlineKeyFromCallsign(f?.callsign || ""))?.toUpperCase?.() ||
     airlineKeyFromCallsign(f?.callsign || "");
   return logoCandidatesForKey(key);
@@ -623,22 +648,17 @@ const LONG_ROUTE_SIDE_MAX = 15;
 
 function truncateRouteSide(sideText, maxChars = LONG_ROUTE_SIDE_MAX){
   const raw = nm(sideText).replace(/\s+/g, " ").trim();
-  if (!raw) return "";
+  if (!raw || raw.length <= maxChars) return raw;
 
   const codeMatch = raw.match(/\(([A-Z0-9]{3,4})\)\s*$/i);
-  if (!codeMatch) {
-    return raw.length > maxChars ? `${raw.slice(0, maxChars).trimEnd()}…` : raw;
-  }
+  if (!codeMatch) return raw;
 
   const code = codeMatch[1].toUpperCase();
-  const labelRaw = raw.slice(0, codeMatch.index).trim();
-  const label = labelRaw.replace(/[\s/,-]+$/, "").trim();
-
+  const label = raw.slice(0, codeMatch.index).replace(/[\s,-]+$/, "").trim();
   if (!label) return `(${code})`;
   if (label.length <= maxChars) return `${label} (${code})`;
 
-  const truncated = label.slice(0, maxChars).replace(/[\s/,-]+$/, "").trimEnd();
-  return `${truncated}… (${code})`;
+  return `${label.slice(0, maxChars).trimEnd()}… (${code})`;
 }
 
 function formatRouteForDisplay(routeText){
