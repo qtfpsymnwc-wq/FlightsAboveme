@@ -1,11 +1,9 @@
-
 :root{
   color-scheme: dark;
   --bg0:#05070c;
   --bg1:#070a12;
   --text: rgba(255,255,255,.96);
   --muted: rgba(255,255,255,.88);
-  --faint: rgba(255,255,255,.60);
   --glowA: rgba(120,220,255,.18);
   --glowB: rgba(120,220,255,.10);
   --safeTop: env(safe-area-inset-top);
@@ -13,12 +11,11 @@
   --safeBottom: env(safe-area-inset-bottom);
   --safeLeft: env(safe-area-inset-left);
 
-  --airline: clamp(92px, 7.8vw, 178px);
-  --route: clamp(42px, 4.2vw, 78px);
-  --sub: clamp(38px, 3.5vw, 66px);
-  --statV: clamp(82px, 6.4vw, 144px);
-  --bottom: clamp(58px, 4.4vw, 96px);
-  --tiny: clamp(12px, 1.4vmin, 16px);
+  --airline: clamp(72px, 7.2vw, 138px);
+  --route: clamp(30px, 3.4vw, 58px);
+  --sub: clamp(26px, 2.8vw, 48px);
+  --statV: clamp(58px, 6vw, 116px);
+  --bottom: clamp(40px, 3.8vw, 70px);
 }
 html,body{height:100%;margin:0}
 body.kiosk{
@@ -41,98 +38,175 @@ body.kiosk::before{
 .kioskApp{min-height:100svh; position:relative; z-index:1;}
 .hidden{display:none !important;}
 .topBar{
-  display:flex; justify-content:space-between; align-items:center;
-  padding: max(6px, calc(var(--safeTop) + 2px)) max(16px, calc(var(--safeRight) + 14px)) 2px max(16px, calc(var(--safeLeft) + 14px));
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:max(6px, calc(var(--safeTop) + 2px)) max(16px, calc(var(--safeRight) + 14px)) 4px max(16px, calc(var(--safeLeft) + 14px));
 }
-.siteLogo{width:min(250px, 28vw); max-width:250px; height:auto; opacity:.95;}
+.siteLogo{width:min(230px, 24vw); max-width:230px; height:auto; opacity:.95;}
 .exitBtn{
-  color:var(--text); text-decoration:none; font-weight:800; font-size:clamp(18px,2.2vmin,26px);
-  border:1px solid rgba(255,255,255,.16); border-radius:20px; padding:10px 18px;
-  background:rgba(255,255,255,.06); backdrop-filter: blur(4px);
+  color:var(--text);
+  text-decoration:none;
+  font-weight:800;
+  font-size:clamp(18px,2.2vmin,26px);
+  border:1px solid rgba(255,255,255,.16);
+  border-radius:20px;
+  padding:10px 18px;
+  background:rgba(255,255,255,.06);
+  backdrop-filter: blur(4px);
 }
 .board{
-  min-height: calc(100svh - max(56px, calc(var(--safeTop) + 28px)) - max(12px, var(--safeBottom)));
-  display:grid;
-  grid-template-rows: minmax(0, 1fr) auto;
-  padding: 0 max(16px, calc(var(--safeRight) + 14px)) max(18px, calc(var(--safeBottom) + 14px)) max(16px, calc(var(--safeLeft) + 14px));
-  row-gap: 4px;
+  min-height:calc(100svh - max(54px, calc(var(--safeTop) + 24px)) - max(14px, var(--safeBottom)));
+  display:flex;
+  flex-direction:column;
+  padding:0 max(18px, calc(var(--safeRight) + 16px)) max(18px, calc(var(--safeBottom) + 14px)) max(18px, calc(var(--safeLeft) + 16px));
+  gap:10px;
 }
 .topPane{
   display:grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: clamp(20px, 2.2vw, 32px);
+  grid-template-columns:auto minmax(0,1fr);
+  gap:clamp(16px, 2vw, 28px);
   align-items:center;
-  align-content:start;
-  justify-content:start;
+  flex:1 1 auto;
   min-height:0;
-  height:100%;
-  padding-top: clamp(2px, 0.6vh, 8px);
 }
 .logo{
-  width: clamp(120px, 16vmin, 210px); height: clamp(120px, 16vmin, 210px); object-fit:contain;
-  padding: 12px; border-radius:24px; background:#fff; border:1px solid rgba(0,0,0,.12);
-  box-shadow: 0 18px 36px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.9);
+  width:clamp(112px, 13vw, 190px);
+  height:clamp(112px, 13vw, 190px);
+  object-fit:contain;
+  padding:12px;
+  border-radius:24px;
+  background:#fff;
+  border:1px solid rgba(0,0,0,.12);
+  box-shadow:0 18px 36px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.9);
 }
-.mainText{display:flex; flex-direction:column; justify-content:flex-start; gap: 12px; min-width:0; padding-top: 0; max-width:min(72vw, 1020px);}
+.mainText{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  gap:8px;
+  min-width:0;
+  max-width:min(78vw, 1120px);
+}
 .line{text-shadow:0 0 12px var(--glowA),0 0 28px var(--glowB);}
-.airline{font-size:var(--airline); font-weight:950; line-height:1.02; letter-spacing:.4px; max-width:100%;}
-.route{font-size:var(--route); font-weight:900; line-height:1.02; color:var(--muted); white-space:normal; overflow:hidden; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow-wrap:anywhere; word-break:break-word; text-wrap:balance; max-width:min(70vw, 980px);}
-.sub{font-size:var(--sub); font-weight:900; color:var(--muted); display:flex; flex-wrap:wrap; align-items:baseline; gap:10px; line-height:1.02;}
-.kiosk.no-route .sub{font-size:clamp(44px, 4.0vw, 76px); gap:14px;}
-.kiosk.no-route .airline{font-size:clamp(96px, 8.2vw, 176px);}
-.kiosk.no-route .mainText{gap:14px;}
+.airline{
+  font-size:var(--airline);
+  font-weight:950;
+  line-height:0.96;
+  letter-spacing:.2px;
+}
+.route{
+  font-size:var(--route);
+  font-weight:900;
+  line-height:1.02;
+  color:var(--muted);
+  display:-webkit-box;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:2;
+  overflow:hidden;
+  white-space:normal;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+  max-width:100%;
+}
+.sub{
+  font-size:var(--sub);
+  font-weight:900;
+  color:var(--muted);
+  display:flex;
+  flex-wrap:wrap;
+  align-items:baseline;
+  gap:10px;
+  line-height:1.02;
+}
+.kiosk.no-route .airline{font-size:clamp(82px, 8.2vw, 150px);}
+.kiosk.no-route .sub{font-size:clamp(34px, 3.6vw, 60px);}
+.kiosk.no-route .mainText{gap:10px;}
 .sep{color:rgba(255,255,255,.45)}
 .tiny{display:none !important;}
-.bottomPane{display:flex; flex-direction:column; gap: 8px; width:min(72vw, 860px); max-width:100%; align-self:center; justify-self:center;}
-.statsGrid{display:grid; grid-template-columns: max-content max-content; justify-content:space-between; column-gap: clamp(36px, 5vw, 76px); row-gap: 2px; align-items:center; width:100%;}
-.stat{display:flex; align-items:center; min-width:0; max-width:100%;}
-.statsGrid .stat:nth-child(odd){justify-content:flex-start;}
-.statsGrid .stat:nth-child(even){justify-content:flex-end;}
-.stat .v{font-size:var(--statV); font-weight:950; line-height:0.98; white-space:nowrap; text-shadow:0 0 12px rgba(255,255,255,.15),0 0 28px rgba(255,255,255,.08);}
-.kioskExtras{display:flex; justify-content:center; align-items:center; gap:12px; margin-top: 0; min-height: var(--bottom); width:100%;}
+.bottomPane{
+  width:100%;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  margin-top:auto;
+}
+.statsGrid{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  column-gap:clamp(20px, 3vw, 52px);
+  row-gap:4px;
+  align-items:center;
+  width:100%;
+}
+.stat{display:flex; align-items:center; min-width:0;}
+.statsGrid .stat:nth-child(odd){justify-content:flex-start; text-align:left;}
+.statsGrid .stat:nth-child(even){justify-content:flex-end; text-align:right;}
+.stat .v{
+  font-size:var(--statV);
+  font-weight:950;
+  line-height:0.94;
+  white-space:nowrap;
+  text-shadow:0 0 12px rgba(255,255,255,.15),0 0 28px rgba(255,255,255,.08);
+}
+.kioskExtras{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:12px;
+  min-height:var(--bottom);
+  width:100%;
+}
 #radarLine,.radarLine,.statusLine{display:none !important; visibility:hidden !important; height:0 !important; overflow:hidden !important; opacity:0 !important;}
-.kioskExtras .xv{font-size:var(--bottom); font-weight:950; line-height:1.05; white-space:nowrap;}
+.kioskExtras .xv{font-size:var(--bottom); font-weight:950; line-height:1.02; white-space:nowrap;}
 .kioskExtras .xDot{font-size:var(--bottom); color:rgba(255,255,255,.48); line-height:1;}
-.statusLine{display:none !important; visibility:hidden !important; height:0 !important; overflow:hidden !important; opacity:0 !important;}
 .compatHidden{position:absolute; width:1px; height:1px; overflow:hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space:nowrap;}
 .errBox{position:fixed; left:16px; right:16px; bottom:16px; background:rgba(60,16,26,.95); border:1px solid rgba(255,138,160,.35); color:#ffd7de; padding:14px 16px; border-radius:16px; font-size:16px; font-weight:800; z-index:999;}
 .changeLoc{position:fixed; right:max(16px, calc(var(--safeRight) + 12px)); bottom:max(16px, calc(var(--safeBottom) + 8px)); background:transparent; border:0; color:rgba(255,255,255,.55); font-size:clamp(12px, 1.4vmin, 16px);}
 .zipGate{position:fixed; inset:auto 16px max(52px, calc(var(--safeBottom) + 16px)) 16px; background:#0b1327; border:1px solid rgba(255,255,255,.14); border-radius:18px; padding:16px; z-index:90; box-shadow:0 20px 60px rgba(0,0,0,.55);}
 .zipGate__title{font-size:20px; font-weight:900; margin-bottom:6px}.zipGate__desc{font-size:14px; color:rgba(255,255,255,.75); margin-bottom:12px}.zipGate__row{display:flex; gap:8px; flex-wrap:wrap}.zipGate__input{flex:1 1 180px; background:#0f1831; color:#fff; border:1px solid rgba(255,255,255,.14); border-radius:12px; padding:12px 14px}.zipGate__btn{background:#162448;color:#fff;border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:12px 14px;font-weight:800}.zipGate__msg{margin-top:10px;color:#a8c7ff;font-size:14px}
 
-
 @media (orientation: landscape){
-  .topPane{padding-top: 0; align-content:start; justify-content:start;}
-  .logo{ width: clamp(132px, 13vw, 220px); height: clamp(132px, 13vw, 220px);}
-  .mainText{max-width:min(70vw, 980px);}
-  .airline{font-size: clamp(96px, 8vw, 180px);}
-  .route{font-size: clamp(44px, 4.1vw, 74px); max-width:min(68vw, 920px);}
-  .sub{font-size: clamp(40px, 3.2vw, 62px);}
-  .stat .v{font-size: clamp(92px, 7.1vw, 154px);}
-  .kioskExtras .xv, .kioskExtras .xDot{font-size: clamp(60px, 4.6vw, 96px);}
-  .kiosk.no-route .logo{ width: clamp(142px, 14vw, 234px); height: clamp(142px, 14vw, 234px);}
-  .kiosk.no-route .airline{font-size: clamp(112px, 9vw, 188px);}
-  .kiosk.no-route .sub{font-size: clamp(50px, 4.1vw, 78px);}
+  .topPane{padding-top:0;}
+  .route{-webkit-line-clamp:2;}
 }
 
 @media (max-width: 900px){
-  :root{ --airline: clamp(64px, 8.2vmin, 116px); --route: clamp(38px, 4.0vw, 72px); --sub: clamp(32px, 4.0vmin, 54px); --statV: clamp(42px, 6.0vmin, 74px); --bottom: clamp(46px, 5.2vmin, 76px);} 
-  .logo{ width: clamp(106px, 15vmin, 170px); height: clamp(106px, 15vmin, 170px);} 
+  :root{
+    --airline: clamp(58px, 8vmin, 106px);
+    --route: clamp(26px, 3.8vmin, 48px);
+    --sub: clamp(24px, 3.2vmin, 42px);
+    --statV: clamp(50px, 5.6vmin, 86px);
+    --bottom: clamp(38px, 4.6vmin, 62px);
+  }
+  .siteLogo{width:min(190px, 22vw);}
+  .logo{width:clamp(98px, 14vmin, 150px); height:clamp(98px, 14vmin, 150px);}
 }
 
 @media (max-height: 520px){
-  :root{ --airline: clamp(64px, 8.2vmin, 116px); --route: clamp(46px, 4.4vw, 92px); --sub: clamp(34px, 4.2vmin, 58px); --statV: clamp(34px, 5.2vmin, 58px); --bottom: clamp(46px, 5.2vmin, 76px);} 
-  .logo{ width: clamp(84px, 13vmin, 120px); height: clamp(84px, 13vmin, 120px); padding:8px; border-radius:18px;}
-  .topPane{ gap: 14px; }
-  .mainText{ gap: 4px; }
-  .statsGrid{ column-gap: 24px; }
+  :root{
+    --airline: clamp(54px, 7.4vmin, 98px);
+    --route: clamp(24px, 3.6vmin, 44px);
+    --sub: clamp(22px, 3vmin, 38px);
+    --statV: clamp(42px, 4.8vmin, 72px);
+    --bottom: clamp(34px, 4vmin, 56px);
+  }
+  .topBar{padding-top:max(4px, calc(var(--safeTop) + 1px));}
+  .topPane{gap:14px;}
+  .mainText{gap:6px;}
+  .statsGrid{column-gap:18px;}
 }
 
 @media (orientation: portrait){
-  :root{ --airline: clamp(64px, 8.2vmin, 116px); --route: clamp(40px, 4.0vw, 72px); --sub: clamp(34px, 4.2vmin, 58px); --statV: clamp(38px, 4.8vmin, 62px); --bottom: clamp(46px, 5.2vmin, 76px);} 
-  .board{row-gap:10px;}
-  .topPane{grid-template-columns: auto 1fr; gap: 14px;}
-  .logo{ width: clamp(92px, 12vmin, 140px); height: clamp(92px, 12vmin, 140px); }
-  .route{ text-wrap: pretty; -webkit-line-clamp: 3; }
-  .statsGrid{ row-gap: 6px; column-gap: 26px; }
+  :root{
+    --airline: clamp(56px, 7.2vmin, 96px);
+    --route: clamp(26px, 3.8vmin, 46px);
+    --sub: clamp(24px, 3.4vmin, 40px);
+    --statV: clamp(40px, 5vmin, 68px);
+    --bottom: clamp(36px, 4.2vmin, 56px);
+  }
+  .board{gap:8px;}
+  .topPane{grid-template-columns:auto 1fr; gap:14px;}
+  .logo{width:clamp(92px, 12vmin, 134px); height:clamp(92px, 12vmin, 134px);}
+  .route{-webkit-line-clamp:3;}
 }
