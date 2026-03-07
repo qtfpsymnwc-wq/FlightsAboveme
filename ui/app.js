@@ -1,7 +1,7 @@
 // FlightsAboveMe UI
 const API_BASE = window.location.origin;
 // Cache-buster for static assets (CSS/JS/logos)
-const UI_VERSION = "v283";
+const UI_VERSION = "v260";
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;
@@ -20,15 +20,13 @@ let primaryStableCount = 0;
 let lastEnrichQueuedKey = null;
 let lastEnrichQueuedAt = 0;
 // Kiosk focus lock: keep tracking the same closest aircraft briefly so route enrichment can complete.
-const KIOSK_FOCUS_LOCK_MS = 40000;
+const KIOSK_FOCUS_LOCK_MS = 0;// disabled: kiosk should never appear stuck on a flight
+
 let kioskFocusIcao24 = null;
 let kioskFocusUntilMs = 0;
-// If we stop receiving fresh radar data, clear stale kiosk display so flights don't "stick".
-const STALE_RESET_MS = 30000;
-let lastStatesOkAt = 0;
-
 // Performance tuning (v1.3.1): allow slower cellular fetches for states
-const STATES_TIMEOUT_MS = 16000;
+const STATES_TIMEOUT_MS_MAIN = 16000;
+const STATES_TIMEOUT_MS_KIOSK = 8000; // keep kiosk snappy; prevents long "wedges" on flaky networks
 const GEO_TIMEOUT_MS = 12000;
 const LAST_LOC_KEY = "fam_last_loc_v1";
 const MANUAL_LOC_KEY = "fam_manual_loc_v1";
@@ -314,14 +312,16 @@ function setSquawkUI(sq, squawkId, sepId){
   const squawkEl = $(squawkId);
   if (!squawkEl) return;
   const sepEl = sepId ? $(sepId) : null;
-  const s = (sq ?? "").toString().trim();
-  if (!s || s === "0000") {
+
+  const meaning = fmtSquawkMeaning(sq);
+  if (!meaning) {
     squawkEl.textContent = "";
     squawkEl.style.display = "none";
     if (sepEl) sepEl.style.display = "none";
     return;
   }
-  squawkEl.textContent = `Squawk ${s}`;
+
+  squawkEl.textContent = meaning;
   squawkEl.style.display = "";
   if (sepEl) sepEl.style.display = "";
 }
@@ -496,6 +496,8 @@ function manualGate(){
         setMsg("");
         done(p);
       } catch(e){
+      consecutiveStateErrors++;
+
         setMsg("Location failed. Enter coordinates or use demo.");
       }
     };
@@ -531,15 +533,48 @@ function setupChangeLocation(){
 
 
 async function fetchJSON(url, timeoutMs=9000){
-  const ctrl = new AbortController();
-  const t = setTimeout(()=>ctrl.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, { signal: ctrl.signal, cache:"no-store", credentials:"omit" });
-    const text = await res.text();
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0,220)}`);
+  // Chrome/WebView can sometimes hang on res.text() even after the fetch resolves.
+  // This wrapper times out the *entire* operation (fetch + body read + JSON parse)
+  // and guarantees the polling loop can recover.
+  let ctrl = null;
+  try { ctrl = new AbortController(); } catch {}
+
+  const timeoutErr = () => new Error(`Timeout after ${timeoutMs}ms`);
+  let timeoutHandle = null;
+
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutHandle = setTimeout(() => {
+      try { ctrl && ctrl.abort(); } catch {}
+      reject(timeoutErr());
+    }, timeoutMs);
+  });
+
+  const work = (async () => {
+    const res = await fetch(url, {
+      signal: ctrl ? ctrl.signal : undefined,
+      cache: "no-store",
+      credentials: "omit",
+      headers: {
+        // Extra anti-cache hints for quirky WebViews
+        "Cache-Control": "no-store",
+        "Pragma": "no-cache",
+      },
+    });
+
+    // Ensure body read can't hang forever.
+    const text = await Promise.race([
+      res.text(),
+      new Promise((_, reject) => setTimeout(() => reject(timeoutErr()), timeoutMs)),
+    ]);
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${String(text).slice(0,220)}`);
     return JSON.parse(text);
+  })();
+
+  try {
+    return await Promise.race([work, timeoutPromise]);
   } finally {
-    clearTimeout(t);
+    if (timeoutHandle) clearTimeout(timeoutHandle)
   }
 }
 
@@ -651,8 +686,7 @@ function renderPrimary(f, radarMeta){
   if ($("spd")) $("spd").textContent = compactStats ? fmtSpdCompact(f.velocity) : fmtSpd(f.velocity);
   if ($("dist")) $("dist").textContent = compactStats ? fmtMiCompact(f.distanceMi) : fmtMi(f.distanceMi);
 
-  const phaseText = fmtVS(f.verticalRate, f.baroAlt, f.distanceMi, f.icao24, f.callsign) || (f.onGround ? "Ground" : "Cruising");
-  if ($("vs")) $("vs").textContent = phaseText;
+  if ($("vs")) $("vs").textContent = fmtVS(f.verticalRate, f.baroAlt, f.distanceMi, f.icao24, f.callsign);
   setSquawkUI(f.squawk, "squawk", "sqSep");
 
   if ($("dir")) $("dir").textContent = headingToText(
@@ -667,7 +701,6 @@ function renderPrimary(f, radarMeta){
     routeEl.textContent = routeDisp;
     routeEl.style.display = routeDisp ? "" : "none";
   }
-  document.body.classList.toggle("no-route", !routeDisp);
 
   // Aircraft type/model: show live hint until enriched; hide when unknown
   const modelDisp = f.modelText || f.modelHint || "";
@@ -676,8 +709,6 @@ function renderPrimary(f, radarMeta){
     modelEl.textContent = modelDisp;
     modelEl.style.display = modelDisp ? "" : "none";
   }
-  const sepEl = document.querySelector('.sub .sep');
-  if (sepEl) sepEl.style.display = modelDisp ? "" : "none";
 
   if ($("radarLine")) $("radarLine").textContent =
     `Radar: ${radarMeta.count} flights • Showing: ${radarMeta.showing}`;
@@ -1051,6 +1082,9 @@ const bb = bboxAround(lat, lon);
 
   let nextAllowedAt = 0;
   let inFlight = false;
+  let inFlightStartedAt = 0;
+  let lastStatesOkAt = 0;
+  let consecutiveStateErrors = 0;
 
   // state for rendering
   let lastTop = [];
@@ -1097,7 +1131,15 @@ const bb = bboxAround(lat, lon);
 
   async function tick(){
     try { if (document.hidden) return; } catch {}
-    if (inFlight) return;
+    if (inFlight) {
+      // If a prior cycle got wedged (slow network / hung fetch), don't let kiosk freeze indefinitely.
+      // We allow the kiosk loop to recover by dropping the inFlight guard after a grace period.
+      if (isKiosk() && (Date.now() - inFlightStartedAt) > (STATES_TIMEOUT_MS_KIOSK + 4000)) {
+        inFlight = false;
+      } else {
+        return;
+      }
+    }
 
     const now = Date.now();
     if (now < nextAllowedAt) {
@@ -1106,14 +1148,20 @@ const bb = bboxAround(lat, lon);
     }
 
     inFlight = true;
+    inFlightStartedAt = Date.now();
 
     try{
       const url = new URL(`${API_BASE}/api/opensky/states`);
       Object.entries(bb).forEach(([k,v])=>url.searchParams.set(k,v));
 
-      const data = await fetchJSON(url.toString(), STATES_TIMEOUT_MS);
+      // Extra cache busting for kiosk displays: some browsers / intermediaries can serve stale fetches
+      // even with cache:"no-store". This keeps the kiosk from "sticking" on a flight that should be gone.
+      if (isKiosk()) url.searchParams.set("_", String(Date.now()));
+
+      const data = await fetchJSON(url.toString(), isKiosk() ? STATES_TIMEOUT_MS_KIOSK : STATES_TIMEOUT_MS_MAIN);
       const states = Array.isArray(data?.states) ? data.states : [];
       lastStatesOkAt = Date.now();
+      consecutiveStateErrors = 0;
 
       lastRadarMeta = { count: states.length, showing: Math.min(states.length, 5) };
 
@@ -1152,38 +1200,18 @@ const bb = bboxAround(lat, lon);
       const shown = flights.filter(f => groupForFlight(f.callsign) === tier);
       lastTop = shown.slice(0,5);
 
-      // Kiosk focus lock: keep the same aircraft selected briefly so AeroData enrichment has time to land.
+
+      // Kiosk: always track the current closest flight (no focus lock).
       if (isKiosk()) {
-        const nowMs = Date.now();
         const top = lastTop[0] || flights[0];
-
-        // If we have an active lock, try to keep that same aircraft as primary (unless it left the enrichment window).
-        if (kioskFocusIcao24 && nowMs < kioskFocusUntilMs) {
-          const locked = flights.find(f => f.icao24 === kioskFocusIcao24);
-          if (locked && Number.isFinite(locked.distanceMi) && locked.distanceMi <= ENRICH_MAX_MI) {
-            lastPrimary = locked;
-          } else {
-            kioskFocusIcao24 = null;
-            kioskFocusUntilMs = 0;
-          }
-        }
-
-        // If no active lock, lock onto the current closest aircraft (only if within enrichment range).
-        if (!kioskFocusIcao24) {
-          lastPrimary = top;
-          if (lastPrimary && Number.isFinite(lastPrimary.distanceMi) && lastPrimary.distanceMi <= ENRICH_MAX_MI) {
-            kioskFocusIcao24 = lastPrimary.icao24;
-            kioskFocusUntilMs = nowMs + KIOSK_FOCUS_LOCK_MS;
-          }
-        }
-
-        // Secondary = next closest not equal to primary (optional).
+        lastPrimary = top;
         lastSecondary = lastTop.find(f => f.icao24 !== (lastPrimary?.icao24 || "")) || null;
+        kioskFocusIcao24 = null;
+        kioskFocusUntilMs = 0;
       } else {
         lastPrimary = lastTop[0] || flights[0];
         lastSecondary = lastTop[1] || null;
       }
-
       for (const f of lastTop) applyCachedEnrichment(f);
       applyCachedEnrichment(lastPrimary);
       if (lastSecondary) applyCachedEnrichment(lastSecondary);
@@ -1231,17 +1259,10 @@ const bb = bboxAround(lat, lon);
       pumpEnrichment(renderAll);
 
     } catch(e){
-      const msg = String(e?.message || e);
-      // If radar polling has been failing for a while, clear stale flight display (especially in Kiosk mode).
-      const sinceOk = lastStatesOkAt ? (Date.now() - lastStatesOkAt) : Infinity;
-      if (sinceOk > STALE_RESET_MS) {
-        lastTop = [];
-        lastRadarMeta = { count: 0, showing: 0 };
-        lastPrimary = { callsign: "—", icao24: "—" };
-        lastSecondary = null;
-        renderAll();
-      }
+      consecutiveStateErrors++;
 
+      const msg = String(e?.message || e);
+      if (isKiosk() && consecutiveStateErrors >= 3) { kioskFocusIcao24 = null; kioskFocusUntilMs = 0; }
 
       if (/^HTTP 429:/i.test(msg) || /Too many requests/i.test(msg)) {
         nextAllowedAt = Date.now() + BACKOFF_429_MS;
@@ -1255,9 +1276,24 @@ const bb = bboxAround(lat, lon);
     }
   }
 
-  await tick();
+  // Poll loop: use setTimeout recursion instead of setInterval so a slow/hung cycle
+  // doesn't permanently block refresh (some kiosk browsers are sensitive here).
   const pollMs = isKiosk() ? POLL_KIOSK_MS : POLL_MAIN_MS;
-  setInterval(tick, pollMs);
+
+  async function pollLoop(){
+    try { await tick(); }
+    finally { setTimeout(pollLoop, pollMs); }
+  }
+
+  // Kick immediately, then keep looping.
+  await tick();
+  setTimeout(pollLoop, pollMs);
+
+  // If the browser pauses timers (screen wake / tab visibility), force a refresh on resume.
+  document.addEventListener("visibilitychange", () => {
+    try { if (!document.hidden) tick(); } catch {}
+  });
+  window.addEventListener("online", () => tick());
 }
 
 // Run after DOM is ready (prevents "Booting..." stuck if script loads before elements exist)

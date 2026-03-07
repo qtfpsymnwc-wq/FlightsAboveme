@@ -1,217 +1,1003 @@
+/* FlightsAboveMe — Kiosk (LED-board / signage-grade)
+   UI-only. Keeps existing IDs so app.js can populate fields unchanged.
+
+   Baseline:
+   - Logo plate is TRUE white (no gray cast)
+   - Aircraft line bigger
+   - Remove ALL stat “boxes” (no borders, no inset outlines, no tile backgrounds)
+   - Remove divider lines that values were colliding with
+   - Reduce dead space by preventing the top section from stretching
+   - No ellipsis anywhere in kiosk text
+
+   v1.2.8 (candidate):
+   - REMOVE stat headers (ALT/SPD/TRK/DIST)
+   - Use reclaimed vertical space to make stat values taller
+   - Landscape: center-justify stat values in their cells
+   - Portrait: codes-only route
+   - ✅ iPhone portrait: compact mode (smaller typography + logo + stats)
+   - ✅ Portrait: prevent right-side stat clipping (gutters + right align right column)
+   - ✅ iPhone portrait stacks stats (no clipping, no overlap)
+   - ✅ CHANGE: Center stats in iPhone portrait stacked mode
+*/
+
 :root{
   color-scheme: dark;
+
   --bg0:#05070c;
   --bg1:#070a12;
-  --text: rgba(255,255,255,.96);
-  --muted: rgba(255,255,255,.88);
+
+  --text: rgba(255,255,255,.94);
+  --muted: rgba(255,255,255,.78);
+  --faint: rgba(255,255,255,.55);
+
   --glowA: rgba(120,220,255,.18);
   --glowB: rgba(120,220,255,.10);
+
+  --stroke: rgba(255,255,255,.12);
+
   --safeTop: env(safe-area-inset-top);
   --safeRight: env(safe-area-inset-right);
   --safeBottom: env(safe-area-inset-bottom);
   --safeLeft: env(safe-area-inset-left);
 
-  --airline: clamp(72px, 7.0vw, 132px);
-  --route: clamp(28px, 3.1vw, 52px);
-  --sub: clamp(26px, 2.7vw, 46px);
-  --statV: clamp(58px, 6.1vw, 112px);
-  --bottom: clamp(40px, 3.8vw, 66px);
+  --pad: clamp(8px, 1.2vmin, 14px);
+
+  --airline: clamp(62px, 9.2vmin, 150px);
+  --route:   clamp(50px, 7.6vmin, 118px);
+  --sub:     clamp(44px, 6.2vmin, 96px);
+  --tiny:    clamp(16px, 2.2vmin, 28px);
+
+  /* Stats */
+  --statV:   clamp(76px, 11.8vmin, 186px);
+  --statK:   clamp(16px, 2.2vmin, 26px);
+
+  --topBar:  clamp(14px, 1.9vmin, 20px);
+  --exitH:   clamp(42px, 5.4vmin, 60px);
 }
-html,body{height:100%;margin:0}
-body.kiosk{
-  min-height:100svh;
-  background:
-    radial-gradient(ellipse at top, #0a1837 0%, #060b16 56%, #05070c 100%),
-    linear-gradient(180deg, var(--bg1), var(--bg0));
-  color:var(--text);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+/* Landscape tuning */
+@media (orientation: landscape){
+  :root{
+    --statV: clamp(66px, 9.6vmin, 158px);
+    --route: clamp(46px, 6.6vmin, 104px);
+    --sub:   clamp(42px, 5.6vmin, 88px);
+  }
+}
+
+/* ✅ iPad landscape refinement
+   Problem: when airline wraps to 2 lines, vertical space gets tight and the
+   aircraft line + stats can appear to overlap.
+   Fix: slightly reduce stat + typography scale and tighten paddings on
+   tablet-height landscape screens.
+*/
+@media (orientation: landscape) and (min-width: 900px) and (max-width: 1200px) and (max-height: 900px){
+  :root{
+    --airline: clamp(52px, 7.8vmin, 118px);
+    --route:   clamp(40px, 5.8vmin, 96px);
+    --sub:     clamp(36px, 4.9vmin, 78px);
+    --statV:   clamp(54px, 8.2vmin, 132px);
+  }
+
+  .topPane{ padding: clamp(10px, 1.6vmin, 14px); }
+  .bottomPane{ padding: clamp(10px, 1.6vmin, 14px); }
+  .mainText{ gap: clamp(6px, 0.9vmin, 10px); }
+}
+
+/* Portrait baseline safety */
+@media (orientation: portrait){
+  :root{
+    --statV: clamp(56px, 8.8vmin, 128px);
+    --route: clamp(44px, 6.6vmin, 98px);
+    --sub:   clamp(38px, 5.2vmin, 82px);
+  }
+}
+
+/* ✅ iPhone portrait COMPACT mode
+   (Distance readability not critical; prioritize fit + polish) */
+@media (orientation: portrait) and (max-width: 430px){
+  :root{
+    --pad:    clamp(6px, 1.0vmin, 10px);
+
+    --airline: clamp(44px, 7.2vmin, 96px);
+    --route:   clamp(34px, 5.4vmin, 72px);
+    --sub:     clamp(30px, 4.8vmin, 64px);
+    --tiny:    clamp(12px, 1.9vmin, 18px);
+
+    /* This is the big win for avoiding overlap/cropping */
+    --statV:   clamp(44px, 7.8vmin, 104px);
+
+    --topBar:  clamp(12px, 1.7vmin, 16px);
+    --exitH:   clamp(34px, 4.8vmin, 46px);
+  }
+}
+
+/* ✅ iPhone compact landscape safety (short height) */
+@media (orientation: landscape) and (max-height: 460px){
+  :root{
+    --pad:   clamp(6px, 0.9vmin, 10px);
+
+    --airline: clamp(34px, 6.2vmin, 72px);
+    --route:   clamp(28px, 5.0vmin, 60px);
+    --sub:     clamp(24px, 4.2vmin, 52px);
+    --tiny:    clamp(12px, 1.8vmin, 18px);
+
+    --statV:   clamp(34px, 7.0vmin, 76px);
+
+    --topBar:  clamp(12px, 1.7vmin, 16px);
+    --exitH:   clamp(34px, 4.6vmin, 44px);
+  }
+
+
+/* ✅ Short-landscape safety (TV browsers / small landscape viewports)
+   Some TV/embedded browsers report a shorter usable height (UI chrome / overscan),
+   causing the callsign/model line to visually collide with the first stat row.
+   Fix: scale typography + stats down and tighten padding when height is constrained.
+*/
+@media (orientation: landscape) and (max-height: 720px){
+  :root{
+    --pad:    clamp(6px, 0.9vmin, 12px);
+
+    --airline: clamp(40px, 6.8vmin, 96px);
+    --route:   clamp(32px, 5.4vmin, 78px);
+    --sub:     clamp(28px, 4.6vmin, 66px);
+    --tiny:    clamp(12px, 1.8vmin, 18px);
+
+    --statV:   clamp(40px, 7.6vmin, 104px);
+
+    --topBar:  clamp(12px, 1.6vmin, 16px);
+    --exitH:   clamp(34px, 4.4vmin, 46px);
+  }
+
+  .topPane{
+    padding: clamp(10px, 1.6vmin, 14px);
+    gap: clamp(8px, 1.2vmin, 12px);
+  }
+
+  .bottomPane{
+    padding: clamp(10px, 1.6vmin, 14px);
+    gap: clamp(8px, 1.2vmin, 10px);
+  }
+
+  .mainText{ gap: clamp(6px, 0.9vmin, 10px); }
+  .routeBlock{ gap: clamp(4px, 0.8vmin, 8px); }
+  .stat{ padding: clamp(4px, 0.8vmin, 8px) 0; }
+}
+}
+
+*{ box-sizing:border-box; }
+html, body{ height:100%; }
+body{
+  margin:0;
   overflow:hidden;
-}
-body.kiosk::before{
-  content:"";
-  position:fixed; inset:0;
-  background-image: radial-gradient(rgba(120,220,255,.17) 0.9px, transparent 0.9px);
-  background-size: 14px 14px;
-  opacity:.45;
-  pointer-events:none;
-}
-.kioskApp{min-height:100svh; position:relative; z-index:1;}
-.hidden{display:none !important;}
-.topBar{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  padding:max(6px, calc(var(--safeTop) + 2px)) max(16px, calc(var(--safeRight) + 14px)) 2px max(16px, calc(var(--safeLeft) + 14px));
-}
-.siteLogo{width:min(210px, 22vw); max-width:210px; height:auto; opacity:.95;}
-.exitBtn{
+  background:
+    /* Full-screen dot-matrix background (extends behind header/top bar) */
+    radial-gradient(1200px 700px at 50% -120px, rgba(120,160,255,.12), transparent 60%),
+    radial-gradient(circle at 1px 1px, rgba(255,255,255,.085) 1px, transparent 1.6px) 0 0 / 8px 8px,
+    linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.42)),
+    linear-gradient(180deg, rgba(20,30,55,.18), rgba(0,0,0,.0) 35%),
+    linear-gradient(180deg, #070a12, #04060b);
   color:var(--text);
-  text-decoration:none;
-  font-weight:800;
-  font-size:clamp(18px,2.2vmin,26px);
-  border:1px solid rgba(255,255,255,.16);
-  border-radius:20px;
-  padding:10px 18px;
-  background:rgba(255,255,255,.06);
-  backdrop-filter: blur(4px);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  letter-spacing: .2px;
 }
-.board{
-  min-height:calc(100svh - max(48px, calc(var(--safeTop) + 18px)) - max(12px, var(--safeBottom)));
-  display:grid;
-  grid-template-rows:auto 1fr;
-  padding:0 max(18px, calc(var(--safeRight) + 16px)) max(16px, calc(var(--safeBottom) + 12px)) max(18px, calc(var(--safeLeft) + 16px));
-  gap:10px;
-}
-.topPane{
-  display:grid;
-  grid-template-columns:auto minmax(0,1fr);
-  gap:clamp(16px, 2vw, 28px);
-  align-items:center;
-}
-.logoPane{align-self:start;}
-.logo{
-  width:clamp(112px, 13vw, 190px);
-  height:clamp(112px, 13vw, 190px);
-  object-fit:contain;
-  padding:12px;
-  border-radius:24px;
-  background:#fff;
-  border:1px solid rgba(0,0,0,.12);
-  box-shadow:0 18px 36px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.9);
-}
-.mainText{
+
+.hidden{ display:none !important; }
+
+#app.kioskApp{
+  height: 100svh;
+  padding:
+    calc(var(--safeTop) + var(--pad))
+    calc(var(--safeRight) + var(--pad))
+    calc(var(--safeBottom) + var(--pad))
+    calc(var(--safeLeft) + var(--pad));
   display:flex;
   flex-direction:column;
+  gap: clamp(8px, 1.2vmin, 12px);
+}
+
+@media (orientation: landscape) and (max-height: 460px){
+  #app.kioskApp{ gap: clamp(6px, 0.9vmin, 10px); }
+}
+
+/* Top bar */
+.topBar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 12px;
+  user-select:none;
+}
+
+.appName{
+  font-size: var(--topBar);
+  font-weight: 900;
+  letter-spacing: 1.2px;
+  color: rgba(255,255,255,.82);
+  text-transform: uppercase;
+}
+
+.exitBtn{
+  text-decoration:none;
+  height: var(--exitH);
+  padding: 0 clamp(14px, 2.2vmin, 24px);
+  border-radius: 999px;
+  display:inline-flex;
+  align-items:center;
   justify-content:center;
-  gap:8px;
-  min-width:0;
-  max-width:min(78vw, 1180px);
-  padding-top:2px;
+  font-size: var(--topBar);
+  font-weight: 950;
+  letter-spacing: 1px;
+  color: rgba(255,255,255,.92);
+  border: 1px solid rgba(255,255,255,.18);
+  background: rgba(255,255,255,.08);
+  box-shadow:
+    0 16px 34px rgba(0,0,0,.40),
+    inset 0 1px 0 rgba(255,255,255,.10);
+  -webkit-tap-highlight-color: transparent;
 }
-.line{text-shadow:0 0 12px var(--glowA),0 0 28px var(--glowB);}
-.airline{
-  font-size:var(--airline);
-  font-weight:950;
-  line-height:0.96;
-  letter-spacing:.2px;
-}
-.route{
-  font-size:var(--route);
-  font-weight:900;
-  line-height:1.03;
-  color:var(--muted);
-  display:-webkit-box;
-  -webkit-box-orient:vertical;
-  -webkit-line-clamp:2;
+.exitBtn:active{ transform: translateY(1px); }
+
+/* Board */
+.board{
+  flex: 1;
+  min-height: 0;
+
+  border-radius: 0;
+  border: 0;
   overflow:hidden;
-  white-space:normal;
-  overflow-wrap:anywhere;
-  word-break:break-word;
-  max-width:100%;
-}
-.sub{
-  font-size:var(--sub);
-  font-weight:900;
-  color:var(--muted);
-  display:flex;
-  flex-wrap:wrap;
-  align-items:baseline;
-  gap:10px;
-  line-height:1.02;
-}
-.kiosk.no-route .airline{font-size:clamp(82px, 8vw, 146px);}
-.kiosk.no-route .sub{font-size:clamp(34px, 3.5vw, 58px);}
-.kiosk.no-route .mainText{gap:10px;}
-.sep{color:rgba(255,255,255,.45)}
-.tiny{display:none !important;}
-.bottomPane{
-  min-height:0;
+
+  /* Background moved to body so the dot matrix is continuous under the header */
+  background: transparent;
+
   display:grid;
-  grid-template-rows:1fr auto;
-  align-items:stretch;
-  gap:10px;
+  grid-template-rows: auto 1fr;
 }
-.statsGrid{
-  width:min(100%, 1220px);
-  margin:0 auto;
+
+/* Top section */
+.topPane{
   display:grid;
-  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
-  column-gap:clamp(28px, 4vw, 84px);
-  row-gap:4px;
-  align-self:center;
+  grid-template-columns: auto 1fr;
+  gap: clamp(10px, 1.4vmin, 16px);
+  padding: clamp(12px, 2.0vmin, 18px);
   align-items:center;
-}
-.stat{display:flex; align-items:center; min-width:0;}
-.statsGrid .stat:nth-child(odd){justify-content:flex-start; text-align:left;}
-.statsGrid .stat:nth-child(even){justify-content:flex-end; text-align:right;}
-.stat .v{
-  font-size:var(--statV);
-  font-weight:950;
-  line-height:0.94;
-  white-space:nowrap;
-  text-shadow:0 0 12px rgba(255,255,255,.15),0 0 28px rgba(255,255,255,.08);
-}
-.kioskExtras{
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  gap:12px;
-  min-height:var(--bottom);
-  width:100%;
-}
-#radarLine,.radarLine,.statusLine{display:none !important; visibility:hidden !important; height:0 !important; overflow:hidden !important; opacity:0 !important;}
-.kioskExtras .xv{font-size:var(--bottom); font-weight:950; line-height:1.02; white-space:nowrap;}
-.kioskExtras .xDot{font-size:var(--bottom); color:rgba(255,255,255,.48); line-height:1;}
-.compatHidden{position:absolute; width:1px; height:1px; overflow:hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space:nowrap;}
-.errBox{position:fixed; left:16px; right:16px; bottom:16px; background:rgba(60,16,26,.95); border:1px solid rgba(255,138,160,.35); color:#ffd7de; padding:14px 16px; border-radius:16px; font-size:16px; font-weight:800; z-index:999;}
-.changeLoc{position:fixed; right:max(16px, calc(var(--safeRight) + 12px)); bottom:max(16px, calc(var(--safeBottom) + 8px)); background:transparent; border:0; color:rgba(255,255,255,.55); font-size:clamp(12px, 1.4vmin, 16px);}
-.zipGate{position:fixed; inset:auto 16px max(52px, calc(var(--safeBottom) + 16px)) 16px; background:#0b1327; border:1px solid rgba(255,255,255,.14); border-radius:18px; padding:16px; z-index:90; box-shadow:0 20px 60px rgba(0,0,0,.55);}
-.zipGate__title{font-size:20px; font-weight:900; margin-bottom:6px}.zipGate__desc{font-size:14px; color:rgba(255,255,255,.75); margin-bottom:12px}.zipGate__row{display:flex; gap:8px; flex-wrap:wrap}.zipGate__input{flex:1 1 180px; background:#0f1831; color:#fff; border:1px solid rgba(255,255,255,.14); border-radius:12px; padding:12px 14px}.zipGate__btn{background:#162448;color:#fff;border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:12px 14px;font-weight:800}.zipGate__msg{margin-top:10px;color:#a8c7ff;font-size:14px}
-
-@media (orientation: landscape){
-  .route{-webkit-line-clamp:2;}
+  min-height: 0;
 }
 
-@media (max-width: 900px){
-  :root{
-    --airline: clamp(60px, 8.2vmin, 108px);
-    --route: clamp(26px, 3.8vmin, 46px);
-    --sub: clamp(24px, 3.2vmin, 40px);
-    --statV: clamp(52px, 5.8vmin, 86px);
-    --bottom: clamp(38px, 4.6vmin, 60px);
+@media (orientation: landscape) and (max-height: 460px){
+  .topPane{
+    padding: clamp(8px, 1.4vmin, 12px);
+    gap: clamp(8px, 1.2vmin, 12px);
   }
-  .siteLogo{width:min(180px, 20vw);}
-  .logo{width:clamp(98px, 14vmin, 150px); height:clamp(98px, 14vmin, 150px);}
-  .statsGrid{column-gap:clamp(24px, 3vw, 56px);}
-}
-
-@media (max-height: 520px){
-  :root{
-    --airline: clamp(54px, 7.2vmin, 94px);
-    --route: clamp(24px, 3.4vmin, 40px);
-    --sub: clamp(22px, 2.8vmin, 36px);
-    --statV: clamp(42px, 4.8vmin, 68px);
-    --bottom: clamp(34px, 4vmin, 52px);
-  }
-  .topBar{padding-top:max(4px, calc(var(--safeTop) + 1px));}
-  .board{gap:8px;}
-  .topPane{gap:14px;}
-  .mainText{gap:6px;}
-  .statsGrid{column-gap:20px;}
 }
 
 @media (orientation: portrait){
-  :root{
-    --airline: clamp(56px, 7.2vmin, 96px);
-    --route: clamp(26px, 3.8vmin, 46px);
-    --sub: clamp(24px, 3.4vmin, 40px);
-    --statV: clamp(40px, 5vmin, 68px);
-    --bottom: clamp(36px, 4.2vmin, 56px);
+  .topPane{
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+    justify-items:center;
+    align-items:start;
+    gap: clamp(14px, 3.0vmin, 22px);
   }
-  .board{gap:8px;}
-  .topPane{grid-template-columns:auto 1fr; gap:14px;}
-  .logo{width:clamp(92px, 12vmin, 134px); height:clamp(92px, 12vmin, 134px);}
-  .route{-webkit-line-clamp:3;}
-  .bottomPane{grid-template-rows:1fr auto;}
-  .statsGrid{column-gap:22px;}
 }
+
+.logoPane{
+  height: 100%;
+  min-height: 0;
+  display:flex;
+  align-items:flex-start;
+  justify-content:flex-start;
+  padding-top: clamp(4px, 0.9vmin, 8px);
+}
+
+@media (orientation: portrait){
+  .logoPane{
+    height: auto;
+    align-items:center;
+    justify-content:center;
+    padding-top: 0;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 460px){
+  .logoPane{ padding-top: 0; align-items:center; }
+}
+
+/* Logo plate */
+.logo{
+  width: clamp(150px, 22vmin, 270px);
+  height: clamp(150px, 22vmin, 270px);
+  object-fit: contain;
+
+  padding: clamp(10px, 1.4vmin, 16px);
+  border-radius: 22px;
+
+  background:
+    radial-gradient(120% 120% at 30% 25%, rgba(255,255,255,1), rgba(255,255,255,.98) 55%, rgba(255,255,255,.96)),
+    #ffffff;
+
+  border: 1px solid rgba(0,0,0,.10);
+
+  box-shadow:
+    0 20px 38px rgba(0,0,0,.60),
+    inset 0 1px 0 rgba(255,255,255,.85),
+    inset 0 -1px 0 rgba(0,0,0,.08);
+
+  filter: drop-shadow(0 12px 18px rgba(0,0,0,.30));
+}
+
+/* Portrait logo size */
+@media (orientation: portrait){
+  .logo{
+    width: clamp(108px, 15.5vmin, 170px);
+    height: clamp(108px, 15.5vmin, 170px);
+  }
+}
+
+/* Extra compact iPhone portrait logo */
+@media (orientation: portrait) and (max-width: 430px){
+  .logo{
+    width: clamp(96px, 14.2vmin, 150px);
+    height: clamp(96px, 14.2vmin, 150px);
+    border-radius: 20px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 460px){
+  .logo{
+    width: clamp(96px, 16vmin, 140px);
+    height: clamp(96px, 16vmin, 140px);
+    border-radius: 18px;
+    padding: clamp(8px, 1.2vmin, 12px);
+  }
+}
+
+/* Text */
+.mainText{
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-start;
+  gap: clamp(8px, 1.2vmin, 12px);
+  min-width: 0;
+  width: 100%;
+}
+
+@media (orientation: portrait){
+  .mainText{
+    align-items: center;
+    text-align: center;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 460px){
+  .mainText{ gap: clamp(6px, 0.9vmin, 10px); }
+}
+
+.line{
+  text-shadow:
+    0 0 12px var(--glowA),
+    0 0 28px var(--glowB);
+}
+
+.airline{
+  font-size: var(--airline);
+  font-weight: 950;
+  letter-spacing: .6px;
+  line-height: 1.02;
+  text-wrap: balance;
+  max-width: 100%;
+}
+
+/* Route block */
+.routeBlock{
+  display:flex;
+  flex-direction:column;
+  gap: clamp(6px, 1.0vmin, 10px);
+}
+
+.route{
+  font-size: var(--route);
+  font-weight: 950;
+  color: rgba(255,255,255,.92);
+  line-height: 1.04;
+
+  max-width: 100%;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  word-break: break-word;
+}
+.route2{ color: rgba(255,255,255,.88); }
+
+/* Controlled route wrapping (keep origin + arrow together; destination can wrap) */
+.kiosk-route{
+  font-size: var(--route);
+  font-weight: 950;
+  color: rgba(255,255,255,.92);
+  line-height: 1.04;
+
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4ch;
+  max-width: 100%;
+}
+
+.kiosk-route .origin,
+.kiosk-route .arrow{
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.kiosk-route .dest{
+  flex: 1 1 auto;
+  min-width: 12ch;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* ✅ Kiosk portrait: keep airport codes on ONE line */
+@media (orientation: portrait){
+  body.kiosk .route{
+    white-space: nowrap;
+    word-break: keep-all;
+    overflow: hidden;
+    text-overflow: clip;
+  }
+}
+
+/* Callsign + model */
+.sub{
+  font-size: var(--sub);
+  font-weight: 950;
+  color: rgba(255,255,255,.90);
+  display:flex;
+  flex-wrap: wrap;
+  align-items:baseline;
+  gap: 14px;
+  line-height: 1.10;
+}
+
+@media (orientation: portrait){
+  .sub{ justify-content: center; }
+}
+
+/* iPhone portrait kiosk: split callsign and aircraft onto two lines (kiosk-only) */
+@media (max-width: 430px) and (orientation: portrait){
+  body.kiosk .sub{
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    flex-wrap: nowrap;
+  }
+  body.kiosk .sub .sep{ display:none; }
+  body.kiosk .sub .callsign,
+  body.kiosk .sub .model{
+    display:block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: clip;
+    max-width: 100%;
+  }
+  body.kiosk .sub .model{
+    font-size: 0.86em; /* shrink aircraft line only in this mode */
+    letter-spacing: .4px;
+  }
+}
+
+
+/* iPad portrait kiosk: split callsign/aircraft and allow aircraft to wrap to two rows */
+@media (orientation: portrait) and (min-width: 431px) and (max-width: 1024px){
+  body.kiosk .sub{
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    flex-wrap: nowrap;
+  }
+  body.kiosk .sub .sep{ display:none; }
+  body.kiosk .sub .callsign{
+    display:block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: clip;
+    max-width: 100%;
+  }
+  body.kiosk .sub .model{
+    display:block;
+    max-width: 100%;
+    white-space: normal;
+    word-break: break-word;
+    overflow: hidden;
+    text-overflow: clip;
+    line-height: 1.06;
+    max-height: calc(2 * 1.06em); /* two rows max */
+    font-size: 0.92em; /* slight shrink for balance */
+    letter-spacing: .3px;
+  }
+}
+
+
+.callsign{ color: rgba(255,255,255,.98); }
+.model{ color: rgba(255,255,255,.90); }
+.sep{ color: rgba(255,255,255,.50); }
+
+.tiny{
+  font-size: var(--tiny);
+  font-weight: 850;
+  color: rgba(255,255,255,.62);
+  letter-spacing: .9px;
+  display:flex;
+  gap: 12px;
+  align-items:baseline;
+}
+.tinyLabel{ color: rgba(255,255,255,.52); text-transform: uppercase; }
+.tinyValue{ color: rgba(255,255,255,.78); }
+
+/* Kiosk: hide ICAO24 line to prevent overlap with large stats (per Chris preference) */
+body.kiosk .line.tiny, #app.kioskApp .line.tiny{ display:none; }
+
+
+/* Bottom stats */
+.bottomPane{
+  padding: clamp(12px, 2.0vmin, 18px);
+  display:flex;
+  flex-direction:column;
+  gap: clamp(10px, 1.6vmin, 14px);
+
+  border-top: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,.08), rgba(0,0,0,.18));
+}
+
+.statsRow{
+  display:grid;
+  grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+  column-gap: clamp(22px, 4.6vmin, 40px);
+  row-gap: clamp(10px, 1.6vmin, 14px);
+  min-height: 0;
+
+  /* ✅ Inner gutter so right column never clips */
+  padding-inline: clamp(8px, 1.6vmin, 14px);
+}
+
+@media (orientation: portrait){
+  .statsRow{
+    column-gap: clamp(26px, 6.2vmin, 56px);
+    row-gap: clamp(12px, 2.2vmin, 18px);
+    padding-inline: clamp(12px, 3.0vmin, 20px);
+  }
+}
+
+/* ✅ iPhone portrait: stack stats */
+@media (orientation: portrait) and (max-width: 430px){
+  .bottomPane{
+    padding: clamp(10px, 1.6vmin, 14px);
+    gap: clamp(8px, 1.2vmin, 10px);
+  }
+
+  .statsRow{
+    grid-template-columns: 1fr;
+    column-gap: 0;
+    row-gap: clamp(10px, 2.0vmin, 16px);
+    padding-inline: clamp(8px, 2.4vmin, 16px);
+    justify-items: center; /* ✅ center each stat row */
+  }
+}
+
+.stat{
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+
+  padding: clamp(6px, 1.0vmin, 10px) 0;
+
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  gap: clamp(2px, 0.5vmin, 6px);
+
+  min-width: 0;
+}
+
+.stat .k{ display:none; }
+
+.stat .v{
+  font-size: var(--statV);
+  font-weight: 950;
+  color: rgba(255,255,255,.95);
+  line-height: .96;
+
+  letter-spacing: .12px;
+
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: clip;
+
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+
+  text-shadow:
+    0 0 10px rgba(255,255,255,.14),
+    0 0 26px rgba(255,255,255,.08);
+}
+
+/* Portrait: right column aligns right (prevents unit clipping) */
+@media (orientation: portrait){
+  .stat .v{
+    letter-spacing: .08px;
+    line-height: .94;
+  }
+  .statsRow .stat:nth-child(2),
+  .statsRow .stat:nth-child(4){
+    align-items: flex-end;
+  }
+  .statsRow .stat:nth-child(2) .v,
+  .statsRow .stat:nth-child(4) .v{
+    text-align: right;
+  }
+}
+
+/* ✅ CHANGE: When stacked (iPhone portrait), center the stat values */
+@media (orientation: portrait) and (max-width: 430px){
+  .stat{
+    align-items: center;
+    text-align: center;
+  }
+  .stat .v{
+    width: auto;
+    text-align: center;
+  }
+
+  /* override the nth-child right-align rules */
+  .statsRow .stat:nth-child(2),
+  .statsRow .stat:nth-child(4){
+    align-items: center;
+  }
+  .statsRow .stat:nth-child(2) .v,
+  .statsRow .stat:nth-child(4) .v{
+    text-align: center;
+  }
+}
+
+/* Landscape: center stats */
+@media (orientation: landscape){
+  .stat{ align-items: center; }
+  .stat .v{ text-align: center; }
+}
+
+.statusLine{
+  margin-top: auto;
+  display:flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content:center;
+  align-items:center;
+
+  font-size: clamp(14px, 2.0vmin, 20px);
+  font-weight: 900;
+  letter-spacing: .7px;
+  color: rgba(255,255,255,.70);
+
+  padding-top: clamp(8px, 1.4vmin, 12px);
+  border-top: 0;
+}
+
+.dot{ color: rgba(255,255,255,.45); }
+
+.errBox{
+  position:fixed;
+  left: calc(var(--safeLeft) + var(--pad));
+  right: calc(var(--safeRight) + var(--pad));
+  bottom: calc(var(--safeBottom) + var(--pad));
+  background: rgba(60,16,26,.95);
+  border: 1px solid rgba(255,138,160,.35);
+  color: rgba(255,215,222,.98);
+  padding: 14px 16px;
+  border-radius: 16px;
+  font-size: clamp(14px, 2.0vmin, 18px);
+  font-weight: 800;
+  z-index: 999;
+}
+
+.compatHidden{
+  position:absolute;
+  width:1px;
+  height:1px;
+  overflow:hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+/* =============================
+   v1.3.2 KIOSK PATCH (iPhone Portrait)
+   Fix: prevent logo overlap when aircraft model runs long
+   Change: show code-only route on ONE line in compact portrait
+   Scope: kiosk mode only
+   ============================= */
+
+@media (orientation: portrait) and (max-width: 430px){
+  /* Slightly smaller logo plate to buy vertical room */
+  body.kiosk .logo{
+    width: clamp(84px, 12.8vmin, 132px);
+    height: clamp(84px, 12.8vmin, 132px);
+    padding: clamp(8px, 1.2vmin, 12px);
+    border-radius: 18px;
+  }
+
+  /* Route: collapse to single line in this compact mode
+     (kiosk.html will already feed routeLine2="" for code-only routes) */
+  body.kiosk .routeBlock{ gap: 0; }
+  body.kiosk #routeLine2{ display:none; }
+  body.kiosk #routeLine1{ white-space: nowrap; }
+
+  /* Aircraft line: keep single row, shrink model, and allow safe clipping */
+  body.kiosk .sub{
+    flex-wrap: nowrap;
+    gap: 10px;
+    max-width: 100%;
+    overflow: hidden;
+  }
+  body.kiosk .sub .callsign,
+  body.kiosk .sub .sep{ flex: 0 0 auto; }
+
+  body.kiosk .sub .model{
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: calc(var(--sub) * 0.86);
+    letter-spacing: .06px;
+
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: clip; /* (no ellipsis in kiosk) */
+  }
+}
+
+
+
+/* Extra stats line (Phase + Squawk) — additive only */
+.kioskExtras{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap: 14px;
+  margin-top: clamp(8px, 1.6vmin, 14px);
+  text-align: center;
+}
+
+.kioskExtras .xv{
+  font-size: clamp(18px, 3.0vmin, 32px);
+  font-weight: 950;
+  color: var(--k-white);
+  letter-spacing: .02em;
+  line-height: 1.05;
+  white-space: nowrap;
+}
+
+.kioskExtras .xDot{
+  font-size: clamp(18px, 3.0vmin, 32px);
+  font-weight: 950;
+  color: rgba(255,255,255,.60);
+  opacity: .85;
+  line-height: 1;
+}
+
+.kioskExtras .x{
+  display:inline-flex;
+  align-items:baseline;
+  gap: 8px;
+}
+
+.kioskExtras .k{
+  font-weight: 800;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  opacity: .8;
+  font-size: .9em;
+}
+
+.kioskExtras .v{
+  font-weight: 900;
+  color: var(--k-white);
+  letter-spacing: .02em;
+}
+
+
+/* iPad portrait: stack stats (match iPhone portrait behavior) */
+@media (orientation: portrait) and (min-width: 700px){
+  .statsRow{
+    grid-template-columns: 1fr;
+    column-gap: 0;
+    justify-items: center;
+  }
+  .statsRow .stat:nth-child(2),
+  .statsRow .stat:nth-child(4){
+    justify-self: center;
+  }
+  .statsRow .stat:nth-child(2) .v,
+  .statsRow .stat:nth-child(4) .v{
+    text-align: center;
+  }
+}
+
+
+/* -------------------------------
+   Header Logo
+-------------------------------- */
+.siteLogo{
+  height: 34px;
+  width: auto;
+  display: block;
+}
+
+@media (min-width: 900px){
+  .siteLogo{
+    height: 40px;
+  }
+}
+
+
+/* ===============================
+   Phase + Squawk: BIG + BOLD (Kiosk)
+   Restore signage readability
+================================ */
+:root{
+  --k-extras-size: clamp(44px, 4.6vw, 92px);
+}
+
+/* These inner spans control actual size */
+.kioskExtras .xv{
+  font-size: var(--k-extras-size) !important;
+  font-weight: 950 !important;
+  letter-spacing: 0.06em !important;
+}
+.kioskExtras .xDot{
+  font-size: var(--k-extras-size) !important;
+  font-weight: 950 !important;
+  margin: 0 26px !important;
+  opacity: 0.55 !important;
+}
+
+/* Big screens: slightly larger */
+@media (orientation: landscape) and (min-width: 900px){
+  :root{ --k-extras-size: clamp(56px, 4.6vw, 120px); }
+}
+
+/* iPhone portrait: prevent clipping */
+@media (max-width: 430px) and (orientation: portrait){
+  :root{ --k-extras-size: clamp(34px, 7.0vw, 54px); }
+  .kioskExtras{ justify-content:center; flex-wrap: wrap; row-gap: 10px; }
+  .kioskExtras .xDot{ display:none; }
+  .kioskExtras .xv{ padding: 0 12px; white-space: nowrap; }
+}
+
+/* ===============================
+   Remove status line everywhere
+================================ */
+.statusLine{ display:none !important; }
+#radarLine, #statusText{ display:none !important; }
+
+
+/* -------------------------------
+   Kiosk header logo
+-------------------------------- */
+.topBar .appName{ display:flex; align-items:center; }
+.topBar .siteLogo{
+  height: 46px;
+  width: auto;
+  max-width: min(420px, 60vw);
+  display:block;
+}
+@media (max-width: 430px){
+  .topBar .siteLogo{ height: 40px; max-width: min(320px, 70vw); }
+}
+
+/* -------------------------------
+   Kiosk footer legal
+-------------------------------- */
+
+
+/* -------------------------------
+   Kiosk header logo sizing (v6)
+-------------------------------- */
+.topBar{ min-height: 0; }
+.topBar .appName{
+  display:flex;
+  align-items:center;
+  flex: 0 0 auto;
+}
+.topBar .siteLogo{
+  height: 56px;
+  width: auto;
+  max-width: min(320px, 45vw);
+  display:block;
+}
+@media (max-width: 430px){
+  .topBar .siteLogo{ height: 48px; max-width: min(280px, 60vw); }
+}
+@media (min-width: 900px){
+  .topBar .siteLogo{ height: 64px; max-width: 380px; }
+}
+
+
+.kioskSub{margin-top:6px;color:rgba(180,195,220,.92);font-size:12px;letter-spacing:.2px}
+
+
+/* Manual location gate (shared class names with main UI, but styled for kiosk) */
+.zipGate{
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%,-50%);
+  width: min(860px, calc(100vw - 32px));
+  padding: 18px 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(10,14,24,.92);
+  box-shadow: 0 30px 70px rgba(0,0,0,.55);
+  z-index: 9999;
+}
+.zipGate__title{
+  font-size: clamp(18px, 2.4vmin, 26px);
+  font-weight: 900;
+  letter-spacing: .6px;
+  margin-bottom: 6px;
+}
+.zipGate__desc{
+  color: rgba(255,255,255,.78);
+  font-size: clamp(14px, 2.0vmin, 20px);
+  margin-bottom: 12px;
+  line-height: 1.35;
+}
+.zipGate__row{
+  display:flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items:center;
+}
+.zipGate__input{
+  flex: 1 1 220px;
+  min-width: 200px;
+  padding: 12px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.16);
+  background: rgba(255,255,255,.06);
+  color: rgba(255,255,255,.95);
+  font-size: clamp(14px, 2.1vmin, 20px);
+  outline: none;
+}
+.zipGate__btn{
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.18);
+  background: rgba(255,255,255,.10);
+  color: rgba(255,255,255,.95);
+  font-weight: 900;
+  letter-spacing: .6px;
+  font-size: clamp(14px, 2.1vmin, 20px);
+  cursor: pointer;
+}
+.zipGate__btn:active{ transform: translateY(1px); }
+.zipGate__msg{
+  margin-top: 10px;
+  color: rgba(255,255,255,.85);
+  font-size: clamp(13px, 1.9vmin, 18px);
+}
+
+/* Kiosk: tiny "change location" control (deliberately subtle) */
+.changeLoc{
+  position: fixed;
+  right: 14px;
+  bottom: 12px;
+  z-index: 50;
+  font-size: 11px;
+  line-height: 1;
+  opacity: 0.45;
+  background: transparent;
+  border: 0;
+  padding: 6px 8px;
+  color: inherit;
+  text-transform: lowercase;
+}
+.changeLoc:active{ opacity: 0.75; }
