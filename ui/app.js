@@ -1,7 +1,7 @@
 // FlightsAboveMe UI
 const API_BASE = window.location.origin;
 // Cache-buster for static assets (CSS/JS/logos)
-const UI_VERSION = "v262";
+const UI_VERSION = "v263";
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;
@@ -213,6 +213,17 @@ function _prunePhaseHist(now){
   }
 }
 
+
+function phaseWithRate(label, vr){
+  if(!Number.isFinite(vr)) return label;
+  const fps = Math.round(Math.abs(vr * 3.28084));
+  const arrow = vr>0 ? "↑" : "↓";
+  if(label==="Climbing"||label==="Descending"||label==="Approaching"){
+    return `${label} ${arrow} ${fps} ft/s`;
+  }
+  return label;
+}
+
 function fmtVS(vr, baroAltM, distanceMi, icao24, callsign){
   const now = Date.now();
   _prunePhaseHist(now);
@@ -260,7 +271,7 @@ function fmtVS(vr, baroAltM, distanceMi, icao24, callsign){
     const close = d <= 40;
     const lowAlt = altFt <= 12_000;
 
-    if (close && lowAlt && fpm <= DESC_FPM && mph <= TOWARD_MPH) return "Approaching";
+    if (close && lowAlt && fpm <= DESC_FPM && mph <= TOWARD_MPH) return phaseWithRate("Approaching", vr);
     if (close && lowAlt && fpm >= CLIMB_FPM && mph >= AWAY_MPH) return "Departing";
 
     // Otherwise, avoid "Cruising" at low altitude.
@@ -277,11 +288,11 @@ function fmtVS(vr, baroAltM, distanceMi, icao24, callsign){
     const levelNow = Math.abs(vr) <= LEVEL_MS;
     const lowAlt = Number.isFinite(altFt) ? (altFt <= 12_000) : false;
     const close = d <= 40;
-    if (recentDesc && levelNow && lowAlt && close) return "Approaching";
+    if (recentDesc && levelNow && lowAlt && close) return phaseWithRate("Approaching", vr);
   }
 
-  if (vr > CLIMB_MS) return "Climbing";
-  if (vr < DESC_MS) return "Descending";
+  if (vr > CLIMB_MS) return phaseWithRate("Climbing", vr);
+  if (vr < DESC_MS) return phaseWithRate("Descending", vr);
 
   // Prevent "Cruising" at low altitudes — it reads wrong for step-down descents.
   // If we're roughly level below ~18k ft, show "Level" instead.
@@ -290,13 +301,13 @@ function fmtVS(vr, baroAltM, distanceMi, icao24, callsign){
   return "Cruising";
 }
 
-// Squawk (transponder) display.
+// Squawk (transponder) definitions.
 // OpenSky may return "" / null / "0000"; treat as not set.
-// Show the actual assigned code so aviation users can see it directly.
-function fmtSquawkDisplay(sq){
-  const s = (sq ?? "").toString().trim();
-  if (!s || s === "0000") return null;
-  return `Squawk ${s}`;
+// Replace code with a definition (no raw code shown).
+function fmtSquawkMeaning(sq){
+  const s=(sq??"").toString().trim();
+  if(!s||s==="0000") return null;
+  return "Squawk "+s;
 }
 
 function setSquawkUI(sq, squawkId, sepId){
@@ -304,15 +315,15 @@ function setSquawkUI(sq, squawkId, sepId){
   if (!squawkEl) return;
   const sepEl = sepId ? $(sepId) : null;
 
-  const display = fmtSquawkDisplay(sq);
-  if (!display) {
+  const meaning = fmtSquawkMeaning(sq);
+  if (!meaning) {
     squawkEl.textContent = "";
     squawkEl.style.display = "none";
     if (sepEl) sepEl.style.display = "none";
     return;
   }
 
-  squawkEl.textContent = display;
+  squawkEl.textContent = meaning;
   squawkEl.style.display = "";
   if (sepEl) sepEl.style.display = "";
 }
@@ -619,36 +630,11 @@ function routeCodesOnly(text){
   return raw;
 }
 
-const LONG_ROUTE_SIDE_MAX = 15;
-
-function truncateRouteSide(sideText, maxChars = LONG_ROUTE_SIDE_MAX){
-  const raw = nm(sideText).replace(/\s+/g, " ").trim();
-  if (!raw || raw.length <= maxChars) return raw;
-
-  const codeMatch = raw.match(/\(([A-Z0-9]{3,4})\)\s*$/i);
-  if (!codeMatch) return raw;
-
-  const code = codeMatch[1].toUpperCase();
-  const label = raw.slice(0, codeMatch.index).replace(/[\s,-]+$/, "").trim();
-  if (!label) return `(${code})`;
-  if (label.length <= maxChars) return `${label} (${code})`;
-
-  return `${label.slice(0, maxChars).trimEnd()}… (${code})`;
-}
-
 function formatRouteForDisplay(routeText){
   const t = nm(routeText);
   if (!t) return "";
   if (isKiosk() && isPortrait()) return routeCodesOnly(t);
-
-  const parts = t.replace(/\s+/g, " ").trim().split(/\s*(?:→|->)\s*/);
-  if (parts.length >= 2) {
-    const left = truncateRouteSide(parts[0]);
-    const right = truncateRouteSide(parts.slice(1).join(" "));
-    return `${left} → ${right}`;
-  }
-
-  return truncateRouteSide(t);
+  return t;
 }
 
 // -------------------- Rendering --------------------
