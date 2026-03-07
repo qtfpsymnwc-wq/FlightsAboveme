@@ -4,12 +4,12 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>FlightsAboveMe — Kiosk</title>
-  <link rel="stylesheet" href="./kiosk.css?v=278">
+  <link rel="stylesheet" href="./kiosk.css?v=280">
 </head>
 <body class="kiosk">
   <div id="app" class="kioskApp">
     <header class="topBar">
-      <div class="appName"><img src="flightsaboveme-logo-tight.png?v=278" alt="FlightsAboveMe" class="siteLogo"></div>
+      <div class="appName"><img src="flightsaboveme-logo-tight.png?v=280" alt="FlightsAboveMe" class="siteLogo"></div>
       <a class="exitBtn" href="./index.html" aria-label="Exit kiosk mode">Exit</a>
     </header>
 
@@ -23,7 +23,7 @@
           <div id="routeDisplay" class="line route hidden"></div>
           <div class="line sub">
             <span id="callsign" class="callsign">—</span>
-            <span class="sep">•</span>
+            <span id="subSep" class="sep">•</span>
             <span id="model" class="model">—</span>
           </div>
           <div class="line tiny">
@@ -87,17 +87,35 @@
     (function() {
       const src = document.getElementById('route');
       const out = document.getElementById('routeDisplay');
-      if (!src || !out) return;
+      const mainText = document.querySelector('.mainText');
+      const modelEl = document.getElementById('model');
+      const sepEl = document.getElementById('subSep');
+      const topPane = document.querySelector('.topPane');
+      if (!src || !out || !mainText) return;
+
       const sync = () => {
         const raw = (src.textContent || '').trim();
-        out.textContent = raw || '';
-        out.classList.toggle('hidden', !raw || raw === '—');
+        const hasRoute = !!raw && raw !== '—';
+        out.textContent = hasRoute ? raw : '';
+        out.classList.toggle('hidden', !hasRoute);
+        mainText.classList.toggle('no-route', !hasRoute);
+        topPane?.classList.toggle('no-route', !hasRoute);
+
+        const modelText = (modelEl?.textContent || '').trim();
+        const modelShown = !!modelText && modelText !== '—' && modelEl?.style.display !== 'none';
+        mainText.classList.toggle('no-model', !modelShown);
+        topPane?.classList.toggle('no-model', !modelShown);
+        if (sepEl) sepEl.style.display = modelShown ? '' : 'none';
       };
+
       sync();
       const obs = new MutationObserver(sync);
-      obs.observe(src, { childList: true, characterData: true, subtree: true });
+      obs.observe(src, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
+      if (modelEl) {
+        obs.observe(modelEl, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
+      }
     })();
   </script>
-  <script src="./app.js?v=278"></script>
+  <script src="./app.js?v=280"></script>
 </body>
 </html>
