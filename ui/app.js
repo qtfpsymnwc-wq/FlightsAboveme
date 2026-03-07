@@ -1,7 +1,7 @@
 // FlightsAboveMe UI
 const API_BASE = window.location.origin;
 // Cache-buster for static assets (CSS/JS/logos)
-const UI_VERSION = "v264";
+const UI_VERSION = "v263";
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;
@@ -307,7 +307,7 @@ function fmtVS(vr, baroAltM, distanceMi, icao24, callsign){
 function fmtSquawkMeaning(sq){
   const s=(sq??"").toString().trim();
   if(!s||s==="0000") return null;
-  return s;
+  return "Squawk "+s;
 }
 
 function setSquawkUI(sq, squawkId, sepId){
@@ -630,42 +630,10 @@ function routeCodesOnly(text){
   return raw;
 }
 
-function truncateRouteSide(sideText, maxChars=15){
-  const raw = nm(sideText).replace(/\s+/g, " ").trim();
-  if (!raw) return raw;
-
-  const codeMatch = raw.match(/\(([A-Z0-9]{3,4})\)\s*$/i);
-  if (!codeMatch) return raw;
-
-  const code = codeMatch[1].toUpperCase();
-  let name = raw.slice(0, codeMatch.index).replace(/\s+/g, " ").trim();
-  if (!name) return `(${code})`;
-  if (name.length <= maxChars) return `${name} (${code})`;
-
-  let clipped = name.slice(0, maxChars).replace(/[\s,;:/-]+$/g, "").trim();
-  if (!clipped) clipped = name.slice(0, maxChars).trim();
-  return `${clipped}… (${code})`;
-}
-
-function truncateLongFormRoute(text, maxChars=15){
-  const raw = nm(text);
-  if (!raw || raw === "—") return raw || "—";
-
-  const parts = raw.split(/\s*(?:→|->)\s*/);
-  if (parts.length >= 2) {
-    const left = truncateRouteSide(parts[0], maxChars);
-    const right = truncateRouteSide(parts.slice(1).join(" "), maxChars);
-    return `${left} → ${right}`;
-  }
-
-  return truncateRouteSide(raw, maxChars);
-}
-
 function formatRouteForDisplay(routeText){
   const t = nm(routeText);
   if (!t) return "";
   if (isKiosk() && isPortrait()) return routeCodesOnly(t);
-  if (isKiosk()) return truncateLongFormRoute(t, 15);
   return t;
 }
 
