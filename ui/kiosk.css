@@ -11,11 +11,11 @@
   --safeBottom: env(safe-area-inset-bottom);
   --safeLeft: env(safe-area-inset-left);
 
-  --airline: clamp(72px, 7.2vw, 138px);
-  --route: clamp(30px, 3.4vw, 58px);
-  --sub: clamp(26px, 2.8vw, 48px);
-  --statV: clamp(58px, 6vw, 116px);
-  --bottom: clamp(40px, 3.8vw, 70px);
+  --airline: clamp(72px, 7.0vw, 132px);
+  --route: clamp(28px, 3.1vw, 52px);
+  --sub: clamp(26px, 2.7vw, 46px);
+  --statV: clamp(58px, 6.1vw, 112px);
+  --bottom: clamp(40px, 3.8vw, 66px);
 }
 html,body{height:100%;margin:0}
 body.kiosk{
@@ -41,9 +41,9 @@ body.kiosk::before{
   display:flex;
   justify-content:space-between;
   align-items:center;
-  padding:max(6px, calc(var(--safeTop) + 2px)) max(16px, calc(var(--safeRight) + 14px)) 4px max(16px, calc(var(--safeLeft) + 14px));
+  padding:max(6px, calc(var(--safeTop) + 2px)) max(16px, calc(var(--safeRight) + 14px)) 2px max(16px, calc(var(--safeLeft) + 14px));
 }
-.siteLogo{width:min(230px, 24vw); max-width:230px; height:auto; opacity:.95;}
+.siteLogo{width:min(210px, 22vw); max-width:210px; height:auto; opacity:.95;}
 .exitBtn{
   color:var(--text);
   text-decoration:none;
@@ -56,10 +56,10 @@ body.kiosk::before{
   backdrop-filter: blur(4px);
 }
 .board{
-  min-height:calc(100svh - max(54px, calc(var(--safeTop) + 24px)) - max(14px, var(--safeBottom)));
-  display:flex;
-  flex-direction:column;
-  padding:0 max(18px, calc(var(--safeRight) + 16px)) max(18px, calc(var(--safeBottom) + 14px)) max(18px, calc(var(--safeLeft) + 16px));
+  min-height:calc(100svh - max(48px, calc(var(--safeTop) + 18px)) - max(12px, var(--safeBottom)));
+  display:grid;
+  grid-template-rows:auto 1fr;
+  padding:0 max(18px, calc(var(--safeRight) + 16px)) max(16px, calc(var(--safeBottom) + 12px)) max(18px, calc(var(--safeLeft) + 16px));
   gap:10px;
 }
 .topPane{
@@ -67,9 +67,8 @@ body.kiosk::before{
   grid-template-columns:auto minmax(0,1fr);
   gap:clamp(16px, 2vw, 28px);
   align-items:center;
-  flex:1 1 auto;
-  min-height:0;
 }
+.logoPane{align-self:start;}
 .logo{
   width:clamp(112px, 13vw, 190px);
   height:clamp(112px, 13vw, 190px);
@@ -86,7 +85,8 @@ body.kiosk::before{
   justify-content:center;
   gap:8px;
   min-width:0;
-  max-width:min(78vw, 1120px);
+  max-width:min(78vw, 1180px);
+  padding-top:2px;
 }
 .line{text-shadow:0 0 12px var(--glowA),0 0 28px var(--glowB);}
 .airline{
@@ -98,7 +98,7 @@ body.kiosk::before{
 .route{
   font-size:var(--route);
   font-weight:900;
-  line-height:1.02;
+  line-height:1.03;
   color:var(--muted);
   display:-webkit-box;
   -webkit-box-orient:vertical;
@@ -119,25 +119,27 @@ body.kiosk::before{
   gap:10px;
   line-height:1.02;
 }
-.kiosk.no-route .airline{font-size:clamp(82px, 8.2vw, 150px);}
-.kiosk.no-route .sub{font-size:clamp(34px, 3.6vw, 60px);}
+.kiosk.no-route .airline{font-size:clamp(82px, 8vw, 146px);}
+.kiosk.no-route .sub{font-size:clamp(34px, 3.5vw, 58px);}
 .kiosk.no-route .mainText{gap:10px;}
 .sep{color:rgba(255,255,255,.45)}
 .tiny{display:none !important;}
 .bottomPane{
-  width:100%;
-  display:flex;
-  flex-direction:column;
-  gap:8px;
-  margin-top:auto;
+  min-height:0;
+  display:grid;
+  grid-template-rows:1fr auto;
+  align-items:stretch;
+  gap:10px;
 }
 .statsGrid{
+  width:min(100%, 1220px);
+  margin:0 auto;
   display:grid;
   grid-template-columns:minmax(0,1fr) minmax(0,1fr);
-  column-gap:clamp(20px, 3vw, 52px);
+  column-gap:clamp(28px, 4vw, 84px);
   row-gap:4px;
+  align-self:center;
   align-items:center;
-  width:100%;
 }
 .stat{display:flex; align-items:center; min-width:0;}
 .statsGrid .stat:nth-child(odd){justify-content:flex-start; text-align:left;}
@@ -167,34 +169,35 @@ body.kiosk::before{
 .zipGate__title{font-size:20px; font-weight:900; margin-bottom:6px}.zipGate__desc{font-size:14px; color:rgba(255,255,255,.75); margin-bottom:12px}.zipGate__row{display:flex; gap:8px; flex-wrap:wrap}.zipGate__input{flex:1 1 180px; background:#0f1831; color:#fff; border:1px solid rgba(255,255,255,.14); border-radius:12px; padding:12px 14px}.zipGate__btn{background:#162448;color:#fff;border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:12px 14px;font-weight:800}.zipGate__msg{margin-top:10px;color:#a8c7ff;font-size:14px}
 
 @media (orientation: landscape){
-  .topPane{padding-top:0;}
   .route{-webkit-line-clamp:2;}
 }
 
 @media (max-width: 900px){
   :root{
-    --airline: clamp(58px, 8vmin, 106px);
-    --route: clamp(26px, 3.8vmin, 48px);
-    --sub: clamp(24px, 3.2vmin, 42px);
-    --statV: clamp(50px, 5.6vmin, 86px);
-    --bottom: clamp(38px, 4.6vmin, 62px);
+    --airline: clamp(60px, 8.2vmin, 108px);
+    --route: clamp(26px, 3.8vmin, 46px);
+    --sub: clamp(24px, 3.2vmin, 40px);
+    --statV: clamp(52px, 5.8vmin, 86px);
+    --bottom: clamp(38px, 4.6vmin, 60px);
   }
-  .siteLogo{width:min(190px, 22vw);}
+  .siteLogo{width:min(180px, 20vw);}
   .logo{width:clamp(98px, 14vmin, 150px); height:clamp(98px, 14vmin, 150px);}
+  .statsGrid{column-gap:clamp(24px, 3vw, 56px);}
 }
 
 @media (max-height: 520px){
   :root{
-    --airline: clamp(54px, 7.4vmin, 98px);
-    --route: clamp(24px, 3.6vmin, 44px);
-    --sub: clamp(22px, 3vmin, 38px);
-    --statV: clamp(42px, 4.8vmin, 72px);
-    --bottom: clamp(34px, 4vmin, 56px);
+    --airline: clamp(54px, 7.2vmin, 94px);
+    --route: clamp(24px, 3.4vmin, 40px);
+    --sub: clamp(22px, 2.8vmin, 36px);
+    --statV: clamp(42px, 4.8vmin, 68px);
+    --bottom: clamp(34px, 4vmin, 52px);
   }
   .topBar{padding-top:max(4px, calc(var(--safeTop) + 1px));}
+  .board{gap:8px;}
   .topPane{gap:14px;}
   .mainText{gap:6px;}
-  .statsGrid{column-gap:18px;}
+  .statsGrid{column-gap:20px;}
 }
 
 @media (orientation: portrait){
@@ -209,4 +212,6 @@ body.kiosk::before{
   .topPane{grid-template-columns:auto 1fr; gap:14px;}
   .logo{width:clamp(92px, 12vmin, 134px); height:clamp(92px, 12vmin, 134px);}
   .route{-webkit-line-clamp:3;}
+  .bottomPane{grid-template-rows:1fr auto;}
+  .statsGrid{column-gap:22px;}
 }
