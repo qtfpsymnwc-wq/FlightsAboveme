@@ -1,7 +1,7 @@
 // FlightsAboveMe UI
 const API_BASE = window.location.origin;
 // Cache-buster for static assets (CSS/JS/logos)
-const UI_VERSION = "v261";
+const UI_VERSION = "v262";
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;
@@ -85,7 +85,7 @@ function liveModelHintFromState(s){
         const v = s[idx];
         if (typeof v === "string") {
           const t = nm(v).replace(/^"+|"+$/g,"");
-          if (t && t.length <= 16) return truncateRouteLong(t);
+          if (t && t.length <= 16) return t;
         }
       }
     } else if (s && typeof s === "object") {
@@ -94,7 +94,7 @@ function liveModelHintFromState(s){
       for (const v of candidates) {
         if (typeof v === "string") {
           const t = nm(v);
-          if (t && t.length <= 32) return truncateRouteLong(t);
+          if (t && t.length <= 32) return t;
         }
       }
     }
@@ -290,22 +290,13 @@ function fmtVS(vr, baroAltM, distanceMi, icao24, callsign){
   return "Cruising";
 }
 
-// Squawk (transponder) definitions.
+// Squawk (transponder) display.
 // OpenSky may return "" / null / "0000"; treat as not set.
-// Replace code with a definition (no raw code shown).
-function fmtSquawkMeaning(sq){
+// Show the actual assigned code so aviation users can see it directly.
+function fmtSquawkDisplay(sq){
   const s = (sq ?? "").toString().trim();
   if (!s || s === "0000") return null;
-
-  // Emergency squawks
-  if (s === "7500") return "Hijacking";
-  if (s === "7600") return "Radio Failure";
-  if (s === "7700") return "Emergency";
-
-  // Common VFR codes (region-dependent, but useful as a friendly label)
-  if (s === "1200" || s === "7000") return "VFR";
-
-  return "ATC Assigned";
+  return `Squawk ${s}`;
 }
 
 function setSquawkUI(sq, squawkId, sepId){
@@ -313,15 +304,15 @@ function setSquawkUI(sq, squawkId, sepId){
   if (!squawkEl) return;
   const sepEl = sepId ? $(sepId) : null;
 
-  const meaning = fmtSquawkMeaning(sq);
-  if (!meaning) {
+  const display = fmtSquawkDisplay(sq);
+  if (!display) {
     squawkEl.textContent = "";
     squawkEl.style.display = "none";
     if (sepEl) sepEl.style.display = "none";
     return;
   }
 
-  squawkEl.textContent = meaning;
+  squawkEl.textContent = display;
   squawkEl.style.display = "";
   if (sepEl) sepEl.style.display = "";
 }
@@ -628,30 +619,36 @@ function routeCodesOnly(text){
   return raw;
 }
 
+const LONG_ROUTE_SIDE_MAX = 15;
 
-function truncateCitySegment(seg){
-  const m = seg.match(/^(.*?)(\s*\([A-Z0-9]{3,4}\))$/);
-  if(!m) return seg;
-  let city=m[1].trim();
-  const code=m[2];
-  if(city.length>15){
-    city=city.slice(0,15).replace(/\s+$/,'')+"…";
-  }
-  return city+" "+code.trim();
-}
-function truncateRouteLong(t){
-  const parts=t.split("→");
-  if(parts.length!==2) return truncateRouteLong(t);
-  const left=truncateCitySegment(parts[0].trim());
-  const right=truncateCitySegment(parts[1].trim());
-  return left+" → "+right;
+function truncateRouteSide(sideText, maxChars = LONG_ROUTE_SIDE_MAX){
+  const raw = nm(sideText).replace(/\s+/g, " ").trim();
+  if (!raw || raw.length <= maxChars) return raw;
+
+  const codeMatch = raw.match(/\(([A-Z0-9]{3,4})\)\s*$/i);
+  if (!codeMatch) return raw;
+
+  const code = codeMatch[1].toUpperCase();
+  const label = raw.slice(0, codeMatch.index).replace(/[\s,-]+$/, "").trim();
+  if (!label) return `(${code})`;
+  if (label.length <= maxChars) return `${label} (${code})`;
+
+  return `${label.slice(0, maxChars).trimEnd()}… (${code})`;
 }
 
 function formatRouteForDisplay(routeText){
   const t = nm(routeText);
   if (!t) return "";
   if (isKiosk() && isPortrait()) return routeCodesOnly(t);
-  return truncateRouteLong(t);
+
+  const parts = t.replace(/\s+/g, " ").trim().split(/\s*(?:→|->)\s*/);
+  if (parts.length >= 2) {
+    const left = truncateRouteSide(parts[0]);
+    const right = truncateRouteSide(parts.slice(1).join(" "));
+    return `${left} → ${right}`;
+  }
+
+  return truncateRouteSide(t);
 }
 
 // -------------------- Rendering --------------------
