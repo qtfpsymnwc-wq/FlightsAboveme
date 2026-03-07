@@ -1,7 +1,7 @@
 // FlightsAboveMe UI
 const API_BASE = window.location.origin;
 // Cache-buster for static assets (CSS/JS/logos)
-const UI_VERSION = "v260";
+const UI_VERSION = "v261";
 
 // Poll cadence
 const POLL_MAIN_MS = 8000;
@@ -85,7 +85,7 @@ function liveModelHintFromState(s){
         const v = s[idx];
         if (typeof v === "string") {
           const t = nm(v).replace(/^"+|"+$/g,"");
-          if (t && t.length <= 16) return t;
+          if (t && t.length <= 16) return truncateRouteLong(t);
         }
       }
     } else if (s && typeof s === "object") {
@@ -94,7 +94,7 @@ function liveModelHintFromState(s){
       for (const v of candidates) {
         if (typeof v === "string") {
           const t = nm(v);
-          if (t && t.length <= 32) return t;
+          if (t && t.length <= 32) return truncateRouteLong(t);
         }
       }
     }
@@ -628,11 +628,30 @@ function routeCodesOnly(text){
   return raw;
 }
 
+
+function truncateCitySegment(seg){
+  const m = seg.match(/^(.*?)(\s*\([A-Z0-9]{3,4}\))$/);
+  if(!m) return seg;
+  let city=m[1].trim();
+  const code=m[2];
+  if(city.length>15){
+    city=city.slice(0,15).replace(/\s+$/,'')+"…";
+  }
+  return city+" "+code.trim();
+}
+function truncateRouteLong(t){
+  const parts=t.split("→");
+  if(parts.length!==2) return truncateRouteLong(t);
+  const left=truncateCitySegment(parts[0].trim());
+  const right=truncateCitySegment(parts[1].trim());
+  return left+" → "+right;
+}
+
 function formatRouteForDisplay(routeText){
   const t = nm(routeText);
   if (!t) return "";
   if (isKiosk() && isPortrait()) return routeCodesOnly(t);
-  return t;
+  return truncateRouteLong(t);
 }
 
 // -------------------- Rendering --------------------
