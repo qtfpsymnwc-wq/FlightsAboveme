@@ -1,5 +1,5 @@
 /**
- * FlightsAboveMe API Worker (v179)
+ * FlightsAboveMe API Worker (v180)
  *
  * CHANGE (v175):
  *  - Fail-fast OpenSky states refresh: if OpenSky is slow, treat as failure and fall back to ADSB.lol
@@ -36,7 +36,7 @@
  *  - Fallback is only used when OpenSky fails (network/timeout/5xx) or returns 429.
  */
 
-const WORKER_VERSION = "v179";
+const WORKER_VERSION = "v180";
 
 const OPENSKY_STATES_URL = "https://opensky-network.org/api/states/all";
 const OPENSKY_TOKEN_URL =
@@ -53,6 +53,7 @@ const OPENSKY_STATES_FAILFAST_MS = 6500;
 
 // ADSB.lol fallback
 const ADSBLOL_DEFAULT_BASE = "https://api.adsb.lol";
+const ADSBLOL_USER_AGENT = "FlightsAboveMe/2.2.8 (+https://flightsaboveme.com; contact: support@flightsaboveme.com)";
 const ADSBLOL_TIMEOUT_MS = 12000;
 
 // ---- AeroDataBox Credit Efficiency ----
@@ -1385,7 +1386,13 @@ async function fetchADSBLOLAsOpenSky(env, bbox) {
 
   const url = new URL(`${base}/v2/lat/${clat}/lon/${clon}/dist/${Math.ceil(radiusKm)}`);
 
-  const res = await fetchWithTimeout(url.toString(), { method: "GET" }, ADSBLOL_TIMEOUT_MS);
+  const res = await fetchWithTimeout(url.toString(), {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "User-Agent": ADSBLOL_USER_AGENT,
+    },
+  }, ADSBLOL_TIMEOUT_MS);
   if (!res.ok) return null;
 
   const data = await res.json().catch(() => null);
@@ -1524,7 +1531,10 @@ async function adsbLolDiagnosticHealth(env, cors) {
   try {
     const res = await fetchWithTimeout(upstream.toString(), {
       method: "GET",
-      headers: { Accept: "application/json" },
+      headers: {
+        Accept: "application/json",
+        "User-Agent": ADSBLOL_USER_AGENT,
+      },
     }, ADSBLOL_TIMEOUT_MS);
 
     status = res.status;
