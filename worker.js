@@ -1,5 +1,5 @@
 /**
- * FlightsAboveMe API Worker (v175)
+ * FlightsAboveMe API Worker (v178)
  *
  * CHANGE (v175):
  *  - Fail-fast OpenSky states refresh: if OpenSky is slow, treat as failure and fall back to ADSB.lol
@@ -36,7 +36,7 @@
  *  - Fallback is only used when OpenSky fails (network/timeout/5xx) or returns 429.
  */
 
-const WORKER_VERSION = "v177";
+const WORKER_VERSION = "v178";
 
 const OPENSKY_STATES_URL = "https://opensky-network.org/api/states/all";
 const OPENSKY_TOKEN_URL =
@@ -628,6 +628,9 @@ export default {
     // No credentials or bearer tokens are returned by this endpoint.
     if (parts[0] === "health" && parts[1] === "opensky") {
       return await openskyDiagnosticHealth(env, cors);
+    }
+    if (parts[0] === "health" && parts[1] === "adsblol") {
+      return await adsbLolDiagnosticHealth(env, cors);
     }
 
     if (parts[0] === "opensky" && parts[1] === "states") {
@@ -1499,6 +1502,71 @@ function toInt(x) {
 }
 
 // -------------------- Health Endpoints --------------------
+
+async function adsbLolDiagnosticHealth(env, cors) {
+  const startedAt = Date.now();
+  const base = (env.ADSBLOL_BASE && String(env.ADSBLOL_BASE)) || ADSBLOL_DEFAULT_BASE;
+
+  // Fayetteville-area diagnostic only. This does not alter normal provider behavior.
+  const lat = 36.0877;
+  const lon = -94.3093;
+  const dist = 50;
+  const upstream = new URL(`${base}/v2/lat/${lat}/lon/${lon}/dist/${dist}`);
+
+  let status = null;
+  let ok = false;
+  let aircraftCount = null;
+  let contentType = null;
+  let responseBytes = null;
+  let error = null;
+  let sampleKeys = null;
+
+  try {
+    const res = await fetchWithTimeout(upstream.toString(), {
+      method: "GET",
+      headers: { Accept: "application/json" },
+    }, ADSBLOL_TIMEOUT_MS);
+
+    status = res.status;
+    contentType = res.headers.get("content-type");
+    const text = await res.text();
+    responseBytes = new TextEncoder().encode(text).length;
+
+    if (!res.ok) {
+      error = `http_${res.status}`;
+    } else {
+      let data = null;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        error = "invalid_json";
+      }
+
+      if (data) {
+        const aircraft = data.ac || data.aircraft || data.planes;
+        sampleKeys = Object.keys(data).slice(0, 12);
+        if (Array.isArray(aircraft)) {
+          aircraftCount = aircraft.length;
+          ok = true;
+        } else {
+          error = "aircraft_array_missing";
+        }
+      }
+    }
+  } catch (e) {
+    error = e?.name === "AbortError" ? "adsblol_timeout" : "adsblol_fetch_failed";
+  }
+
+  return json({
+    ok,
+    diagnostic: "adsblol",
+    workerVersion: WORKER_VERSION,
+    configuredBase: base,
+    request: { lat, lon, dist, timeoutMs: ADSBLOL_TIMEOUT_MS },
+    response: { status, ms: Date.now() - startedAt, contentType, responseBytes, aircraftCount, sampleKeys, error },
+    ts: new Date().toISOString(),
+  }, 200, { ...cors, "Cache-Control": "no-store" });
+}
 
 async function openskyDiagnosticHealth(env, cors) {
   const mode = detectOpenSkyAuthMode(env);
