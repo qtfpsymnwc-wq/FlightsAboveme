@@ -1,5 +1,5 @@
 /**
- * FlightsAboveMe API Worker (v178)
+ * FlightsAboveMe API Worker (v179)
  *
  * CHANGE (v175):
  *  - Fail-fast OpenSky states refresh: if OpenSky is slow, treat as failure and fall back to ADSB.lol
@@ -36,7 +36,7 @@
  *  - Fallback is only used when OpenSky fails (network/timeout/5xx) or returns 429.
  */
 
-const WORKER_VERSION = "v178";
+const WORKER_VERSION = "v179";
 
 const OPENSKY_STATES_URL = "https://opensky-network.org/api/states/all";
 const OPENSKY_TOKEN_URL =
@@ -1532,8 +1532,26 @@ async function adsbLolDiagnosticHealth(env, cors) {
     const text = await res.text();
     responseBytes = new TextEncoder().encode(text).length;
 
+    // Diagnostic-only, allowlisted upstream metadata. Never expose request headers,
+    // credentials, tokens, cookies, or arbitrary response headers.
+    var responseHeaders = {
+      server: res.headers.get("server"),
+      cfRay: res.headers.get("cf-ray"),
+      retryAfter: res.headers.get("retry-after"),
+      cacheStatus: res.headers.get("cf-cache-status"),
+    };
+    var errorBodyPreview = null;
+
     if (!res.ok) {
       error = `http_${res.status}`;
+      // ADSB.lol currently returns a very small HTML body on 4xx responses.
+      // Strip markup/control characters and cap output so this remains a safe diagnostic.
+      errorBodyPreview = text
+        .replace(/<[^>]*>/g, " ")
+        .replace(/[\u0000-\u001F\u007F]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 512) || null;
     } else {
       let data = null;
       try {
@@ -1563,7 +1581,17 @@ async function adsbLolDiagnosticHealth(env, cors) {
     workerVersion: WORKER_VERSION,
     configuredBase: base,
     request: { lat, lon, dist, timeoutMs: ADSBLOL_TIMEOUT_MS },
-    response: { status, ms: Date.now() - startedAt, contentType, responseBytes, aircraftCount, sampleKeys, error },
+    response: {
+      status,
+      ms: Date.now() - startedAt,
+      contentType,
+      responseBytes,
+      aircraftCount,
+      sampleKeys,
+      error,
+      headers: typeof responseHeaders !== "undefined" ? responseHeaders : null,
+      errorBodyPreview: typeof errorBodyPreview !== "undefined" ? errorBodyPreview : null,
+    },
     ts: new Date().toISOString(),
   }, 200, { ...cors, "Cache-Control": "no-store" });
 }
