@@ -36,7 +36,7 @@
  *  - Fallback is only used when OpenSky fails (network/timeout/5xx) or returns 429.
  */
 
-const WORKER_VERSION = "v175";
+const WORKER_VERSION = "v176";
 
 const OPENSKY_STATES_URL = "https://opensky-network.org/api/states/all";
 const OPENSKY_TOKEN_URL =
@@ -624,6 +624,11 @@ export default {
     // This keeps the UI stable even when the Worker is routed only on flightsaboveme.com/api/*
     if (parts[0] === "api") parts = parts.slice(1);
 
+    // Production-safe diagnostics live under the existing /api/* Worker route.
+    // No credentials or bearer tokens are returned by this endpoint.
+    if (parts[0] === "health" && parts[1] === "opensky") {
+      return await openskyDiagnosticHealth(env, cors);
+    }
 
     if (parts[0] === "opensky" && parts[1] === "states") {
       const lamin = url.searchParams.get("lamin");
@@ -1494,6 +1499,100 @@ function toInt(x) {
 }
 
 // -------------------- Health Endpoints --------------------
+
+async function openskyDiagnosticHealth(env, cors) {
+  const mode = detectOpenSkyAuthMode(env);
+  const startedAt = Date.now();
+  const tokenCachedBefore = !!(_tokenCache.mode === "oauth" && _tokenCache.accessToken && Date.now() < _tokenCache.expiresAtMs - 15_000);
+
+  let tokenOk = mode !== "oauth";
+  let tokenMs = 0;
+  let tokenError = null;
+  let headers = { Accept: "application/json" };
+
+  if (mode === "oauth") {
+    const tokenStart = Date.now();
+    try {
+      const token = await getOpenSkyAccessToken(env);
+      tokenMs = Date.now() - tokenStart;
+      tokenOk = !!token;
+      if (token) headers.Authorization = `Bearer ${token}`;
+      else tokenError = "no_access_token_returned";
+    } catch (e) {
+      tokenMs = Date.now() - tokenStart;
+      tokenOk = false;
+      tokenError = e?.name === "AbortError" ? "token_timeout" : "token_fetch_failed";
+    }
+  } else if (mode === "basic") {
+    headers = await buildOpenSkyHeaders(env);
+    tokenOk = true;
+  }
+
+  const upstream = new URL(OPENSKY_STATES_URL);
+  // Small Denver-area bbox retained from the existing health check to keep credit cost low.
+  upstream.searchParams.set("lamin", "39.7");
+  upstream.searchParams.set("lomin", "-104.99");
+  upstream.searchParams.set("lamax", "39.9");
+  upstream.searchParams.set("lomax", "-104.7");
+
+  let statesOk = false;
+  let statesMs = 0;
+  let statesStatus = null;
+  let statesError = null;
+  let aircraftCount = null;
+  let rateLimitRemaining = null;
+  let rateLimitRetryAfter = null;
+
+  if (mode === "oauth" && !tokenOk) {
+    statesError = "skipped_token_failed";
+  } else {
+    const statesStart = Date.now();
+    try {
+      const res = await fetchWithTimeout(upstream.toString(), { method: "GET", headers }, OPENSKY_STATES_TIMEOUT_MS);
+      statesMs = Date.now() - statesStart;
+      statesStatus = res.status;
+      rateLimitRemaining = res.headers.get("X-Rate-Limit-Remaining");
+      rateLimitRetryAfter = res.headers.get("X-Rate-Limit-Retry-After-Seconds") || res.headers.get("Retry-After");
+      const text = await res.text();
+      statesOk = res.ok;
+      if (res.ok) {
+        try {
+          const data = JSON.parse(text);
+          aircraftCount = Array.isArray(data?.states) ? data.states.length : null;
+        } catch {
+          statesOk = false;
+          statesError = "invalid_json";
+        }
+      } else {
+        statesError = `http_${res.status}`;
+      }
+    } catch (e) {
+      statesMs = Date.now() - statesStart;
+      statesError = e?.name === "AbortError" ? "states_timeout" : "states_fetch_failed";
+    }
+  }
+
+  return json({
+    ok: tokenOk && statesOk,
+    diagnostic: "opensky",
+    workerVersion: WORKER_VERSION,
+    authMode: mode,
+    credentialsConfigured: mode !== "none",
+    token: { ok: tokenOk, ms: tokenMs, cachedBefore: tokenCachedBefore, error: tokenError },
+    states: {
+      ok: statesOk,
+      ms: statesMs,
+      timeoutMs: OPENSKY_STATES_TIMEOUT_MS,
+      status: statesStatus,
+      aircraftCount,
+      rateLimitRemaining,
+      retryAfter: rateLimitRetryAfter,
+      error: statesError,
+    },
+    totalMs: Date.now() - startedAt,
+    ts: new Date().toISOString(),
+  }, 200, { ...cors, "Cache-Control": "no-store" });
+}
 
 async function openskyTokenHealth(env, cors) {
   const mode = detectOpenSkyAuthMode(env);
