@@ -36,14 +36,14 @@
  *  - Fallback is only used when OpenSky fails (network/timeout/5xx) or returns 429.
  */
 
-const WORKER_VERSION = "v176";
+const WORKER_VERSION = "v177";
 
 const OPENSKY_STATES_URL = "https://opensky-network.org/api/states/all";
 const OPENSKY_TOKEN_URL =
   "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token";
 
 // Timeouts: token fast, states longer (cellular/routing can be slower)
-const OPENSKY_TOKEN_TIMEOUT_MS = 9000;
+const OPENSKY_TOKEN_TIMEOUT_MS = 15000;
 const OPENSKY_STATES_TIMEOUT_MS = 18000;
 
 // v175: "fail-fast" threshold for states calls.
