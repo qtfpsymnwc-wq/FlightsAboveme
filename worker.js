@@ -1,5 +1,5 @@
 /**
- * FlightsAboveMe API Worker (v180)
+ * FlightsAboveMe API Worker (v181)
  *
  * CHANGE (v175):
  *  - Fail-fast OpenSky states refresh: if OpenSky is slow, treat as failure and fall back to ADSB.lol
@@ -36,7 +36,7 @@
  *  - Fallback is only used when OpenSky fails (network/timeout/5xx) or returns 429.
  */
 
-const WORKER_VERSION = "v180";
+const WORKER_VERSION = "v181";
 
 const OPENSKY_STATES_URL = "https://opensky-network.org/api/states/all";
 const OPENSKY_TOKEN_URL =
@@ -51,9 +51,12 @@ const OPENSKY_STATES_TIMEOUT_MS = 18000;
 // Keep this comfortably below the UI poll cadence so slow OpenSky doesn't wedge clients.
 const OPENSKY_STATES_FAILFAST_MS = 6500;
 
-// ADSB.lol fallback
+// ADSB.lol primary live-state source
 const ADSBLOL_DEFAULT_BASE = "https://api.adsb.lol";
-const ADSBLOL_USER_AGENT = "FlightsAboveMe/2.2.8 (+https://flightsaboveme.com; contact: support@flightsaboveme.com)";
+const ADSBLOL_USER_AGENT = "FlightsAboveMe/2.2.9 (+https://flightsaboveme.com; contact: support@flightsaboveme.com)";
+const STATES_FRESH_TTL_S = 15;
+const STATES_STALE_TTL_S = 300;
+const ADSBLOL_429_COOLDOWN_S = 60;
 const ADSBLOL_TIMEOUT_MS = 12000;
 
 // ---- AeroDataBox Credit Efficiency ----
@@ -649,208 +652,71 @@ export default {
       }
 
       const mode = detectOpenSkyAuthMode(env);
-
-      const cacheKey = new Request(
-        `${url.origin}/__cache/opensky/states?lamin=${encodeURIComponent(lamin)}&lomin=${encodeURIComponent(
-          lomin
-        )}&lamax=${encodeURIComponent(lamax)}&lomax=${encodeURIComponent(lomax)}&mode=${encodeURIComponent(mode)}`,
-        { method: "GET" }
-      );
-
-      const upstream = new URL(OPENSKY_STATES_URL);
-      upstream.searchParams.set("lamin", lamin);
-      upstream.searchParams.set("lomin", lomin);
-      upstream.searchParams.set("lamax", lamax);
-      upstream.searchParams.set("lomax", lomax);
-
+      const area = `lamin=${encodeURIComponent(lamin)}&lomin=${encodeURIComponent(lomin)}&lamax=${encodeURIComponent(lamax)}&lomax=${encodeURIComponent(lomax)}&mode=${encodeURIComponent(mode)}`;
       const cache = caches.default;
-
-      // v1.3.1 performance patch:
-      // Serve cached /opensky/states immediately (fast on cellular) and refresh in background with a short lock.
-      const refreshLock = new Request(
-        `${url.origin}/__cache/opensky/states_refresh_lock?lamin=${encodeURIComponent(lamin)}&lomin=${encodeURIComponent(
-          lomin
-        )}&lamax=${encodeURIComponent(lamax)}&lomax=${encodeURIComponent(lomax)}&mode=${encodeURIComponent(mode)}`,
-        { method: "GET" }
-      );
+      const cacheKey = new Request(`${url.origin}/__cache/states/fresh?${area}`, { method: "GET" });
+      const staleKey = new Request(`${url.origin}/__cache/states/stale?${area}`, { method: "GET" });
+      const cooldownKey = new Request(`${url.origin}/__cache/states/adsblol_429_cooldown`, { method: "GET" });
 
       const cached = await cache.match(cacheKey);
-      if (cached) {
-        ctx.waitUntil(
-          (async () => {
-            try {
-              const lockHit = await cache.match(refreshLock);
-              if (lockHit) return;
-              await cacheJson(cache, refreshLock, { ok: true, ts: Date.now() }, 6);
+      if (cached) return withCors(cached, cors, "HIT");
 
-              const putStates = async (text, provider) => {
-                await cache.put(
-                  cacheKey,
-                  new Response(text, {
-                    status: 200,
-                    headers: {
-                      ...cors,
-                      "Content-Type": "application/json; charset=utf-8",
-                      "Cache-Control": "public, max-age=8, s-maxage=15, stale-while-revalidate=45",
-                      "X-Provider": provider || "opensky",
-                    },
-                  })
-                );
-              };
-
-              // Try OpenSky first
-              try {
-                const headers = await buildOpenSkyHeaders(env);
-
-                let res = await fetchWithTimeout(
-                  upstream.toString(),
-                  { method: "GET", headers },
-                  OPENSKY_STATES_FAILFAST_MS
-                );
-                let text = await res.text();
-
-                if (!res.ok && res.status === 401 && _tokenCache.mode === "oauth") {
-                  clearTokenCache();
-                  const headers2 = await buildOpenSkyHeaders(env);
-                  res = await fetchWithTimeout(
-                    upstream.toString(),
-                    { method: "GET", headers: headers2 },
-                    OPENSKY_STATES_FAILFAST_MS
-                  );
-                  text = await res.text();
-                }
-
-                if (res.ok) {
-                  await putStates(text, "opensky");
-                  return;
-                }
-
-                // On retryable errors, fall back to ADSB.lol to keep cache fresh
-                const shouldFallback =
-                  res.status === 429 ||
-                  res.status === 502 ||
-                  res.status === 503 ||
-                  res.status === 504;
-
-                if (shouldFallback) {
-                  const adapted = await fetchADSBLOLAsOpenSky(env, { lamin, lomin, lamax, lomax });
-                  if (adapted) {
-                    await putStates(JSON.stringify(adapted), "adsb.lol");
-                  }
-                }
-              } catch (e) {
-                try {
-                  const adapted = await fetchADSBLOLAsOpenSky(env, { lamin, lomin, lamax, lomax });
-                  if (adapted) {
-                    await cache.put(
-                      cacheKey,
-                      new Response(JSON.stringify(adapted), {
-                        status: 200,
-                        headers: {
-                          ...cors,
-                          "Content-Type": "application/json; charset=utf-8",
-                          "Cache-Control": "public, max-age=8, s-maxage=15, stale-while-revalidate=45",
-                          "X-Provider": "adsb.lol",
-                        },
-                      })
-                    );
-                  }
-                } catch {}
-              }
-            } catch {}
-          })()
-        );
-
-        return withCors(cached, cors, "HIT");
+      const stale = await cache.match(staleKey);
+      const cooldown = await cache.match(cooldownKey);
+      if (cooldown) {
+        if (stale) return withCors(stale, cors, "HIT-STALE-429");
+        return json({ ok: false, error: "adsblol_cooldown", status: 429 }, 429, cors);
       }
 
-      const respondAndCache = (text, headersExtra = {}) => {
-        const out = new Response(text, {
+      const storeStates = async (payload, provider) => {
+        const text = typeof payload === "string" ? payload : JSON.stringify(payload);
+        const makeResponse = (ttl) => new Response(text, {
           status: 200,
           headers: {
             ...cors,
             "Content-Type": "application/json; charset=utf-8",
-            "Cache-Control": "public, max-age=8, s-maxage=15, stale-while-revalidate=45",
-            ...headersExtra,
+            "Cache-Control": `public, max-age=${ttl}, s-maxage=${ttl}`,
+            "X-Provider": provider,
           },
         });
-        ctx.waitUntil(cache.put(cacheKey, out.clone()));
-
-        // ✅ v173: warm enrichment disabled to prevent AeroDataBox credit spikes
-        if (WARM_ENRICH_ENABLED) {
-          const bboxCenter = [
-            (Number(lamin) + Number(lamax)) / 2,
-            (Number(lomin) + Number(lomax)) / 2,
-          ];
-
-          ctx.waitUntil(
-            (async () => {
-              try {
-                if (!aerodataConfigured(env)) return;
-
-                const lockReq = warmLockKey(url.origin, lamin, lomin, lamax, lomax, mode);
-                const lockHit = await cache.match(lockReq);
-                if (lockHit) return;
-
-                await cacheJson(cache, lockReq, { ok: true, ts: Date.now() }, WARM_ENRICH_MIN_INTERVAL_S);
-
-                const j = JSON.parse(text);
-                const states = Array.isArray(j?.states) ? j.states : [];
-                if (states.length) {
-                  await warmEnrichFromStates({ origin: url.origin, env, cache, states, bboxCenter });
-                }
-              } catch {}
-            })()
-          );
-        }
-
-        return out;
+        await Promise.all([
+          cache.put(cacheKey, makeResponse(STATES_FRESH_TTL_S)),
+          cache.put(staleKey, makeResponse(STATES_STALE_TTL_S)),
+        ]);
+        return makeResponse(STATES_FRESH_TTL_S);
       };
 
+      // v181 reliability path: ADSB.lol is primary while OpenSky OAuth is unreachable.
+      // One fresh cache entry is shared for 15 seconds per Cloudflare cache location.
+      // A 429 starts a 60-second cooldown and serves the last-known-good snapshot when available.
       try {
-        const headers = await buildOpenSkyHeaders(env);
-
-        const res = await fetchWithTimeout(
-          upstream.toString(),
-          { method: "GET", headers },
-          OPENSKY_STATES_FAILFAST_MS
-        );
-
-        const text = await res.text();
-
-        if (!res.ok && res.status === 401 && _tokenCache.mode === "oauth") {
-          clearTokenCache();
-          const headers2 = await buildOpenSkyHeaders(env);
-          const res2 = await fetchWithTimeout(
-            upstream.toString(),
-            { method: "GET", headers: headers2 },
-            OPENSKY_STATES_FAILFAST_MS
-          );
-          const text2 = await res2.text();
-
-          if (res2.ok) return respondAndCache(text2, { "X-Provider": "opensky" });
-
-          return await handleOpenSkyFailure({
-            env, cors, cache, cacheKey, ctx,
-            status: res2.status, detail: text2, bbox: { lamin, lomin, lamax, lomax },
-          });
+        const adsb = await fetchADSBLOLAsOpenSkyDetailed(env, { lamin, lomin, lamax, lomax });
+        if (adsb.ok && adsb.adapted) {
+          return await storeStates(adsb.adapted, "adsb.lol");
         }
+        if (adsb.status === 429) {
+          await cacheJson(cache, cooldownKey, { ok: true, ts: Date.now() }, ADSBLOL_429_COOLDOWN_S);
+          if (stale) return withCors(stale, cors, "HIT-STALE-429");
+          return json({ ok: false, error: "adsblol_rate_limited", status: 429 }, 429, cors);
+        }
+      } catch {}
 
-        if (res.ok) return respondAndCache(text, { "X-Provider": "opensky" });
+      // Keep OpenSky as a secondary capability for non-rate-limit ADSB.lol failures.
+      // It is not allowed to delay normal successful ADSB.lol updates.
+      try {
+        const upstream = new URL(OPENSKY_STATES_URL);
+        upstream.searchParams.set("lamin", lamin);
+        upstream.searchParams.set("lomin", lomin);
+        upstream.searchParams.set("lamax", lamax);
+        upstream.searchParams.set("lomax", lomax);
+        const headers = await buildOpenSkyHeaders(env);
+        const res = await fetchWithTimeout(upstream.toString(), { method: "GET", headers }, OPENSKY_STATES_FAILFAST_MS);
+        const text = await res.text();
+        if (res.ok) return await storeStates(text, "opensky");
+      } catch {}
 
-        return await handleOpenSkyFailure({
-          env, cors, cache, cacheKey, ctx,
-          status: res.status, detail: text, bbox: { lamin, lomin, lamax, lomax },
-        });
-      } catch (err) {
-        return await handleOpenSkyFailure({
-          env, cors, cache, cacheKey, ctx,
-          status: 522,
-          detail: err && err.message ? err.message : "fetch_failed",
-          bbox: { lamin, lomin, lamax, lomax },
-          thrown: true,
-        });
-      }
+      if (stale) return withCors(stale, cors, "HIT-STALE");
+      return json({ ok: false, error: "states_upstream_unavailable" }, 502, cors);
     }
 
     // ---- AeroDataBox: Callsign ----
@@ -1366,14 +1232,14 @@ function fpmToMps(fpm) {
   return Number.isFinite(n) ? (n * 0.3048) / 60 : NaN;
 }
 
-async function fetchADSBLOLAsOpenSky(env, bbox) {
+async function fetchADSBLOLAsOpenSkyDetailed(env, bbox) {
   const base = (env.ADSBLOL_BASE && String(env.ADSBLOL_BASE)) || ADSBLOL_DEFAULT_BASE;
 
   const lamin = Number(bbox.lamin);
   const lomin = Number(bbox.lomin);
   const lamax = Number(bbox.lamax);
   const lomax = Number(bbox.lomax);
-  if (![lamin, lomin, lamax, lomax].every(Number.isFinite)) return null;
+  if (![lamin, lomin, lamax, lomax].every(Number.isFinite)) return { ok: false, status: 400, adapted: null };
 
   const clat = (lamin + lamax) / 2;
   const clon = (lomin + lomax) / 2;
@@ -1393,13 +1259,13 @@ async function fetchADSBLOLAsOpenSky(env, bbox) {
       "User-Agent": ADSBLOL_USER_AGENT,
     },
   }, ADSBLOL_TIMEOUT_MS);
-  if (!res.ok) return null;
+  if (!res.ok) return { ok: false, status: res.status, adapted: null };
 
   const data = await res.json().catch(() => null);
-  if (!data) return null;
+  if (!data) return { ok: false, status: 502, adapted: null };
 
   const aircraft = data.ac || data.aircraft || data.planes || [];
-  if (!Array.isArray(aircraft)) return null;
+  if (!Array.isArray(aircraft)) return { ok: false, status: 502, adapted: null };
 
   const nowSec = Math.floor(Date.now() / 1000);
 
@@ -1458,7 +1324,7 @@ async function fetchADSBLOLAsOpenSky(env, bbox) {
     })
     .filter(Boolean);
 
-  return { time: nowSec, states };
+  return { ok: true, status: 200, adapted: { time: nowSec, states } };
 }
 
 // -------------------- Utilities --------------------
@@ -1475,6 +1341,11 @@ function withCors(res, cors, cacheHint) {
   for (const [k, v] of Object.entries(cors)) h.set(k, v);
   if (cacheHint) h.set("X-Cache", cacheHint);
   return new Response(res.body, { status: res.status, headers: h });
+}
+
+async function fetchADSBLOLAsOpenSky(env, bbox) {
+  const result = await fetchADSBLOLAsOpenSkyDetailed(env, bbox);
+  return result.ok ? result.adapted : null;
 }
 
 async function fetchWithTimeout(url, init, timeoutMs) {
