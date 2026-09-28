@@ -1,5 +1,5 @@
 /**
- * FlightsAboveMe API Worker (v181)
+ * FlightsAboveMe API Worker (v182)
  *
  * CHANGE (v175):
  *  - Fail-fast OpenSky states refresh: if OpenSky is slow, treat as failure and fall back to ADSB.lol
@@ -36,7 +36,7 @@
  *  - Fallback is only used when OpenSky fails (network/timeout/5xx) or returns 429.
  */
 
-const WORKER_VERSION = "v181";
+const WORKER_VERSION = "v182";
 
 const OPENSKY_STATES_URL = "https://opensky-network.org/api/states/all";
 const OPENSKY_TOKEN_URL =
@@ -635,6 +635,9 @@ export default {
     }
     if (parts[0] === "health" && parts[1] === "adsblol") {
       return await adsbLolDiagnosticHealth(env, cors);
+    }
+    if (parts[0] === "health" && parts[1] === "airplaneslive") {
+      return await airplanesLiveDiagnosticHealth(env, cors);
     }
 
     if (parts[0] === "opensky" && parts[1] === "states") {
@@ -1380,6 +1383,99 @@ function toInt(x) {
 }
 
 // -------------------- Health Endpoints --------------------
+
+async function airplanesLiveDiagnosticHealth(env, cors) {
+  const startedAt = Date.now();
+  const base = "https://api.airplanes.live";
+
+  // Fayetteville-area diagnostic only. This does not alter normal provider behavior.
+  const lat = 36.0877;
+  const lon = -94.3093;
+  const dist = 50;
+  const timeoutMs = 12000;
+  const upstream = new URL(`${base}/v2/point/${lat}/${lon}/${dist}`);
+
+  let status = null;
+  let ok = false;
+  let aircraftCount = null;
+  let contentType = null;
+  let responseBytes = null;
+  let error = null;
+  let sampleKeys = null;
+  let responseHeaders = null;
+  let errorBodyPreview = null;
+
+  try {
+    const res = await fetchWithTimeout(upstream.toString(), {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "FlightsAboveMe/2.2.10 (+https://flightsaboveme.com; contact: support@flightsaboveme.com)",
+      },
+    }, timeoutMs);
+
+    status = res.status;
+    contentType = res.headers.get("content-type");
+    const text = await res.text();
+    responseBytes = new TextEncoder().encode(text).length;
+    responseHeaders = {
+      server: res.headers.get("server"),
+      cfRay: res.headers.get("cf-ray"),
+      retryAfter: res.headers.get("retry-after"),
+      cacheStatus: res.headers.get("cf-cache-status"),
+    };
+
+    if (!res.ok) {
+      error = `http_${res.status}`;
+      errorBodyPreview = text
+        .replace(/<[^>]*>/g, " ")
+        .replace(/[\u0000-\u001F\u007F]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 512) || null;
+    } else {
+      let data = null;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        error = "invalid_json";
+      }
+
+      if (data) {
+        const aircraft = data.ac || data.aircraft || data.planes;
+        sampleKeys = Object.keys(data).slice(0, 12);
+        if (Array.isArray(aircraft)) {
+          aircraftCount = aircraft.length;
+          ok = true;
+        } else {
+          error = "aircraft_array_missing";
+        }
+      }
+    }
+  } catch (e) {
+    error = e?.name === "AbortError" ? "airplaneslive_timeout" : "airplaneslive_fetch_failed";
+  }
+
+  return json({
+    ok,
+    diagnostic: "airplaneslive",
+    workerVersion: WORKER_VERSION,
+    configuredBase: base,
+    request: { lat, lon, dist, timeoutMs },
+    response: {
+      status,
+      ms: Date.now() - startedAt,
+      contentType,
+      responseBytes,
+      aircraftCount,
+      sampleKeys,
+      error,
+      headers: responseHeaders,
+      errorBodyPreview,
+    },
+    ts: new Date().toISOString(),
+  }, 200, { ...cors, "Cache-Control": "no-store" });
+}
 
 async function adsbLolDiagnosticHealth(env, cors) {
   const startedAt = Date.now();
